@@ -1,6 +1,5 @@
 import Admin from "../../models/AdminModel/AdminModel.js";
 
-// Helper function para gumawa ng 10-digit random ID
 const generateAdminId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };

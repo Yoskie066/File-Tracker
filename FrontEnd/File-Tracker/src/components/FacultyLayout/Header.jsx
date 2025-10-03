@@ -1,27 +1,29 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Menu,
   X,
   Users,
-  FileStack,
-  ClipboardCheck,
-  BellRing,
-  BarChart3,
+  Upload,
+  FolderClock,
+  ClipboardList,
+  Bell,
   LogOut,
 } from "lucide-react";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    navigate("/admin-login");
+    navigate("/login");
   };
 
-  const userInitial = "A";
-  const userEmail = "Admin";
+  const userInitial = "U"; 
+  const userEmail = "User"; 
 
   // Function to check if the link is active
   const isActive = (path) =>
@@ -30,11 +32,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 bg-black text-white px-6 py-3 flex justify-between items-center shadow-md z-50">
       {/* Logo */}
-      <Link to="/analytics" className="text-xl font-extrabold tracking-wide">
+      <Link to="/faculty-loaded" className="text-xl font-extrabold tracking-wide">
         File<span className="text-yellow-400">Tracker</span>
       </Link>
 
-      {/* Hamburger Icon */}
+      {/* Hamburger Icon - Tablet & Mobile */}
       <button
         className="lg:hidden block z-50"
         onClick={() => setIsOpen(!isOpen)}
@@ -47,42 +49,42 @@ export default function Header() {
         )}
       </button>
 
-      {/* Desktop Navigation */}
+      {/* Desktop Navigation (1000px above only) */}
       <nav className="hidden lg:flex gap-8 text-sm font-medium">
         <Link
-          to="/analytics"
-          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
-        >
-          <BarChart3 className="w-4 h-4" />
-          Analytics
-        </Link>
-        <Link
-          to="/user-management"
+          to="/faculty-loaded"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <Users className="w-4 h-4" />
-          User Management
+          Faculty Loaded
         </Link>
         <Link
-          to="/file-management"
+          to="/file-upload"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <FileStack className="w-4 h-4" />
-          File Management
+          <Upload className="w-4 h-4" />
+          File Upload
         </Link>
         <Link
-          to="/deliverables"
+          to="/file-history"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <ClipboardCheck className="w-4 h-4" />
-          Deliverables
+          <FolderClock className="w-4 h-4" />
+          File History
         </Link>
         <Link
-          to="/requirement"
+          to="/task-deliverables"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <BellRing className="w-4 h-4" />
-          Requirement
+          <ClipboardList className="w-4 h-4" />
+          Task Deliverables
+        </Link>
+        <Link
+          to="/notification"
+          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
+        >
+          <Bell className="w-4 h-4" />
+          Notification
         </Link>
         <button
           onClick={handleLogout}
@@ -101,13 +103,13 @@ export default function Header() {
         <p className="text-xs mt-1">{userEmail}</p>
       </div>
 
-      {/* Mobile/Tablet Menu */}
+      {/* Mobile/Tablet Fullscreen Menu */}
       <div
         className={`lg:hidden fixed inset-0 bg-black text-white transform transition-transform duration-300 z-40 flex flex-col items-center justify-start pt-20 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* User Profile */}
+        {/* User Profile in Mobile Menu */}
         <div className="flex items-center gap-3 mb-8 px-6 w-full max-w-xs">
           <div className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center font-bold text-lg">
             {userInitial}
@@ -122,54 +124,54 @@ export default function Header() {
         {/* Mobile Navigation Links */}
         <nav className="flex flex-col w-full max-w-xs gap-1">
           <Link
-            to="/analytics"
+            to="/faculty-loaded"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/analytics"
-            )}`}
-          >
-            <BarChart3 className="w-5 h-5" />
-            Analytics
-          </Link>
-          <Link
-            to="/user-management"
-            onClick={() => setIsOpen(false)}
-            className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/user-management"
+              "/faculty-loaded"
             )}`}
           >
             <Users className="w-5 h-5" />
-            User Management
+            Faculty Loaded
           </Link>
           <Link
-            to="/file-management"
+            to="/file-upload"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/file-management"
+              "/file-upload"
             )}`}
           >
-            <FileStack className="w-5 h-5" />
-            File Management
+            <Upload className="w-5 h-5" />
+            File Upload
           </Link>
           <Link
-            to="/deliverables"
+            to="/file-history"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/deliverables"
+              "/file-history"
             )}`}
           >
-            <ClipboardCheck className="w-5 h-5" />
-            Deliverables
+            <FolderClock className="w-5 h-5" />
+            File History
           </Link>
           <Link
-            to="/requirement"
+            to="/task-deliverables"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/requirement"
+              "/task-deliverables"
             )}`}
           >
-            <BellRing className="w-5 h-5" />
-            Requirement
+            <ClipboardList className="w-5 h-5" />
+            Task Deliverables
+          </Link>
+          <Link
+            to="/notification"
+            onClick={() => setIsOpen(false)}
+            className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
+              "/notification"
+            )}`}
+          >
+            <Bell className="w-5 h-5" />
+            Notification
           </Link>
           <button
             onClick={() => {

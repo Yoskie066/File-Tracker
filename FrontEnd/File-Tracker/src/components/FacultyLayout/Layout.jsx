@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
-import Footer from "../AdminLayout/Footer";
-import Header from "../AdminLayout/Header";
+import Footer from "../FacultyLayout/Footer";
+import Header from "../FacultyLayout/Header";
 
 export default function Layout() {
   return (
