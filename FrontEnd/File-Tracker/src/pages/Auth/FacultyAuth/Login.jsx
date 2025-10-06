@@ -1,46 +1,56 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Modal from "react-modal";
+import { CheckCircle, XCircle } from "lucide-react";
+
+Modal.setAppElement("#root"); 
 
 const FacultyLogin = () => {
-  const [formData, setFormData] = useState({
-    facultyNumber: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ facultyNumber: "", password: "" });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState("success"); 
+  const [modalMessage, setModalMessage] = useState("");
 
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const response = await fetch("http://localhost:3000/api/faculty/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    try {
+      const response = await fetch("http://localhost:3000/api/faculty/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || "Login failed");
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      localStorage.setItem("facultyToken", data.token);
+      localStorage.setItem("faculty", JSON.stringify(data.faculty));
+
+      setModalType("success");
+      setModalMessage("Login successful!");
+      setModalOpen(true);
+
+      setTimeout(() => {
+        setModalOpen(false);
+        navigate("/faculty-loaded");
+      }, 2000);
+    } catch (err) {
+      setModalType("error");
+      setModalMessage(err.message);
+      setModalOpen(true);
     }
-
-    console.log("Logged in:", data);
-    localStorage.setItem("faculty", JSON.stringify(data.faculty));
-    navigate("/faculty-loaded");
-  } catch (err) {
-    console.error(" Error:", err.message);
-    alert(err.message);
-  }
-};
+  };
 
   const handleRegister = () => {
     navigate('/register');
@@ -114,6 +124,29 @@ const FacultyLogin = () => {
             &copy; 2023 Faculty Portal. All rights reserved.
           </p>
         </div>
+
+        {/* Modal */}
+        <Modal
+          isOpen={modalOpen}
+          onRequestClose={() => setModalOpen(false)}
+          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+        >
+          <div className="flex flex-col items-center text-center">
+            {modalType === "success" ? (
+              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
+            ) : (
+              <XCircle className="text-red-500 w-12 h-12 mb-4" />
+            )}
+            <p className="text-lg font-semibold">{modalMessage}</p>
+            <button
+              onClick={() => setModalOpen(false)}
+              className="mt-4 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black"
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
       </div>
     </div>
   );

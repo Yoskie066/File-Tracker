@@ -17,11 +17,14 @@ export default function Header() {
   const location = useLocation();
 
   const handleLogout = () => {
-    navigate("/admin-login");
-  };
+  localStorage.removeItem("admin");
+  navigate("/admin-login");
+};
 
-  const userInitial = "A";
-  const userEmail = "Admin";
+  // Get admin info from localStorage
+  const storedAdmin = JSON.parse(localStorage.getItem("admin"));
+  const userInitial = storedAdmin?.adminName?.charAt(0).toUpperCase() || "A";
+  const userEmail = storedAdmin?.adminName || "Admin";
 
   // Function to check if the link is active
   const isActive = (path) =>

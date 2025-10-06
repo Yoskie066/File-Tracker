@@ -1,18 +1,18 @@
 import mongoose from "mongoose";
 
-const adminSchema = new mongoose.Schema(
+const facultySchema = new mongoose.Schema(
   {
-    adminId: {
+    facultyId: {
       type: String,
       required: true,
       unique: true,
     },
-    adminName: {
+    facultyName: {
       type: String,
       required: true,
       trim: true,
     },
-    adminNumber: {
+    facultyNumber: {
       type: String,
       required: true,
       unique: true,
@@ -39,4 +39,4 @@ const adminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Faculty", adminSchema);
+export default mongoose.model("Faculty", facultySchema);

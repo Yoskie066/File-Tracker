@@ -19,11 +19,14 @@ export default function Header() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    localStorage.removeItem("faculty");
     navigate("/login");
   };
 
-  const userInitial = "U"; 
-  const userEmail = "User"; 
+  const storedFaculty = JSON.parse(localStorage.getItem("faculty"));
+  const userInitial = storedFaculty?.facultyName?.charAt(0).toUpperCase() || "F";
+  const userEmail = storedFaculty?.facultyName || "Faculty";
+
 
   // Function to check if the link is active
   const isActive = (path) =>

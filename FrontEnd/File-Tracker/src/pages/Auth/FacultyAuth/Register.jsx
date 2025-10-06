@@ -1,48 +1,69 @@
-// FacultyRegister.js
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Modal from "react-modal";
+import { CheckCircle, XCircle } from "lucide-react";
+
+Modal.setAppElement("#root");
 
 const FacultyRegister = () => {
   const [formData, setFormData] = useState({
-    facultyName: '',
-    facultyNumber: '',
-    password: ''
+    facultyName: "",
+    facultyNumber: "",
+    password: "",
+  });
+
+  const [modal, setModal] = useState({
+    isOpen: false,
+    type: "success", 
+    message: "",
   });
 
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevState => ({
+    setFormData((prevState) => ({
       ...prevState,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const response = await fetch("http://localhost:3000/api/faculty/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    try {
+      const response = await fetch("http://localhost:3000/api/faculty/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || "Registration failed");
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      setModal({
+        isOpen: true,
+        type: "success",
+        message: "Registered successfully!",
+      });
+
+
+      setTimeout(() => {
+        setModal({ ...modal, isOpen: false });
+        navigate("/login");
+      }, 2000);
+
+    } catch (err) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        message: err.message,
+      });
     }
-
-    console.log("Registered:", data);
-    alert("Registered successfully!");
-    navigate("/login");
-  } catch (err) {
-    console.error("Error:", err.message);
-    alert(err.message);
-  }
-};
+  };
 
 
   const handleLogin = () => {
@@ -127,12 +148,33 @@ const FacultyRegister = () => {
             </button>
           </div>
         </div>
-        
         <div className="bg-gray-50 px-8 py-4 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
             &copy; 2023 Faculty Portal. All rights reserved.
           </p>
         </div>
+        {/* Modal */}
+        <Modal
+          isOpen={modal.isOpen}
+          onRequestClose={() => setModal({ ...modal, isOpen: false })}
+          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+        >
+          <div className="flex flex-col items-center text-center">
+            {modal.type === "success" ? (
+              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
+            ) : (
+              <XCircle className="text-red-500 w-12 h-12 mb-4" />
+            )}
+            <h2 className="text-lg font-semibold text-gray-800">{modal.message}</h2>
+            <button
+              onClick={() => setModal({ ...modal, isOpen: false })}
+              className="mt-6 px-4 py-2 bg-black text-white rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
       </div>
     </div>
   );
