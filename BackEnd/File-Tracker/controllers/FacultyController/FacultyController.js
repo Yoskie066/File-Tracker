@@ -6,18 +6,16 @@ const generateFacultyId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Register Faculty
+// REGISTER FACULTY
 export const registerFaculty = async (req, res) => {
   try {
     const { facultyName, facultyNumber, password } = req.body;
 
-    // check if already exists
     const existingFaculty = await Faculty.findOne({ facultyNumber });
     if (existingFaculty) {
       return res.status(400).json({ message: "Faculty already registered" });
     }
 
-    // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     const facultyId = generateFacultyId();
 
@@ -26,6 +24,7 @@ export const registerFaculty = async (req, res) => {
       facultyName,
       facultyNumber,
       password: hashedPassword,
+      tempPlainPassword: password,
       role: "faculty",
       status: "offline",
       registeredAt: new Date(),
@@ -45,29 +44,24 @@ export const registerFaculty = async (req, res) => {
   }
 };
 
-// Login Faculty
+// LOGIN FACULTY
 export const loginFaculty = async (req, res) => {
   try {
     const { facultyNumber, password } = req.body;
 
-    const faculty = await Faculty.findOne({ facultyNumber });
+    let faculty = await Faculty.findOne({ facultyNumber });
     if (!faculty) {
       return res.status(404).json({ message: "Faculty not found" });
     }
 
-    console.log("LOGIN REQUEST BODY:", req.body);
-    console.log("FOUND FACULTY:", faculty.facultyNumber, faculty.facultyName);
-
     let isPasswordValid = false;
 
-    // check kung naka-hash na yung password
+    // Check kung naka-hash na yung password
     if (faculty.password.startsWith("$2b$") || faculty.password.startsWith("$2a$")) {
-      console.log("Password type: bcrypt hash");
       isPasswordValid = await bcrypt.compare(password, faculty.password);
     } else {
-      console.log("Password type: plain text");
+      // Convert plain password to hash kung plain text pa
       if (faculty.password === password) {
-        console.log("Plain text matched, hashing now...");
         const hashedPassword = await bcrypt.hash(password, 10);
         faculty.password = hashedPassword;
         await faculty.save();
@@ -76,14 +70,20 @@ export const loginFaculty = async (req, res) => {
     }
 
     if (!isPasswordValid) {
-      console.log("Invalid credentials");
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    faculty.status = "online";
-    await faculty.save();
+    // ALTERNATIVE: Mas reliable na paraan - set all faculties individually
+    const allFaculties = await Faculty.find({});
+    for (let fac of allFaculties) {
+      fac.status = fac.facultyId === faculty.facultyId ? "online" : "offline";
+      await fac.save();
+    }
 
-    // generate JWT
+    // Re-fetch ang current faculty para sa updated data
+    faculty = await Faculty.findOne({ facultyNumber });
+
+    // Generate JWT token
     const token = jwt.sign(
       {
         facultyId: faculty.facultyId,
@@ -94,7 +94,7 @@ export const loginFaculty = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    res.json({
+    res.status(200).json({
       message: "Login successful",
       token,
       faculty: {
@@ -106,9 +106,11 @@ export const loginFaculty = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Faculty Login Error:", error);
     res.status(500).json({
       message: "Error logging in",
       error: error.message,
     });
   }
 };
+
