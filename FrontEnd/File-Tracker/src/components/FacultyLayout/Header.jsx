@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Menu,
   X,
@@ -12,23 +10,29 @@ import {
   Bell,
   LogOut,
 } from "lucide-react";
+import useNotificationsn from "../../hooks/useNotification";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Handle logout
   const handleLogout = () => {
     localStorage.removeItem("faculty");
     navigate("/login");
   };
 
+  // Get current user
   const storedFaculty = JSON.parse(localStorage.getItem("faculty"));
+  const currentUser = storedFaculty;
   const userInitial = storedFaculty?.facultyName?.charAt(0).toUpperCase() || "F";
   const userEmail = storedFaculty?.facultyName || "Faculty";
 
+  // Custom hook for unread notifications
+  const { unreadCount } = useNotificationsn(currentUser);
 
-  // Function to check if the link is active
+  // Active link checker
   const isActive = (path) =>
     location.pathname === path ? "bg-yellow-400 text-black" : "";
 
@@ -39,66 +43,63 @@ export default function Header() {
         File<span className="text-yellow-400">Tracker</span>
       </Link>
 
-      {/* Hamburger Icon - Tablet & Mobile */}
+      {/* Hamburger - Mobile */}
       <button
         className="lg:hidden block z-50"
         onClick={() => setIsOpen(!isOpen)}
         aria-label={isOpen ? "Close menu" : "Open menu"}
       >
-        {isOpen ? (
-          <X className="w-6 h-6 text-white" />
-        ) : (
-          <Menu className="w-6 h-6 text-white" />
-        )}
+        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      {/* Desktop Navigation (1000px above only) */}
+      {/* ===== Desktop Navigation ===== */}
       <nav className="hidden lg:flex gap-8 text-sm font-medium">
         <Link
           to="/faculty-loaded"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <Users className="w-4 h-4" />
-          Faculty Loaded
+          <Users className="w-4 h-4" /> Faculty Loaded
         </Link>
         <Link
           to="/file-upload"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <Upload className="w-4 h-4" />
-          File Upload
+          <Upload className="w-4 h-4" /> File Upload
         </Link>
         <Link
           to="/file-history"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <FolderClock className="w-4 h-4" />
-          File History
+          <FolderClock className="w-4 h-4" /> File History
         </Link>
         <Link
           to="/task-deliverables"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <ClipboardList className="w-4 h-4" />
-          Task Deliverables
+          <ClipboardList className="w-4 h-4" /> Task Deliverables
         </Link>
+        {/* Notification Desktop */}
         <Link
           to="/notification"
-          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
+          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200 relative"
         >
-          <Bell className="w-4 h-4" />
-          Notification
+          <Bell className="w-4 h-4" /> Notification
+          {unreadCount > 0 && (
+            <span className="ml-1 bg-yellow-400 text-black font-semibold text-xs px-2 py-0.5 rounded-full">
+              {unreadCount}
+            </span>
+          )}
         </Link>
+        {/* Logout */}
         <button
           onClick={handleLogout}
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <LogOut className="w-4 h-4" />
-          Logout
+          <LogOut className="w-4 h-4" /> Logout
         </button>
       </nav>
 
-      {/* Desktop User Profile */}
+      {/* Desktop User Info */}
       <div className="hidden lg:flex flex-col items-center ml-4">
         <div className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold">
           {userInitial}
@@ -106,13 +107,13 @@ export default function Header() {
         <p className="text-xs mt-1">{userEmail}</p>
       </div>
 
-      {/* Mobile/Tablet Fullscreen Menu */}
+      {/* ===== Mobile Navigation ===== */}
       <div
         className={`lg:hidden fixed inset-0 bg-black text-white transform transition-transform duration-300 z-40 flex flex-col items-center justify-start pt-20 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* User Profile in Mobile Menu */}
+        {/* User Info */}
         <div className="flex items-center gap-3 mb-8 px-6 w-full max-w-xs">
           <div className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center font-bold text-lg">
             {userInitial}
@@ -124,7 +125,7 @@ export default function Header() {
 
         <div className="w-full max-w-xs border-t border-white mb-6"></div>
 
-        {/* Mobile Navigation Links */}
+        {/* Mobile Links */}
         <nav className="flex flex-col w-full max-w-xs gap-1">
           <Link
             to="/faculty-loaded"
@@ -133,8 +134,7 @@ export default function Header() {
               "/faculty-loaded"
             )}`}
           >
-            <Users className="w-5 h-5" />
-            Faculty Loaded
+            <Users className="w-5 h-5" /> Faculty Loaded
           </Link>
           <Link
             to="/file-upload"
@@ -143,8 +143,7 @@ export default function Header() {
               "/file-upload"
             )}`}
           >
-            <Upload className="w-5 h-5" />
-            File Upload
+            <Upload className="w-5 h-5" /> File Upload
           </Link>
           <Link
             to="/file-history"
@@ -153,8 +152,7 @@ export default function Header() {
               "/file-history"
             )}`}
           >
-            <FolderClock className="w-5 h-5" />
-            File History
+            <FolderClock className="w-5 h-5" /> File History
           </Link>
           <Link
             to="/task-deliverables"
@@ -163,9 +161,9 @@ export default function Header() {
               "/task-deliverables"
             )}`}
           >
-            <ClipboardList className="w-5 h-5" />
-            Task Deliverables
+            <ClipboardList className="w-5 h-5" /> Task Deliverables
           </Link>
+          {/* Notification Mobile */}
           <Link
             to="/notification"
             onClick={() => setIsOpen(false)}
@@ -173,9 +171,14 @@ export default function Header() {
               "/notification"
             )}`}
           >
-            <Bell className="w-5 h-5" />
-            Notification
+            <Bell className="w-5 h-5" /> Notification
+            {unreadCount > 0 && (
+              <span className="ml-2 bg-yellow-400 text-black font-semibold text-xs px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
+            )}
           </Link>
+          {/* Logout */}
           <button
             onClick={() => {
               setIsOpen(false);
@@ -183,8 +186,7 @@ export default function Header() {
             }}
             className="py-3 px-4 hover:bg-yellow-400 rounded flex items-center gap-3 text-left"
           >
-            <LogOut className="w-5 h-5" />
-            Logout
+            <LogOut className="w-5 h-5" /> Logout
           </button>
         </nav>
       </div>

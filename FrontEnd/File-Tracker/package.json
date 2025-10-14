@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "chart.js": "^4.5.0",
     "lucide-react": "^0.544.0",
     "modal": "^0.3.24",
     "react": "^19.1.1",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.1",
     "react-modal": "^3.16.3",
     "react-router-dom": "^7.9.3",
