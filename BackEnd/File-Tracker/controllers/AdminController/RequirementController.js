@@ -1,11 +1,18 @@
 import Requirement from "../../models/AdminModel/RequirementModel.js";
 import Notification from "../../models/FacultyModel/NotificationModel.js";
+import Faculty from "../../models/FacultyModel/FacultyModel.js";
 
 // Generate 10-digit unique requirement_id
 const generateRequirementId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
+// Generate 10-digit unique notification_id
+const generateNotificationId = () => {
+  return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+};
+
+// Create requirement
 export const createRequirement = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
@@ -39,7 +46,7 @@ export const createRequirement = async (req, res) => {
       subject_code,
       course_section,
       file_type,
-      due_date: new Date(due_date), // Ensure proper date format
+      due_date: new Date(due_date), 
       notes: notes || "",
     });
 
@@ -48,21 +55,58 @@ export const createRequirement = async (req, res) => {
 
     // Create notification
     try {
-      await Notification.create({
-        recipient_id: "201810152", 
-        recipient_type: "Faculty", 
-        recipient_name: prof_name,
-        title: "New Task Assignment",
-        message: `Admin assigned you a new task: ${task_name}`,
-        related_requirement_id: requirement_id,
-        is_read: false,
-      });
-      console.log("Notification created successfully");
+      console.log("Looking for faculty with name:", prof_name);
+    
+      // Find faculty by name to get their facultyId
+      const faculty = await Faculty.findOne({ facultyName: new RegExp(`^${prof_name}$`, "i") });
+      console.log("Found faculty:", faculty);
+    
+      if (faculty) {
+        // Create notification linked to that faculty
+        const notification = new Notification({
+          notification_id: generateNotificationId(),
+          recipient_id: faculty.facultyId,
+          recipient_type: "Faculty",
+          recipient_name: faculty.facultyName,
+          title: "New Requirement Assigned",
+          message: `You have a new requirement: ${savedRequirement.task_name}`,
+          subject_code: subject_code,
+          course_section: course_section,
+          file_type: file_type,
+          due_date: new Date(due_date),
+          notes: notes || "",
+          related_requirement_id: savedRequirement.requirement_id,
+          is_read: false,
+        });
+    
+        const savedNotification = await notification.save();
+        console.log("Notification saved successfully:", savedNotification);
+      } else {
+        console.warn("Faculty not found for notification:", prof_name);
+    
+        // Fallback notification (if faculty name not matched)
+        const fallbackNotification = new Notification({
+          notification_id: generateNotificationId(),
+          recipient_id: "unknown",
+          recipient_type: "Faculty",
+          recipient_name: prof_name,
+          title: "New Task Assignment",
+          message: `Admin assigned you a new task: ${task_name} for ${subject_code} - ${course_section}. Due: ${new Date(due_date).toLocaleDateString()}`,
+          subject_code: subject_code,
+          course_section: course_section,
+          file_type: file_type,
+          due_date: new Date(due_date),
+          notes: notes || "",
+          related_requirement_id: savedRequirement.requirement_id,
+          is_read: false,
+        });
+    
+        await fallbackNotification.save();
+        console.log("Notification created with fallback ID.");
+      }
     } catch (notificationError) {
-      console.error("Error creating notification (non-fatal):", notificationError);
-      // Don't fail the entire request if notification fails
+      console.error("Error creating notification:", notificationError);
     }
-
     res.status(201).json({
       success: true,
       message: "Requirement created successfully",
@@ -138,6 +182,17 @@ export const updateRequirement = async (req, res) => {
 
     if (!updated) return res.status(404).json({ success: false, message: "Requirement not found" });
 
+    await Notification.findOneAndUpdate(
+      { related_requirement_id: id },
+      {
+        message: `You have an updated requirement: ${task_name}`,
+        subject_code,
+        course_section,
+        file_type,
+        due_date,
+        notes,
+      }
+    );
     res.status(200).json({ success: true, message: "Requirement updated successfully", data: updated });
   } catch (error) {
     console.error("❌ Error updating requirement:", error);
@@ -152,6 +207,9 @@ export const deleteRequirement = async (req, res) => {
     const deleted = await Requirement.findOneAndDelete({ requirement_id: id });
 
     if (!deleted) return res.status(404).json({ success: false, message: "Requirement not found" });
+
+    // Delete linked notification
+    await Notification.deleteMany({ related_requirement_id: id });
 
     res.status(200).json({ success: true, message: "Requirement deleted successfully", data: deleted });
   } catch (error) {

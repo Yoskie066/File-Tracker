@@ -21,9 +21,9 @@ router.get("/faculty-profile", verifyToken, (req, res) => {
 // Notification Routes
 router.post("/notifications", createNotification);
 router.get("/notifications/:recipient_id", getNotificationsByRecipient);
-router.get("/notifications/:recipient_name/unread-count", getUnreadCount);
+router.get("/notifications/:recipient_id/unread-count", getUnreadCount);
 router.put("/notifications/:id/read", markAsRead);
-router.put("/notifications/:recipient_name/read-all", markAllAsRead);
+router.put("/notifications/:recipient_id/read-all", markAllAsRead);
 
 
 export default router;

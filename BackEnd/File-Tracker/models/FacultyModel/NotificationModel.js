@@ -31,6 +31,26 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  subject_code: {
+    type: String,
+    default: "",
+  },
+  course_section: {
+    type: String,
+    default: "",
+  },
+  file_type: {
+    type: String,
+    default: "",
+  },
+  due_date: {
+    type: Date,
+    default: null,
+  },
+  notes: {
+    type: String,
+    default: "",
+  },
   is_read: {
     type: Boolean,
     default: false,

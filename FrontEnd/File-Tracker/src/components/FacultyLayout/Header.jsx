@@ -10,7 +10,7 @@ import {
   Bell,
   LogOut,
 } from "lucide-react";
-import useNotificationsn from "../../hooks/useNotification";
+import useNotification from "../../hooks/useNotification"
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +30,7 @@ export default function Header() {
   const userEmail = storedFaculty?.facultyName || "Faculty";
 
   // Custom hook for unread notifications
-  const { unreadCount } = useNotificationsn(currentUser);
+  const { unreadCount } = useNotification(currentUser);
 
   // Active link checker
   const isActive = (path) =>

@@ -32,11 +32,25 @@ export const createNotification = async (req, res) => {
   }
 };
 
-// ✅ Get notifications by recipient_id
+// FIXED: Get notifications by recipient_id
 export const getNotificationsByRecipient = async (req, res) => {
   try {
     const { recipient_id } = req.params;
-    const notifications = await Notification.find({ recipient_id }).sort({ created_at: -1 });
+    console.log("🔍 Fetching notifications for recipient_id:", recipient_id);
+    
+    const notifications = await Notification.find({ 
+      recipient_id: recipient_id 
+    }).sort({ created_at: -1 });
+    
+    console.log("📊 Found notifications:", notifications.length);
+    
+    // Debug: Log what we found
+    if (notifications.length > 0) {
+      notifications.forEach(notification => {
+        console.log(`   - Title: ${notification.title}, Recipient: ${notification.recipient_id}, Name: ${notification.recipient_name}`);
+      });
+    }
+    
     res.status(200).json({ success: true, data: notifications });
   } catch (error) {
     console.error("❌ Error fetching notifications:", error);
@@ -44,11 +58,11 @@ export const getNotificationsByRecipient = async (req, res) => {
   }
 };
 
-// ✅ Get unread count by recipient_name
+// ✅ Get unread count by recipient_id
 export const getUnreadCount = async (req, res) => {
   try {
-    const { recipient_name } = req.params;
-    const count = await Notification.countDocuments({ recipient_name, is_read: false });
+    const { recipient_id } = req.params;
+    const count = await Notification.countDocuments({ recipient_id, is_read: false });
     res.status(200).json({ success: true, count });
   } catch (error) {
     console.error("❌ Error fetching unread count:", error);
@@ -61,7 +75,7 @@ export const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
     const updated = await Notification.findOneAndUpdate(
-      { notification_id: id },
+      { _id: id }, 
       { is_read: true },
       { new: true }
     );
@@ -76,8 +90,8 @@ export const markAsRead = async (req, res) => {
 // ✅ Mark all as read
 export const markAllAsRead = async (req, res) => {
   try {
-    const { recipient_name } = req.params;
-    const result = await Notification.updateMany({ recipient_name, is_read: false }, { is_read: true });
+    const { recipient_id } = req.params;
+    const result = await Notification.updateMany({ recipient_id, is_read: false }, { is_read: true });
     res.status(200).json({
       success: true,
       message: "All notifications marked as read",

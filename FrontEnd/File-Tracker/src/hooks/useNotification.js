@@ -1,3 +1,4 @@
+// hooks/useNotification.js
 import { useState, useEffect } from "react";
 
 export default function useNotifications(currentUser) {
@@ -6,43 +7,58 @@ export default function useNotifications(currentUser) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!currentUser?.faculty_id) return;
+    if (!currentUser?.facultyId) {
+      console.log("❌ No facultyId found in currentUser:", currentUser);
+      setLoading(false);
+      return;
+    }
 
     const fetchNotifications = async () => {
       try {
+        console.log("🔍 Fetching notifications for facultyId:", currentUser.facultyId);
         const res = await fetch(
-          `http://localhost:3000/api/faculty/notifications/${currentUser.faculty_id}`
+          `http://localhost:3000/api/faculty/notifications/${currentUser.facultyId}`
         );
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const data = await res.json();
+        console.log("📨 Notifications API response:", data);
 
         const list = data?.data || [];
+        console.log("✅ Processed notifications:", list.length);
+        
         setNotifications(list);
         setUnreadCount(list.filter((n) => !n.is_read).length);
       } catch (err) {
-        console.error("Error fetching notifications:", err);
+        console.error("❌ Error fetching notifications:", err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
+    const interval = setInterval(fetchNotifications, 15000); 
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser?.facultyId]); 
 
-  // Mark as read
+  // Mark as read - FIXED to use _id
   const markAsRead = async (id) => {
     try {
+      console.log("📝 Marking notification as read:", id);
       await fetch(`http://localhost:3000/api/faculty/notifications/${id}/read`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
       });
+      
       setNotifications((prev) =>
-        prev.map((n) => (n.notification_id === id ? { ...n, is_read: true } : n))
+        prev.map((n) => (n._id === id ? { ...n, is_read: true } : n))
       );
       setUnreadCount((prev) => Math.max(prev - 1, 0));
     } catch (err) {
-      console.error("Error marking as read:", err);
+      console.error("❌ Error marking as read:", err);
     }
   };
 
