@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -34,7 +34,6 @@ export default function TaskDeliverablesManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [actionDropdown, setActionDropdown] = useState(null);
   const taskDeliverablesPerPage = 10;
 
   // Feedback modal states
@@ -42,29 +41,16 @@ export default function TaskDeliverablesManagement() {
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
-  // Delete confirmation modal
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [taskDeliverablesToDelete, setTaskDeliverablesToDelete] = useState(null);
-
   // Form state
   const [formData, setFormData] = useState({
-    task_deliverables_id: "",
     subject_code: "",
-    course_section: "",
-    syllabus: "pending",
-    tos: "pending",
-    midterm_exam: "pending",
-    final_exam: "pending",
-    instructional_materials: "pending"
+    course_section: ""
   });
 
-  const [isEditMode, setIsEditMode] = useState(false);
-
-  // Status options for combo box
+  // Status options for combo box - CHANGED TO: pending, completed, rejected
   const statusOptions = [
     "pending",
-    "submitted",
-    "approved",
+    "completed",
     "rejected"
   ];
 
@@ -113,13 +99,6 @@ export default function TaskDeliverablesManagement() {
     fetchFacultyLoadeds();
   }, []);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => setActionDropdown(null);
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -155,140 +134,59 @@ export default function TaskDeliverablesManagement() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      task_deliverables_id: "",
       subject_code: "",
-      course_section: "",
-      syllabus: "pending",
-      tos: "pending",
-      midterm_exam: "pending",
-      final_exam: "pending",
-      instructional_materials: "pending"
+      course_section: ""
     });
-    setIsEditMode(false);
   };
 
-  // Handle form submission
+  // Handle form submission (ADD ONLY)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-  
+
     try {
-      const url = isEditMode 
-        ? `http://localhost:3000/api/faculty/task-deliverables/${formData.task_deliverables_id}`
-        : "http://localhost:3000/api/faculty/task-deliverables";
+      const url = "http://localhost:3000/api/faculty/task-deliverables";
       
-      const method = isEditMode ? "PUT" : "POST";
-  
-      const requestData = isEditMode ? {
-        syllabus: formData.syllabus,
-        tos: formData.tos,
-        midterm_exam: formData.midterm_exam,
-        final_exam: formData.final_exam,
-        instructional_materials: formData.instructional_materials
-      } : {
+      const requestData = {
         subject_code: formData.subject_code,
         course_section: formData.course_section
-        // Other fields will use default "pending" values
       };
-  
+
       console.log("Sending request to:", url);
-      console.log("Request method:", method);
       console.log("Request data:", requestData);
-  
+
       const response = await fetch(url, { 
-        method,
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestData),
       });
-  
+
       const result = await response.json();
       console.log("Server response:", result);
-  
+
       if (!response.ok) {
         throw new Error(result.message || `HTTP error! status: ${response.status}`);
       }
-  
+
       if (result.success) {
         resetForm();
         setShowModal(false);
         fetchTaskDeliverables();
-        showFeedback("success", 
-          isEditMode ? "Task deliverables updated successfully!" : "Task deliverables added successfully!"
-        );
+        showFeedback("success", "Task deliverables added successfully!");
       } else {
-        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} task deliverables`);
+        showFeedback("error", result.message || "Error adding task deliverables");
       }
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} task deliverables:`, error);
-      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} task deliverables`);
+      console.error("Error creating task deliverables:", error);
+      showFeedback("error", error.message || "Error creating task deliverables");
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle edit task deliverables
-  const handleEdit = async (taskDeliverablesId) => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/faculty/task-deliverables/${taskDeliverablesId}`);
-      const result = await response.json();
-  
-      if (result.success && result.data) {
-        const taskDeliverable = result.data;
-        setFormData({
-          task_deliverables_id: taskDeliverable.task_deliverables_id,
-          subject_code: taskDeliverable.subject_code,
-          course_section: taskDeliverable.course_section,
-          syllabus: taskDeliverable.syllabus,
-          tos: taskDeliverable.tos,
-          midterm_exam: taskDeliverable.midterm_exam,
-          final_exam: taskDeliverable.final_exam,
-          instructional_materials: taskDeliverable.instructional_materials
-        });
-        setIsEditMode(true);
-        setShowModal(true);
-      } else {
-        showFeedback("error", "Error loading task deliverables data");
-      }
-    } catch (error) {
-      console.error("Error fetching task deliverables:", error);
-      showFeedback("error", "Error loading task deliverables data");
-    }
-    setActionDropdown(null);
-  }
-
-  // Handle delete task deliverables
-  const handleDelete = async (taskDeliverablesId) => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/faculty/task-deliverables/${taskDeliverablesId}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchTaskDeliverables();
-        showFeedback("success", "Task deliverables deleted successfully!");
-      } else {
-        showFeedback("error", result.message || "Error deleting task deliverables");
-      }
-    } catch (error) {
-      console.error("Error deleting task deliverables:", error);
-      showFeedback("error", "Error deleting task deliverables");
-    }
-    setDeleteModalOpen(false);
-    setTaskDeliverablesToDelete(null);
-    setActionDropdown(null);
-  };
-
-  // Open delete confirmation modal
-  const confirmDelete = (taskDeliverablesId) => {
-    setTaskDeliverablesToDelete(taskDeliverablesId);
-    setDeleteModalOpen(true);
-  };
-
-  // Calculate stats for charts
+  // Calculate stats for charts - UPDATED FOR NEW STATUS OPTIONS
   const taskDeliverablesStats = {
     total: Array.isArray(taskDeliverables) ? taskDeliverables.length : 0,
     pending: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
@@ -298,19 +196,19 @@ export default function TaskDeliverablesManagement() {
       td.final_exam === 'pending' || 
       td.instructional_materials === 'pending'
     ).length : 0,
-    submitted: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
-      td.syllabus === 'submitted' || 
-      td.tos === 'submitted' || 
-      td.midterm_exam === 'submitted' || 
-      td.final_exam === 'submitted' || 
-      td.instructional_materials === 'submitted'
-    ).length : 0,
     completed: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
-      td.syllabus !== 'pending' && 
-      td.tos !== 'pending' && 
-      td.midterm_exam !== 'pending' && 
-      td.final_exam !== 'pending' && 
-      td.instructional_materials !== 'pending'
+      td.syllabus === 'completed' && 
+      td.tos === 'completed' && 
+      td.midterm_exam === 'completed' && 
+      td.final_exam === 'completed' && 
+      td.instructional_materials === 'completed'
+    ).length : 0,
+    rejected: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
+      td.syllabus === 'rejected' || 
+      td.tos === 'rejected' || 
+      td.midterm_exam === 'rejected' || 
+      td.final_exam === 'rejected' || 
+      td.instructional_materials === 'rejected'
     ).length : 0
   };
 
@@ -321,25 +219,25 @@ export default function TaskDeliverablesManagement() {
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
-  // Chart data for status distribution
+  // Chart data for status distribution - UPDATED FOR NEW STATUS OPTIONS
   const statusChartData = {
-    labels: ['Pending', 'Submitted', 'Completed'],
+    labels: ['Pending', 'Completed', 'Rejected'],
     datasets: [
       {
         data: [
           taskDeliverablesStats.pending,
-          taskDeliverablesStats.submitted,
-          taskDeliverablesStats.completed
+          taskDeliverablesStats.completed,
+          taskDeliverablesStats.rejected
         ],
         backgroundColor: [
-          '#F59E0B',
-          '#3B82F6',
-          '#10B981'
+          '#F59E0B', // Yellow for pending
+          '#10B981', // Green for completed
+          '#EF4444'  // Red for rejected
         ],
         borderColor: [
           '#F59E0B',
-          '#3B82F6',
-          '#10B981'
+          '#10B981',
+          '#EF4444'
         ],
         borderWidth: 2,
       },
@@ -364,13 +262,12 @@ export default function TaskDeliverablesManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Get status badge color
+  // Get status badge color - UPDATED FOR NEW STATUS OPTIONS
   const getStatusColor = (status) => {
     switch (status) {
-      case 'submitted': return 'bg-blue-100 text-blue-800';
-      case 'approved': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-yellow-100 text-yellow-800'; // pending
     }
   };
 
@@ -410,7 +307,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Statistics Cards */}
+        {/* Statistics Cards - UPDATED FOR NEW STATUS OPTIONS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
@@ -420,13 +317,13 @@ export default function TaskDeliverablesManagement() {
             <div className="text-yellow-600 text-sm font-medium">Pending</div>
             <div className="text-2xl font-bold text-yellow-800">{taskDeliverablesStats.pending}</div>
           </div>
-          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-            <div className="text-indigo-600 text-sm font-medium">Submitted</div>
-            <div className="text-2xl font-bold text-indigo-800">{taskDeliverablesStats.submitted}</div>
-          </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
             <div className="text-green-600 text-sm font-medium">Completed</div>
             <div className="text-2xl font-bold text-green-800">{taskDeliverablesStats.completed}</div>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+            <div className="text-red-600 text-sm font-medium">Rejected</div>
+            <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
           </div>
         </div>
 
@@ -440,7 +337,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - NO ACTIONS COLUMN */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -453,7 +350,6 @@ export default function TaskDeliverablesManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Midterm Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Final Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Instructional Materials</th>
-                <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -488,41 +384,11 @@ export default function TaskDeliverablesManagement() {
                         {task.instructional_materials}
                       </span>
                     </td>
-                    <td className="px-4 py-3 relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActionDropdown(actionDropdown === task.task_deliverables_id ? null : task.task_deliverables_id);
-                        }}
-                        className="p-1 rounded hover:bg-gray-200 transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      
-                      {actionDropdown === task.task_deliverables_id && (
-                        <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                          <button
-                            onClick={() => handleEdit(task.task_deliverables_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Update
-                          </button>
-                          <button
-                            onClick={() => confirmDelete(task.task_deliverables_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
                     No task deliverables found.
                   </td>
                 </tr>
@@ -531,7 +397,7 @@ export default function TaskDeliverablesManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - NO ACTIONS */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentTaskDeliverables.length > 0 ? (
             currentTaskDeliverables.map((task) => (
@@ -540,39 +406,6 @@ export default function TaskDeliverablesManagement() {
                   <div>
                     <h2 className="font-semibold text-gray-800">{task.subject_code} - {task.course_section}</h2>
                     <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* Mobile Actions Dropdown */}
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActionDropdown(actionDropdown === task.task_deliverables_id ? null : task.task_deliverables_id);
-                        }}
-                        className="p-1 rounded hover:bg-gray-200 transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      
-                      {actionDropdown === task.task_deliverables_id && (
-                        <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                          <button
-                            onClick={() => handleEdit(task.task_deliverables_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Update
-                          </button>
-                          <button
-                            onClick={() => confirmDelete(task.task_deliverables_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
                 
@@ -656,7 +489,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Add/Edit Task Deliverables Modal */}
+        {/* Add Task Deliverables Modal - NO EDIT MODE */}
         <Modal
           isOpen={showModal}
           onRequestClose={() => {
@@ -669,7 +502,7 @@ export default function TaskDeliverablesManagement() {
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">
-                {isEditMode ? "Update Task Deliverables" : "Add New Task Deliverables"}
+                Add New Task Deliverables
               </h3>
               <button
                 onClick={() => {
@@ -685,168 +518,55 @@ export default function TaskDeliverablesManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Task Deliverables ID (readonly in edit mode) */}
-              {isEditMode && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Task Deliverables ID
-                  </label>
-                  <input
-                    type="text"
-                    name="task_deliverables_id"
-                    value={formData.task_deliverables_id}
-                    readOnly
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
-              )}
-
-              {/* Faculty Loaded Selection (only for add mode) */}
-              {!isEditMode && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Faculty Loaded *
-                  </label>
-                  <select
-                    onChange={handleFacultyLoadedChange}
-                    required
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                  >
-                    <option value="">Select faculty loaded</option>
-                    {facultyLoadeds.map((facultyLoaded) => (
-                      <option 
-                        key={`${facultyLoaded.subject_code}-${facultyLoaded.course_section}`}
-                        value={`${facultyLoaded.subject_code}-${facultyLoaded.course_section}`}
-                      >
-                        {facultyLoaded.subject_code} - {facultyLoaded.course_section} {facultyLoaded.subject_title ? `(${facultyLoaded.subject_title})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Subject Code (readonly in edit mode, auto-filled in add mode) */}
+              {/* Faculty Loaded Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject Code {isEditMode ? '' : '(auto-filled)'}
+                  Select Faculty Loaded *
+                </label>
+                <select
+                  onChange={handleFacultyLoadedChange}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select faculty loaded</option>
+                  {facultyLoadeds.map((facultyLoaded) => (
+                    <option 
+                      key={`${facultyLoaded.subject_code}-${facultyLoaded.course_section}`}
+                      value={`${facultyLoaded.subject_code}-${facultyLoaded.course_section}`}
+                    >
+                      {facultyLoaded.subject_code} - {facultyLoaded.course_section} {facultyLoaded.subject_title ? `(${facultyLoaded.subject_title})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subject Code (auto-filled, readonly) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject Code (auto-filled)
                 </label>
                 <input
                   type="text"
                   name="subject_code"
                   value={formData.subject_code}
-                  readOnly={!isEditMode}
+                  readOnly
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
                 />
               </div>
 
-              {/* Course Section (readonly in edit mode, auto-filled in add mode) */}
+              {/* Course Section (auto-filled, readonly) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Section {isEditMode ? '' : '(auto-filled)'}
+                  Course Section (auto-filled)
                 </label>
                 <input
                   type="text"
                   name="course_section"
                   value={formData.course_section}
-                  readOnly={!isEditMode}
+                  readOnly
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
                 />
               </div>
-
-              {/* Status Fields (only in edit mode) */}
-              {isEditMode && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Syllabus Status
-                    </label>
-                    <select
-                      name="syllabus"
-                      value={formData.syllabus}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      TOS Status
-                    </label>
-                    <select
-                      name="tos"
-                      value={formData.tos}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Midterm Exam Status
-                    </label>
-                    <select
-                      name="midterm_exam"
-                      value={formData.midterm_exam}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Final Exam Status
-                    </label>
-                    <select
-                      name="final_exam"
-                      value={formData.final_exam}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Instructional Materials Status
-                    </label>
-                    <select
-                      name="instructional_materials"
-                      value={formData.instructional_materials}
-                      onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
 
               {/* Form Actions */}
               <div className="flex gap-3 pt-4">
@@ -865,40 +585,10 @@ export default function TaskDeliverablesManagement() {
                   disabled={loading}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Task Deliverables" : "Add Task Deliverables")}
+                  {loading ? "Adding..." : "Add Task Deliverables"}
                 </button>
               </div>
             </form>
-          </div>
-        </Modal>
-
-        {/* Delete Confirmation Modal */}
-        <Modal
-          isOpen={deleteModalOpen}
-          onRequestClose={() => setDeleteModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        >
-          <div className="flex flex-col items-center text-center">
-            <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this task deliverables? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(taskDeliverablesToDelete)}
-                className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
-              >
-                Delete
-              </button>
-            </div>
           </div>
         </Modal>
 

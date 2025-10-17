@@ -11,7 +11,11 @@ export const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.admin = decoded;
+
+    // detect user type
+    if (decoded.adminId) req.admin = decoded;
+    if (decoded.facultyId) req.faculty = decoded;
+    
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid or expired token" });

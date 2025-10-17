@@ -1,4 +1,5 @@
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
+import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 
 // Generate 10-digit unique faculty_loaded_id
 const generateFacultyLoadedId = () => {
@@ -111,6 +112,16 @@ export const updateFacultyLoaded = async (req, res) => {
     const { id } = req.params;
     const { subject_code, subject_title, course_section, semester, school_year, day_time } = req.body;
 
+    // Find the existing faculty loaded to get old values
+    const existingFacultyLoaded = await FacultyLoaded.findOne({ faculty_loaded_id: id });
+    if (!existingFacultyLoaded) {
+      return res.status(404).json({ success: false, message: "Faculty loaded not found" });
+    }
+
+    const oldSubjectCode = existingFacultyLoaded.subject_code;
+    const oldCourseSection = existingFacultyLoaded.course_section;
+
+    // Update faculty loaded
     const updated = await FacultyLoaded.findOneAndUpdate(
       { faculty_loaded_id: id },
       { subject_code, subject_title, course_section, semester, school_year, day_time, updated_at: new Date() },
@@ -119,6 +130,15 @@ export const updateFacultyLoaded = async (req, res) => {
 
     if (!updated) return res.status(404).json({ success: false, message: "Faculty loaded not found" });
 
+    // AUTO UPDATE: Update corresponding task deliverables if subject_code or course_section changed
+    if (oldSubjectCode !== subject_code || oldCourseSection !== course_section) {
+      await TaskDeliverables.findOneAndUpdate(
+        { subject_code: oldSubjectCode, course_section: oldCourseSection },
+        { subject_code, course_section, updated_at: new Date() }
+      );
+      console.log(`✅ Auto-updated task deliverables from ${oldSubjectCode}-${oldCourseSection} to ${subject_code}-${course_section}`);
+    }
+
     res.status(200).json({ success: true, message: "Faculty loaded updated successfully", data: updated });
   } catch (error) {
     console.error("❌ Error updating faculty loaded:", error);
@@ -126,15 +146,40 @@ export const updateFacultyLoaded = async (req, res) => {
   }
 };
 
-// ✅ Delete faculty loaded
+// ✅ Delete faculty loaded - AUTO DELETE TASK DELIVERABLES
 export const deleteFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Find the faculty loaded first to get subject_code and course_section
+    const facultyLoaded = await FacultyLoaded.findOne({ faculty_loaded_id: id });
+    if (!facultyLoaded) {
+      return res.status(404).json({ success: false, message: "Faculty loaded not found" });
+    }
+
+    const { subject_code, course_section } = facultyLoaded;
+
+    // AUTO DELETE: Delete corresponding task deliverables
+    const deletedTaskDeliverables = await TaskDeliverables.findOneAndDelete({
+      subject_code,
+      course_section
+    });
+
+    if (deletedTaskDeliverables) {
+      console.log(`✅ Auto-deleted task deliverables for ${subject_code}-${course_section}`);
+    }
+
+    // Delete faculty loaded
     const deleted = await FacultyLoaded.findOneAndDelete({ faculty_loaded_id: id });
 
-    if (!deleted) return res.status(404).json({ success: false, message: "Faculty loaded not found" });
-
-    res.status(200).json({ success: true, message: "Faculty loaded deleted successfully", data: deleted });
+    res.status(200).json({ 
+      success: true, 
+      message: "Faculty loaded and corresponding task deliverables deleted successfully", 
+      data: {
+        faculty_loaded: deleted,
+        task_deliverables: deletedTaskDeliverables
+      }
+    });
   } catch (error) {
     console.error("❌ Error deleting faculty loaded:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });

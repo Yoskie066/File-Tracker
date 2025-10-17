@@ -125,48 +125,6 @@ export const getTaskDeliverablesById = async (req, res) => {
   }
 };
 
-// ✅ Update task deliverables
-export const updateTaskDeliverables = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { syllabus, tos, midterm_exam, final_exam, instructional_materials } = req.body;
-
-    const updated = await TaskDeliverables.findOneAndUpdate(
-      { task_deliverables_id: id },
-      { 
-        syllabus, 
-        tos, 
-        midterm_exam, 
-        final_exam, 
-        instructional_materials, 
-        updated_at: new Date() 
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) return res.status(404).json({ success: false, message: "Task deliverables not found" });
-
-    res.status(200).json({ success: true, message: "Task deliverables updated successfully", data: updated });
-  } catch (error) {
-    console.error("❌ Error updating task deliverables:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
-  }
-};
-
-// ✅ Delete task deliverables
-export const deleteTaskDeliverables = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleted = await TaskDeliverables.findOneAndDelete({ task_deliverables_id: id });
-
-    if (!deleted) return res.status(404).json({ success: false, message: "Task deliverables not found" });
-
-    res.status(200).json({ success: true, message: "Task deliverables deleted successfully", data: deleted });
-  } catch (error) {
-    console.error("❌ Error deleting task deliverables:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
-  }
-};
 
 // ✅ Get faculty loadeds for dropdown (renamed to avoid conflict)
 export const getFacultyLoadedsForTaskDeliverables = async (req, res) => {

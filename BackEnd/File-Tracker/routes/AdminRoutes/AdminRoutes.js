@@ -3,6 +3,7 @@ import { registerAdmin, loginAdmin } from "../../controllers/AdminController/Adm
 import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLogout.js";
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers } from "../../controllers/AdminController/UserManagementController.js";
+import { getFiles, getFileById, downloadFile, deleteFile, updateFileStatus } from "../../controllers/FacultyController/FileUploadController.js";
 import { createRequirement, getRequirements, getRequirementById, updateRequirement,  deleteRequirement } from "../../controllers/AdminController/RequirementController.js";
 
 const router = express.Router();
@@ -21,6 +22,13 @@ router.get("/admin-profile", verifyToken, (req, res) => {
 
 // User Management Routes
 router.get("/user-management", getAllUsers);
+
+// File Management Routes 
+router.get("/file-management", getFiles);
+router.get("/file-management/:id", getFileById);
+router.get("/file-management/:id/download", downloadFile);
+router.delete("/file-management/:id", deleteFile);
+router.put("/file-management/:id/status", updateFileStatus);
 
 //Requirement Routes
 router.get("/requirement", getRequirements);
