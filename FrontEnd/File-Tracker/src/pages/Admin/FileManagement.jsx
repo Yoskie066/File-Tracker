@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit } from "lucide-react";
 
 Modal.setAppElement("#root");
 
@@ -25,7 +25,12 @@ export default function FileManagement() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [fileToPreview, setFileToPreview] = useState(null);
 
-  // Fetch files from backend - FIXED URL
+  // Status update modal
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [fileToUpdate, setFileToUpdate] = useState(null);
+  const [newStatus, setNewStatus] = useState("");
+
+  // Fetch files from backend
   const fetchFiles = async () => {
     try {
       setLoading(true);
@@ -66,7 +71,7 @@ export default function FileManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // Handle download file - FIXED URL
+  // Handle download file
   const handleDownload = async (fileId, fileName) => {
     try {
       const response = await fetch(`http://localhost:3000/api/admin/file-management/${fileId}/download`);
@@ -97,7 +102,45 @@ export default function FileManagement() {
     setPreviewModalOpen(true);
   };
 
-  // Handle delete file - FIXED URL
+  // Handle update status
+  const handleUpdateStatus = async () => {
+    if (!fileToUpdate || !newStatus) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/admin/file-management/${fileToUpdate.file_id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        fetchFiles(); // Refresh the files list
+        setStatusModalOpen(false);
+        setFileToUpdate(null);
+        setNewStatus("");
+        showFeedback("success", "File status updated successfully!");
+      } else {
+        showFeedback("error", result.message || "Error updating file status");
+      }
+    } catch (error) {
+      console.error("Error updating file status:", error);
+      showFeedback("error", "Error updating file status");
+    }
+  };
+
+  // Open status update modal
+  const openStatusModal = (file) => {
+    setFileToUpdate(file);
+    setNewStatus(file.status);
+    setStatusModalOpen(true);
+    setActionDropdown(null);
+  };
+
+  // Handle delete file
   const handleDelete = async (fileId) => {
     try {
       const response = await fetch(`http://localhost:3000/api/admin/file-management/${fileId}`, {
@@ -200,7 +243,7 @@ export default function FileManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">File Management</h1>
             <p className="text-sm text-gray-500">
-              Manage and track uploaded files
+              Manage and track uploaded files - Status updates will sync with Task Deliverables
             </p>
           </div>
           <div className="flex gap-3">
@@ -243,6 +286,7 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Uploaded At</th>
@@ -257,6 +301,9 @@ export default function FileManagement() {
                     <td className="px-4 py-3 text-gray-700">{file.faculty_name}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{file.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getFileTypeLabel(file.file_type)}</td>
+                    <td className="px-4 py-3 text-gray-700 text-xs">
+                      {file.subject_code} - {file.course_section}
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{formatFileSize(file.file_size)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
@@ -287,8 +334,15 @@ export default function FileManagement() {
                             Preview Details
                           </button>
                           <button
-                            onClick={() => handleDownload(file.file_id, file.original_name)}
+                            onClick={() => openStatusModal(file)}
                             className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Update Status
+                          </button>
+                          <button
+                            onClick={() => handleDownload(file.file_id, file.original_name)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
@@ -307,7 +361,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : "No files found."}
                   </td>
                 </tr>
@@ -353,8 +407,15 @@ export default function FileManagement() {
                             Preview Details
                           </button>
                           <button
-                            onClick={() => handleDownload(file.file_id, file.original_name)}
+                            onClick={() => openStatusModal(file)}
                             className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Update Status
+                          </button>
+                          <button
+                            onClick={() => handleDownload(file.file_id, file.original_name)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
@@ -382,10 +443,14 @@ export default function FileManagement() {
                     <p className="font-medium">{getFileTypeLabel(file.file_type)}</p>
                   </div>
                   <div>
+                    <span className="text-gray-500">Subject:</span>
+                    <p className="font-medium">{file.subject_code} - {file.course_section}</p>
+                  </div>
+                  <div>
                     <span className="text-gray-500">Size:</span>
                     <p className="font-medium">{formatFileSize(file.file_size)}</p>
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <span className="text-gray-500">Uploaded:</span>
                     <p className="font-medium text-xs">{formatDate(file.uploaded_at)}</p>
                   </div>
@@ -497,6 +562,17 @@ export default function FileManagement() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Subject Code</label>
+                    <p className="mt-1 text-sm text-gray-900">{fileToPreview.subject_code}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Course Section</label>
+                    <p className="mt-1 text-sm text-gray-900">{fileToPreview.course_section}</p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
                   <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
@@ -504,21 +580,85 @@ export default function FileManagement() {
 
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
+                    onClick={() => openStatusModal(fileToPreview)}
                     className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Update Status
+                  </button>
+                  <button
+                    onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
+                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <Download className="w-4 h-4" />
                     Download File
                   </button>
-                  <button
-                    onClick={() => {
-                      setPreviewModalOpen(false);
-                      confirmDelete(fileToPreview.file_id);
-                    }}
-                    className="flex-1 bg-red-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+
+        {/* Status Update Modal */}
+        <Modal
+          isOpen={statusModalOpen}
+          onRequestClose={() => setStatusModalOpen(false)}
+          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          {fileToUpdate && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Update File Status
+                </h3>
+                <button
+                  onClick={() => setStatusModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    File: <span className="font-semibold">{fileToUpdate.file_name}</span>
+                  </label>
+                  <p className="text-sm text-gray-600 mb-4">
+                    This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Status
+                  </label>
+                  <select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                   >
-                    <Trash2 className="w-4 h-4" />
-                    Delete File
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setStatusModalOpen(false)}
+                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdateStatus}
+                    className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
+                  >
+                    Update Status
                   </button>
                 </div>
               </div>

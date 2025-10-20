@@ -1,4 +1,5 @@
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
+import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -49,6 +50,54 @@ const generateFileId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
+// Helper function to map file_type to TaskDeliverables field
+const mapFileTypeToField = (fileType) => {
+  const mapping = {
+    'syllabus': 'syllabus',
+    'tos': 'tos',
+    'midterm-exam': 'midterm_exam',
+    'final-exam': 'final_exam',
+    'instructional-materials': 'instructional_materials'
+  };
+  return mapping[fileType] || null;
+};
+
+// Update Task Deliverables when file status changes
+const updateTaskDeliverables = async (fileData) => {
+  try {
+    const { subject_code, course_section, file_type, status } = fileData;
+    
+    // Map file_type to TaskDeliverables field name
+    const fieldName = mapFileTypeToField(file_type);
+    if (!fieldName) {
+      console.warn(`No mapping found for file type: ${file_type}`);
+      return;
+    }
+
+    // Find the corresponding TaskDeliverables
+    const taskDeliverables = await TaskDeliverables.findOne({
+      subject_code,
+      course_section
+    });
+
+    if (taskDeliverables) {
+      // Update the specific field based on file type and status
+      const updateData = { [fieldName]: status };
+      await TaskDeliverables.findOneAndUpdate(
+        { subject_code, course_section },
+        updateData,
+        { new: true }
+      );
+      
+      console.log(`Updated TaskDeliverables for ${subject_code}-${course_section}: ${fieldName} = ${status}`);
+    } else {
+      console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
+    }
+  } catch (error) {
+    console.error("Error updating TaskDeliverables:", error);
+  }
+};
+
 // File Upload Controller
 export const uploadFile = async (req, res) => {
   try {
@@ -66,13 +115,13 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    const { file_name, file_type } = req.body;
+    const { file_name, file_type, subject_code, course_section } = req.body;
 
-    if (!file_type) {
+    if (!file_type || !subject_code || !course_section) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message: "File type is required",
+        message: "File type, subject code, and course section are required",
       });
     }
 
@@ -84,6 +133,9 @@ export const uploadFile = async (req, res) => {
       faculty_name: req.faculty.facultyName,
       file_name: file_name || req.file.originalname,
       file_type,
+      subject_code,
+      course_section,
+      status: "pending", // Changed back to pending for admin approval
       file_path: req.file.path,
       original_name: req.file.originalname,
       file_size: req.file.size,
@@ -96,12 +148,14 @@ export const uploadFile = async (req, res) => {
       file_name: savedFile.file_name,
       file_type: savedFile.file_type,
       faculty_id: savedFile.faculty_id,
+      subject_code: savedFile.subject_code,
+      course_section: savedFile.course_section,
       date_submitted: new Date()
     });
 
     res.status(201).json({
       success: true,
-      message: "File uploaded successfully",
+      message: "File uploaded successfully and pending admin approval",
       data: savedFile,
     });
   } catch (error) {
@@ -114,7 +168,6 @@ export const uploadFile = async (req, res) => {
     });
   }
 };
-
 
 // GET ALL FILES
 export const getFiles = async (req, res) => {
@@ -158,7 +211,6 @@ export const getFacultyFiles = async (req, res) => {
     });
   }
 };
-
 
 // GET FILE BY ID
 export const getFileById = async (req, res) => {
@@ -230,7 +282,7 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-// UPDATE FILE STATUS
+// UPDATE FILE STATUS - UPDATED to sync with TaskDeliverables
 export const updateFileStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -244,6 +296,9 @@ export const updateFileStatus = async (req, res) => {
 
     if (!updatedFile)
       return res.status(404).json({ success: false, message: "File not found" });
+
+    // Update corresponding TaskDeliverables
+    await updateTaskDeliverables(updatedFile);
 
     res.status(200).json({
       success: true,
