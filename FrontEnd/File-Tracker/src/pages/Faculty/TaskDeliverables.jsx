@@ -47,16 +47,10 @@ export default function TaskDeliverablesManagement() {
     course_section: ""
   });
 
-  // Status options for combo box - CHANGED TO: pending, completed, rejected
-  const statusOptions = [
-    "pending",
-    "completed",
-    "rejected"
-  ];
-
   // Fetch task deliverables from backend 
   const fetchTaskDeliverables = async () => {
     try {
+      setLoading(true);
       const res = await fetch("http://localhost:3000/api/faculty/task-deliverables"); 
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
@@ -71,6 +65,8 @@ export default function TaskDeliverablesManagement() {
     } catch (err) {
       console.error("Error fetching task deliverables:", err);
       setTaskDeliverables([]); 
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,15 +107,18 @@ export default function TaskDeliverablesManagement() {
   // Handle faculty loaded selection
   const handleFacultyLoadedChange = (e) => {
     const selectedId = e.target.value;
-    const selectedFacultyLoaded = facultyLoadeds.find(fl => 
-      `${fl.subject_code}-${fl.course_section}` === selectedId
-    );
-    
-    if (selectedFacultyLoaded) {
+    if (selectedId) {
+      const [subjectCode, courseSection] = selectedId.split('|');
       setFormData(prev => ({
         ...prev,
-        subject_code: selectedFacultyLoaded.subject_code,
-        course_section: selectedFacultyLoaded.course_section
+        subject_code: subjectCode,
+        course_section: courseSection
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        subject_code: "",
+        course_section: ""
       }));
     }
   };
@@ -186,42 +185,70 @@ export default function TaskDeliverablesManagement() {
     }
   };
 
-  // Calculate stats for charts - UPDATED FOR NEW STATUS OPTIONS
-  const taskDeliverablesStats = {
-    total: Array.isArray(taskDeliverables) ? taskDeliverables.length : 0,
-    pending: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
-      td.syllabus === 'pending' || 
-      td.tos === 'pending' || 
-      td.midterm_exam === 'pending' || 
-      td.final_exam === 'pending' || 
-      td.instructional_materials === 'pending'
-    ).length : 0,
-    completed: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
-      td.syllabus === 'completed' && 
-      td.tos === 'completed' && 
-      td.midterm_exam === 'completed' && 
-      td.final_exam === 'completed' && 
-      td.instructional_materials === 'completed'
-    ).length : 0,
-    rejected: Array.isArray(taskDeliverables) ? taskDeliverables.filter(td => 
-      td.syllabus === 'rejected' || 
-      td.tos === 'rejected' || 
-      td.midterm_exam === 'rejected' || 
-      td.final_exam === 'rejected' || 
-      td.instructional_materials === 'rejected'
-    ).length : 0
+  // FIXED: Calculate stats for charts - SIMPLE AND ACCURATE COUNTING
+  const calculateStats = () => {
+    if (!Array.isArray(taskDeliverables) || taskDeliverables.length === 0) {
+      return { total: 0, pending: 0, completed: 0, rejected: 0 };
+    }
+
+    let pendingCount = 0;
+    let completedCount = 0;
+    let rejectedCount = 0;
+
+    taskDeliverables.forEach(task => {
+      // Count individual field statuses
+      const fields = [
+        task.syllabus, 
+        task.tos, 
+        task.midterm_exam, 
+        task.final_exam, 
+        task.instructional_materials
+      ];
+
+      fields.forEach(field => {
+        if (field === 'pending') pendingCount++;
+        else if (field === 'completed') completedCount++;
+        else if (field === 'rejected') rejectedCount++;
+      });
+    });
+
+    const totalDeliverables = pendingCount + completedCount + rejectedCount;
+
+    return {
+      total: taskDeliverables.length, // Total tasks
+      pending: pendingCount, // Total pending deliverables
+      completed: completedCount, // Total completed deliverables
+      rejected: rejectedCount, // Total rejected deliverables
+      totalDeliverables: totalDeliverables // Total individual deliverables
+    };
   };
+
+  const taskDeliverablesStats = calculateStats();
 
   // Search filter
   const filteredTaskDeliverables = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
-    .filter((td) =>
-      [td.task_deliverables_id, td.subject_code, td.course_section, td.syllabus, td.tos, td.midterm_exam, td.final_exam, td.instructional_materials]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
-    );
+    .filter((td) => {
+      if (!td) return false;
+      
+      const searchableFields = [
+        td.task_deliverables_id, 
+        td.subject_code, 
+        td.course_section, 
+        td.syllabus, 
+        td.tos, 
+        td.midterm_exam, 
+        td.final_exam, 
+        td.instructional_materials
+      ].filter(field => field !== undefined && field !== null);
+      
+      return searchableFields.some((field) => 
+        field.toString().toLowerCase().includes(search.toLowerCase())
+      );
+    });
 
-  // Chart data for status distribution - UPDATED FOR NEW STATUS OPTIONS
+  // Chart data for status distribution - BASED ON DELIVERABLES COUNT
   const statusChartData = {
-    labels: ['Pending', 'Completed', 'Rejected'],
+    labels: ['Pending Deliverables', 'Completed Deliverables', 'Rejected Deliverables'],
     datasets: [
       {
         data: [
@@ -251,6 +278,17 @@ export default function TaskDeliverablesManagement() {
       legend: {
         position: 'bottom',
       },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.raw || 0;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
+      }
     },
   };
 
@@ -262,14 +300,23 @@ export default function TaskDeliverablesManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Get status badge color - UPDATED FOR NEW STATUS OPTIONS
+  // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800'; // pending
+      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
+      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200'; 
     }
   };
+
+  // Refresh data periodically to get latest sync status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTaskDeliverables();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -280,7 +327,7 @@ export default function TaskDeliverablesManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Task Deliverables Management</h1>
             <p className="text-sm text-gray-500">
-              Manage and track faculty task deliverables and submissions
+              Manage and track faculty task deliverables - Status syncs automatically with File Management
             </p>
           </div>
           <div className="flex gap-3">
@@ -307,37 +354,68 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Statistics Cards - UPDATED FOR NEW STATUS OPTIONS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Statistics Cards - COMPLETELY REVISED */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
             <div className="text-2xl font-bold text-blue-800">{taskDeliverablesStats.total}</div>
+            <div className="text-xs text-blue-500 mt-1">
+              {taskDeliverablesStats.totalDeliverables} total deliverables
+            </div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Pending</div>
+            <div className="text-yellow-600 text-sm font-medium">Pending Deliverables</div>
             <div className="text-2xl font-bold text-yellow-800">{taskDeliverablesStats.pending}</div>
+            <div className="text-xs text-yellow-500 mt-1">
+              {taskDeliverablesStats.totalDeliverables > 0 ? 
+                Math.round((taskDeliverablesStats.pending / taskDeliverablesStats.totalDeliverables) * 100) : 0}% of deliverables
+            </div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Completed</div>
+            <div className="text-green-600 text-sm font-medium">Completed Deliverables</div>
             <div className="text-2xl font-bold text-green-800">{taskDeliverablesStats.completed}</div>
+            <div className="text-xs text-green-500 mt-1">
+              {taskDeliverablesStats.totalDeliverables > 0 ? 
+                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}% of deliverables
+            </div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Rejected</div>
+            <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
             <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
+            <div className="text-xs text-red-500 mt-1">
+              {taskDeliverablesStats.totalDeliverables > 0 ? 
+                Math.round((taskDeliverablesStats.rejected / taskDeliverablesStats.totalDeliverables) * 100) : 0}% of deliverables
+            </div>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div className="text-purple-600 text-sm font-medium">Completion Rate</div>
+            <div className="text-2xl font-bold text-purple-800">
+              {taskDeliverablesStats.totalDeliverables > 0 ? 
+                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
+            </div>
+            <div className="text-xs text-purple-500 mt-1">
+              Overall progress
+            </div>
           </div>
         </div>
 
         {/* Chart Section */}
         <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
           <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Status Distribution</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status Distribution</h3>
             <div className="h-64">
-              <Doughnut data={statusChartData} options={chartOptions} />
+              {taskDeliverablesStats.totalDeliverables > 0 ? (
+                <Doughnut data={statusChartData} options={chartOptions} />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  No data available for chart
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Desktop Table - NO ACTIONS COLUMN */}
+        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -350,46 +428,78 @@ export default function TaskDeliverablesManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Midterm Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Final Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Instructional Materials</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Overall Status</th>
+                <th className="px-4 py-3 text-left border-gray-600">Last Updated</th>
               </tr>
             </thead>
             <tbody>
               {currentTaskDeliverables.length > 0 ? (
-                currentTaskDeliverables.map((task) => (
-                  <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{task.task_deliverables_id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 font-mono">{task.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">{task.course_section}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
-                        {task.syllabus}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos)}`}>
-                        {task.tos}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
-                        {task.midterm_exam}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
-                        {task.final_exam}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
-                        {task.instructional_materials}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                currentTaskDeliverables.map((task) => {
+                  // Calculate overall status for this task
+                  const fields = [task.syllabus, task.tos, task.midterm_exam, task.final_exam, task.instructional_materials];
+                  const completedCount = fields.filter(field => field === 'completed').length;
+                  const rejectedCount = fields.filter(field => field === 'rejected').length;
+                  const pendingCount = fields.filter(field => field === 'pending').length;
+                  
+                  let overallStatus = 'pending';
+                  let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+                  
+                  if (rejectedCount > 0) {
+                    overallStatus = 'rejected';
+                    overallColor = 'bg-red-100 text-red-800 border border-red-200';
+                  } else if (completedCount === 5) {
+                    overallStatus = 'completed';
+                    overallColor = 'bg-green-100 text-green-800 border border-green-200';
+                  } else if (completedCount > 0) {
+                    overallStatus = 'in-progress';
+                    overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
+                  }
+
+                  return (
+                    <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{task.task_deliverables_id}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 font-mono">{task.subject_code}</td>
+                      <td className="px-4 py-3 text-gray-700">{task.course_section}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
+                          {task.syllabus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos)}`}>
+                          {task.tos}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
+                          {task.midterm_exam}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
+                          {task.final_exam}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
+                          {task.instructional_materials}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
+                          {overallStatus} ({completedCount}/5)
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 text-xs">
+                        {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
-                    No task deliverables found.
+                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
+                    {loading ? "Loading task deliverables..." : "No task deliverables found."}
                   </td>
                 </tr>
               )}
@@ -397,59 +507,83 @@ export default function TaskDeliverablesManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - NO ACTIONS */}
+        {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentTaskDeliverables.length > 0 ? (
-            currentTaskDeliverables.map((task) => (
-              <div key={task._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h2 className="font-semibold text-gray-800">{task.subject_code} - {task.course_section}</h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                  <div>
-                    <span className="text-gray-500">Syllabus:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
-                      {task.syllabus}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">TOS:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos)}`}>
-                      {task.tos}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Midterm Exam:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
-                      {task.midterm_exam}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Final Exam:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
-                      {task.final_exam}
-                    </span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Instructional Materials:</span>
-                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
-                      {task.instructional_materials}
-                    </span>
-                  </div>
-                </div>
+            currentTaskDeliverables.map((task) => {
+              // Calculate overall status for mobile view
+              const fields = [task.syllabus, task.tos, task.midterm_exam, task.final_exam, task.instructional_materials];
+              const completedCount = fields.filter(field => field === 'completed').length;
+              const rejectedCount = fields.filter(field => field === 'rejected').length;
+              
+              let overallStatus = 'pending';
+              let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+              
+              if (rejectedCount > 0) {
+                overallStatus = 'rejected';
+                overallColor = 'bg-red-100 text-red-800 border border-red-200';
+              } else if (completedCount === 5) {
+                overallStatus = 'completed';
+                overallColor = 'bg-green-100 text-green-800 border border-green-200';
+              } else if (completedCount > 0) {
+                overallStatus = 'in-progress';
+                overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
+              }
 
-                <p className="text-xs text-gray-500 mt-3">
-                  Created: {new Date(task.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            ))
+              return (
+                <div key={task._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h2 className="font-semibold text-gray-800">{task.subject_code} - {task.course_section}</h2>
+                      <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
+                      {overallStatus} ({completedCount}/5)
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                      <span className="text-gray-500">Syllabus:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
+                        {task.syllabus}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">TOS:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos)}`}>
+                        {task.tos}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Midterm:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
+                        {task.midterm_exam}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Final Exam:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
+                        {task.final_exam}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Materials:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
+                        {task.instructional_materials}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500 mt-3">
+                    Updated: {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
+                  </p>
+                </div>
+              );
+            })
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              No task deliverables found.
+              {loading ? "Loading task deliverables..." : "No task deliverables found."}
             </div>
           )}
         </div>
@@ -457,7 +591,7 @@ export default function TaskDeliverablesManagement() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentTaskDeliverables.length} of {filteredTaskDeliverables.length} task deliverables
+            Showing {currentTaskDeliverables.length} of {filteredTaskDeliverables.length} tasks
           </div>
           
           <div className="flex items-center gap-3">
@@ -489,7 +623,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Add Task Deliverables Modal - NO EDIT MODE */}
+        {/* Add Task Deliverables Modal */}
         <Modal
           isOpen={showModal}
           onRequestClose={() => {
@@ -521,20 +655,21 @@ export default function TaskDeliverablesManagement() {
               {/* Faculty Loaded Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Faculty Loaded *
+                  Select Subject & Section *
                 </label>
                 <select
                   onChange={handleFacultyLoadedChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select faculty loaded</option>
+                  <option value="">Select subject and section</option>
                   {facultyLoadeds.map((facultyLoaded) => (
                     <option 
-                      key={`${facultyLoaded.subject_code}-${facultyLoaded.course_section}`}
-                      value={`${facultyLoaded.subject_code}-${facultyLoaded.course_section}`}
+                      key={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
+                      value={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
                     >
-                      {facultyLoaded.subject_code} - {facultyLoaded.course_section} {facultyLoaded.subject_title ? `(${facultyLoaded.subject_title})` : ''}
+                      {facultyLoaded.subject_code} - {facultyLoaded.course_section} 
+                      {facultyLoaded.subject_title && ` (${facultyLoaded.subject_title})`}
                     </option>
                   ))}
                 </select>
