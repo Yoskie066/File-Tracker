@@ -4,6 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
+import { autoSyncDeliverable } from "../AdminController/AdminDeliverablesController.js";
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
@@ -178,6 +179,18 @@ export const uploadFile = async (req, res) => {
       date_submitted: new Date()
     });
 
+    // AUTO-SYNC TO ADMIN DELIVERABLES - ADDED THIS PART
+    await autoSyncDeliverable({
+      faculty_id: savedFile.faculty_id,
+      faculty_name: savedFile.faculty_name,
+      subject_code: savedFile.subject_code,
+      course_section: savedFile.course_section,
+      file_name: savedFile.file_name,
+      file_type: savedFile.file_type,
+      uploaded_at: savedFile.uploaded_at,
+      status: savedFile.status
+    });
+
     res.status(201).json({
       success: true,
       message: "File uploaded successfully and pending admin approval",
@@ -327,9 +340,24 @@ export const updateFileStatus = async (req, res) => {
     // Update corresponding TaskDeliverables with the EXACT same status
     await updateTaskDeliverables(updatedFile);
 
+    // AUTO-SYNC TO ADMIN DELIVERABLES - UPDATE EXISTING DELIVERABLE STATUS
+    // Enhanced sync with additional data
+    await autoSyncDeliverable({
+      faculty_id: updatedFile.faculty_id,
+      faculty_name: updatedFile.faculty_name,
+      subject_code: updatedFile.subject_code,
+      course_section: updatedFile.course_section,
+      file_name: updatedFile.file_name,
+      file_type: updatedFile.file_type,
+      uploaded_at: updatedFile.uploaded_at,
+      status: updatedFile.status
+    });
+
+    console.log(`✅ File status updated and synced across all systems: ${status}`);
+
     res.status(200).json({
       success: true,
-      message: "File status updated successfully and synchronized with Task Deliverables",
+      message: "File status updated successfully and synchronized with Task Deliverables & Admin Deliverables",
       data: updatedFile,
     });
   } catch (error) {

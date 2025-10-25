@@ -359,42 +359,24 @@ export default function TaskDeliverablesManagement() {
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
             <div className="text-2xl font-bold text-blue-800">{taskDeliverablesStats.total}</div>
-            <div className="text-xs text-blue-500 mt-1">
-              {taskDeliverablesStats.totalDeliverables} total deliverables
-            </div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
             <div className="text-yellow-600 text-sm font-medium">Pending Deliverables</div>
             <div className="text-2xl font-bold text-yellow-800">{taskDeliverablesStats.pending}</div>
-            <div className="text-xs text-yellow-500 mt-1">
-              {taskDeliverablesStats.totalDeliverables > 0 ? 
-                Math.round((taskDeliverablesStats.pending / taskDeliverablesStats.totalDeliverables) * 100) : 0}% of deliverables
-            </div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
             <div className="text-green-600 text-sm font-medium">Completed Deliverables</div>
             <div className="text-2xl font-bold text-green-800">{taskDeliverablesStats.completed}</div>
-            <div className="text-xs text-green-500 mt-1">
-              {taskDeliverablesStats.totalDeliverables > 0 ? 
-                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}% of deliverables
-            </div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
             <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
             <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
-            <div className="text-xs text-red-500 mt-1">
-              {taskDeliverablesStats.totalDeliverables > 0 ? 
-                Math.round((taskDeliverablesStats.rejected / taskDeliverablesStats.totalDeliverables) * 100) : 0}% of deliverables
-            </div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
             <div className="text-purple-600 text-sm font-medium">Completion Rate</div>
             <div className="text-2xl font-bold text-purple-800">
               {taskDeliverablesStats.totalDeliverables > 0 ? 
                 Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
-            </div>
-            <div className="text-xs text-purple-500 mt-1">
-              Overall progress
             </div>
           </div>
         </div>
