@@ -7,16 +7,27 @@ export const logoutFaculty = async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(400).json({ message: "No token provided" });
 
+    // Verify token and get facultyId
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { facultyId } = decoded;
 
+    // Add token to blacklist
     await BlacklistedToken.create({ token });
 
-    await Faculty.findOneAndUpdate({ facultyId }, { status: "offline" });
+    // Update faculty status to offline
+    await Faculty.findOneAndUpdate(
+      { facultyId }, 
+      { status: "offline" }
+    );
 
-    return res.status(200).json({ message: "Faculty logged out successfully" });
+    return res.status(200).json({ 
+      message: "Faculty logged out successfully" 
+    });
   } catch (error) {
     console.error("Faculty Logout Error:", error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ 
+      message: "Server error during logout",
+      error: error.message 
+    });
   }
 };

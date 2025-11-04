@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "react-modal";
 import { CheckCircle, XCircle } from "lucide-react";
+import TokenService from "../../../services/tokenService";
 
 Modal.setAppElement("#root");
 
@@ -19,26 +20,27 @@ const AdminLogin = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const response = await fetch("http://localhost:3000/api/admin/admin-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    try {
+      const response = await fetch("http://localhost:3000/api/admin/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || "Login failed");
-    }
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
 
-    // save token + admin info
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("admin", JSON.stringify(data.admin));
+      // Store tokens using TokenService
+      TokenService.setAdminAccessToken(data.accessToken);
+      TokenService.setAdminRefreshToken(data.refreshToken);
+      localStorage.setItem("admin", JSON.stringify(data.admin));
 
-    setModalType("success");
+      setModalType("success");
       setModalMessage("Login successful!");
       setModalOpen(true);
 
@@ -97,6 +99,16 @@ const AdminLogin = () => {
                 placeholder="Enter your password"
                 required
               />
+            </div>
+
+            <div className="flex justify-end mb-6">
+              <button
+                type="button"
+                onClick={() => navigate('/admin-forgot-password')}
+                className="text-black hover:text-yellow-600 transition-colors text-sm font-medium"
+              >
+                Forgot Password?
+              </button>
             </div>
             
             <button

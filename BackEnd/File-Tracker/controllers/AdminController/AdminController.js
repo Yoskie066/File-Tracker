@@ -6,6 +6,29 @@ const generateAdminId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
+// Generate tokens function for admin
+const generateAdminTokens = (admin) => {
+  const accessToken = jwt.sign(
+    {
+      adminId: admin.adminId,
+      adminName: admin.adminName,
+      role: admin.role,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" } // Short-lived access token
+  );
+
+  const refreshToken = jwt.sign(
+    {
+      adminId: admin.adminId,
+    },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "7d" } // Long-lived refresh token
+  );
+
+  return { accessToken, refreshToken };
+};
+
 // REGISTER ADMIN
 export const registerAdmin = async (req, res) => {
   try {
@@ -24,7 +47,6 @@ export const registerAdmin = async (req, res) => {
       adminName,
       adminNumber,
       password: hashedPassword,
-      tempPlainPassword: password,
       role: "admin",
       status: "offline",
       registeredAt: new Date(),
@@ -44,12 +66,12 @@ export const registerAdmin = async (req, res) => {
   }
 };
 
-// LOGIN ADMIN
+// LOGIN ADMIN - UPDATED WITH REFRESH TOKEN
 export const loginAdmin = async (req, res) => {
   try {
     const { adminNumber, password } = req.body;
 
-    let admin = await Admin.findOne({ adminNumber }); 
+    let admin = await Admin.findOne({ adminNumber });
     if (!admin) {
       return res.status(404).json({ message: "Admin not found" });
     }
@@ -71,29 +93,17 @@ export const loginAdmin = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // ALTERNATIVE: Mas reliable na paraan - set all admins individually
-    const allAdmins = await Admin.find({});
-    for (let adm of allAdmins) {
-      adm.status = adm.adminId === admin.adminId ? "online" : "offline";
-      await adm.save();
-    }
-    
-    // Re-fetch ang current admin para sa updated data
-    admin = await Admin.findOne({ adminNumber }); // DITO GAGAMITIN ANG LET
+    // Update only the current admin status to online
+    admin.status = "online";
+    await admin.save();
 
-    const token = jwt.sign(
-      {
-        adminId: admin.adminId,
-        adminName: admin.adminName,
-        role: admin.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    // Generate both tokens
+    const { accessToken, refreshToken } = generateAdminTokens(admin);
 
     res.status(200).json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       admin: {
         adminId: admin.adminId,
         adminName: admin.adminName,
@@ -106,6 +116,85 @@ export const loginAdmin = async (req, res) => {
     console.error("Admin Login Error:", error);
     res.status(500).json({
       message: "Error logging in",
+      error: error.message,
+    });
+  }
+};
+
+// REFRESH TOKEN ENDPOINT FOR ADMIN
+export const refreshTokenAdmin = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token required" });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    
+    const admin = await Admin.findOne({ adminId: decoded.adminId });
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateAdminTokens(admin);
+
+    res.status(200).json({
+      message: "Token refreshed successfully",
+      accessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: "Refresh token expired" });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+    
+    console.error("Refresh Token Error:", error);
+    res.status(500).json({
+      message: "Error refreshing token",
+      error: error.message,
+    });
+  }
+};
+
+// Forgot Password - ADMIN
+export const forgotPasswordAdmin = async (req, res) => {
+  try {
+    const { adminNumber, adminName, newPassword } = req.body;
+
+    const admin = await Admin.findOne({ 
+      adminNumber, 
+      adminName: { $regex: new RegExp(`^${adminName}$`, 'i') } 
+    });
+
+    if (!admin) {
+      return res.status(404).json({ 
+        message: "Admin not found. Please check your Admin Number and Name." 
+      });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ 
+        message: "Password must be at least 4 characters long" 
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    admin.password = hashedPassword;
+    await admin.save();
+
+    res.status(200).json({
+      message: "Password reset successfully",
+    });
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({
+      message: "Error resetting password",
       error: error.message,
     });
   }

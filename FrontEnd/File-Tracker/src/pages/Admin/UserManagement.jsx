@@ -10,6 +10,8 @@ import {
   Legend, 
   ArcElement 
 } from 'chart.js';
+import { MoreVertical, Trash2, XCircle, CheckCircle } from "lucide-react";
+import Modal from 'react-modal';
 
 // Register Chart.js components
 ChartJS.register(
@@ -22,19 +24,35 @@ ChartJS.register(
   ArcElement
 );
 
+// Set the app element for accessibility
+Modal.setAppElement("#root");
+
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteUser, setDeleteUser] = useState(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null);
   const usersPerPage = 10;
+
+  // Feedback modal states
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState("success");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   // Fetch users from backend
   const fetchUsers = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/admin/user-management");
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3000/api/admin/user-management", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const data = await res.json();
-      console.log("✅ Fetched users:", data);
+      console.log("Fetched users:", data);
       setUsers(data);
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -46,6 +64,20 @@ export default function UserManagement() {
     const interval = setInterval(fetchUsers, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenu(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Show feedback modal
+  const showFeedback = (type, message) => {
+    setFeedbackType(type);
+    setFeedbackMessage(message);
+    setFeedbackModalOpen(true);
+  };
 
   // Calculate stats for charts
   const userStats = {
@@ -104,6 +136,51 @@ export default function UserManagement() {
 
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
+
+  // Handle delete user
+  const handleDelete = (user) => {
+    setDeleteUser(user);
+    setIsDeleteOpen(true);
+    setActiveMenu(null);
+  };
+
+  // Confirm delete
+  const confirmDelete = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = deleteUser.role === 'admin'
+        ? `http://localhost:3000/api/admin/delete-admin/${deleteUser.user_id}`
+        : `http://localhost:3000/api/admin/delete-faculty/${deleteUser.user_id}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        // Remove user from local state
+        setUsers(users.filter(u => u.user_id !== deleteUser.user_id));
+        setIsDeleteOpen(false);
+        setDeleteUser(null);
+        
+        // Show success feedback modal instead of alert
+        showFeedback("success", `${deleteUser.role.charAt(0).toUpperCase() + deleteUser.role.slice(1)} deleted successfully!`);
+      } else {
+        throw new Error('Failed to delete user');
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      showFeedback("error", "Error deleting user. Please try again.");
+    }
+  };
+
+  // Toggle menu
+  const toggleMenu = (e, userId) => {
+    e.stopPropagation();
+    setActiveMenu(activeMenu === userId ? null : userId);
+  };
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -175,7 +252,8 @@ export default function UserManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Password</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Role</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
-                <th className="px-4 py-3 text-left border-gray-600">Created At</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
+                <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -220,11 +298,31 @@ export default function UserManagement() {
                         minute: '2-digit'
                       })}
                     </td>
+                    <td className="px-4 py-3 relative">
+                      <button
+                        onClick={(e) => toggleMenu(e, user.user_id)}
+                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      
+                      {activeMenu === user.user_id && (
+                        <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                          <button
+                            onClick={() => handleDelete(user)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
                     No users found.
                   </td>
                 </tr>
@@ -237,19 +335,40 @@ export default function UserManagement() {
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentUsers.length > 0 ? (
             currentUsers.map((user) => (
-              <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+              <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white relative">
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h2 className="font-semibold text-gray-800">{user.name}</h2>
                     <p className="text-sm text-gray-600 font-mono">{user.user_id}</p>
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.role === 'admin' 
-                      ? 'bg-purple-100 text-purple-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {user.role}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user.role === 'admin' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {user.role}
+                    </span>
+                    
+                    <button
+                      onClick={(e) => toggleMenu(e, user.user_id)}
+                      className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    
+                    {activeMenu === user.user_id && (
+                      <div className="absolute right-2 top-12 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        <button
+                          onClick={() => handleDelete(user)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
@@ -326,6 +445,60 @@ export default function UserManagement() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteOpen}
+        onRequestClose={() => setIsDeleteOpen(false)}
+        className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      >
+        <div className="flex flex-col items-center text-center">
+          <XCircle className="text-red-500 w-12 h-12 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete <strong>{deleteUser?.name}</strong> ({deleteUser?.role})? 
+            This action cannot be undone.
+          </p>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => setIsDeleteOpen(false)}
+              className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Feedback Modal */}
+      <Modal
+        isOpen={feedbackModalOpen}
+        onRequestClose={() => setFeedbackModalOpen(false)}
+        className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      >
+        <div className="flex flex-col items-center text-center">
+          {feedbackType === "success" ? (
+            <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
+          ) : (
+            <XCircle className="text-red-500 w-12 h-12 mb-4" />
+          )}
+          <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
+          <button
+            onClick={() => setFeedbackModalOpen(false)}
+            className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
+          >
+            Close
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

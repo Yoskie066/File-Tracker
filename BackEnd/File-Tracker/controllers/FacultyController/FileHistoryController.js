@@ -12,7 +12,7 @@ export const createFileHistory = async (data) => {
   }
 };
 
-// Get faculty-specific file history
+// Get faculty-specific file history - IMPROVED FILTERING
 export const getFacultyFileHistory = async (req, res) => {
   try {
     if (!req.faculty || !req.faculty.facultyId) {
@@ -28,24 +28,30 @@ export const getFacultyFileHistory = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // Build filter object for faculty
-    const filter = { faculty_id: req.faculty.facultyId };
+    // Build filter object for faculty - STRICTER FILTERING
+    const filter = { 
+      faculty_id: req.faculty.facultyId // ONLY current faculty's files
+    };
     
     if (search) {
       filter.$or = [
         { file_name: { $regex: search, $options: 'i' } },
-        { file_type: { $regex: search, $options: 'i' } }
+        { file_type: { $regex: search, $options: 'i' } },
+        { subject_code: { $regex: search, $options: 'i' } },
+        { course_section: { $regex: search, $options: 'i' } }
       ];
     }
 
     // Get total count for pagination
     const total = await FileHistory.countDocuments(filter);
     
-    // Get faculty history records
+    // Get faculty history records with proper sorting
     const history = await FileHistory.find(filter)
-      .sort({ date_submitted: -1 })
+      .sort({ date_submitted: -1 }) // Most recent first
       .skip(skip)
       .limit(limitNum);
+
+    console.log(`📁 Fetched ${history.length} files for faculty: ${req.faculty.facultyId}`);
 
     res.status(200).json({
       success: true,

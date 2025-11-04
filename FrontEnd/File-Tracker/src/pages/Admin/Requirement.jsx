@@ -29,6 +29,7 @@ Modal.setAppElement("#root");
 
 export default function RequirementManagement() {
   const [requirements, setRequirements] = useState([]);
+  const [facultyList, setFacultyList] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -76,7 +77,6 @@ export default function RequirementManagement() {
       const result = await res.json();
       console.log("Fetched requirements:", result);
       
-      // Extract the data array from the response
       if (result.success && Array.isArray(result.data)) {
         setRequirements(result.data);
       } else {
@@ -88,9 +88,38 @@ export default function RequirementManagement() {
       setRequirements([]); 
     }
   };
+
+  // Fetch faculty list from backend
+  const fetchFacultyList = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3000/api/admin/user-management", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) throw new Error("Server responded with " + res.status);
+      const data = await res.json();
+      console.log("Fetched users for faculty list:", data);
+      
+      // Filter only faculty users and extract their names
+      const facultyUsers = data.filter(user => 
+        user.role === 'faculty' && user.name
+      );
+      
+      console.log("Filtered faculty users:", facultyUsers);
+      setFacultyList(facultyUsers);
+      
+    } catch (err) {
+      console.error("Error fetching faculty list:", err);
+      setFacultyList([]);
+    }
+  };
   
   useEffect(() => {
     fetchRequirements();
+    fetchFacultyList();
   }, []);
 
   // Close dropdown when clicking outside
@@ -143,7 +172,6 @@ export default function RequirementManagement() {
       
       const method = isEditMode ? "PUT" : "POST";
   
-      // Prepare data without requirement_id for new entries
       const requestData = isEditMode ? {
         task_name: formData.task_name,
         prof_name: formData.prof_name,
@@ -182,14 +210,9 @@ export default function RequirementManagement() {
       }
   
       if (result.success) {
-        // Reset form and close modal
         resetForm();
         setShowModal(false);
-        
-        // Refresh requirements list
         fetchRequirements();
-        
-        // Show success feedback
         showFeedback("success", 
           isEditMode ? "Requirement updated successfully!" : "Requirement added successfully!"
         );
@@ -244,7 +267,6 @@ export default function RequirementManagement() {
       const result = await response.json();
 
       if (result.success) {
-        // Refresh requirements list
         fetchRequirements();
         showFeedback("success", "Requirement deleted successfully!");
       } else {
@@ -265,7 +287,7 @@ export default function RequirementManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Calculate stats for charts - add Array.isArray check
+  // Calculate stats for charts
   const requirementStats = {
     total: Array.isArray(requirements) ? requirements.length : 0,
     syllabus: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'syllabus').length : 0,
@@ -275,7 +297,7 @@ export default function RequirementManagement() {
     instrumental: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'instrumental materials').length : 0
   };
 
-  // Search filter with safety check (REMOVED DUPLICATE)
+  // Search filter
   const filteredRequirements = (Array.isArray(requirements) ? requirements : [])
     .filter((req) =>
       [req.requirement_id, req.task_name, req.prof_name, req.subject_code, req.course_section, req.file_type]
@@ -351,7 +373,6 @@ export default function RequirementManagement() {
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
-            {/* Plus Sign Button */}
             <button
               onClick={() => {
                 resetForm();
@@ -403,7 +424,7 @@ export default function RequirementManagement() {
           </div>
         </div>
 
-        {/* Desktop Table - Updated with Actions column */}
+        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -504,7 +525,7 @@ export default function RequirementManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - Updated with Actions */}
+        {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentRequirements.length > 0 ? (
             currentRequirements.map((requirement) => (
@@ -525,7 +546,6 @@ export default function RequirementManagement() {
                       {requirement.file_type}
                     </span>
                     
-                    {/* Mobile Actions Dropdown */}
                     <div className="relative">
                       <button
                         onClick={(e) => {
@@ -697,20 +717,30 @@ export default function RequirementManagement() {
                 />
               </div>
 
-              {/* Professor Name */}
+              {/* Professor Name - DROPDOWN (UPDATED - NAME ONLY) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Professor Name *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="prof_name"
                   value={formData.prof_name}
                   onChange={handleInputChange}
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter professor name"
-                />
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select professor</option>
+                  {facultyList.map((faculty) => (
+                    <option key={faculty.user_id} value={faculty.name}>
+                      {faculty.name}
+                    </option>
+                  ))}
+                </select>
+                {facultyList.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    No faculty accounts found. Please register faculty users first.
+                  </p>
+                )}
               </div>
 
               {/* Subject Code */}

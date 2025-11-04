@@ -1,4 +1,6 @@
+// controllers/FacultyController/FacultyLoadedController.js
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
+import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 
 // Generate 10-digit unique faculty_loaded_id
@@ -6,10 +8,11 @@ const generateFacultyLoadedId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Create faculty loaded
+// Create faculty loaded - NOW PROTECTED BY FACULTY ID
 export const createFacultyLoaded = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
+    console.log("Authenticated faculty:", req.faculty);
     
     const { subject_code, subject_title, course_section, semester, school_year, day_time } = req.body;
 
@@ -29,12 +32,21 @@ export const createFacultyLoaded = async (req, res) => {
       });
     }
 
+    // Check if faculty is authenticated
+    if (!req.faculty || !req.faculty.facultyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please login again."
+      });
+    }
+
     const faculty_loaded_id = generateFacultyLoadedId();
 
-    console.log("Creating faculty loaded with ID:", faculty_loaded_id);
+    console.log("Creating faculty loaded with ID:", faculty_loaded_id, "for faculty:", req.faculty.facultyId);
 
     const newFacultyLoaded = new FacultyLoaded({
       faculty_loaded_id,
+      faculty_id: req.faculty.facultyId, // Associate with logged-in faculty
       subject_code,
       subject_title,
       course_section,
@@ -44,7 +56,14 @@ export const createFacultyLoaded = async (req, res) => {
     });
 
     const savedFacultyLoaded = await newFacultyLoaded.save();
-    console.log("Faculty loaded saved successfully:", savedFacultyLoaded._id);
+    
+    // Update faculty document to include this faculty loaded reference
+    await Faculty.findOneAndUpdate(
+      { facultyId: req.faculty.facultyId },
+      { $push: { facultyLoadeds: savedFacultyLoaded._id } }
+    );
+
+    console.log("Faculty loaded saved successfully for faculty:", req.faculty.facultyId);
 
     res.status(201).json({
       success: true,
@@ -80,24 +99,62 @@ export const createFacultyLoaded = async (req, res) => {
   }
 };
 
-// ✅ Get all faculty loadeds
+// ✅ Get all faculty loadeds - NOW FILTERED BY LOGGED-IN FACULTY
 export const getFacultyLoadeds = async (req, res) => {
   try {
-    const facultyLoadeds = await FacultyLoaded.find().sort({ created_at: -1 });
-    res.status(200).json({ success: true, data: facultyLoadeds });
+    // Check if faculty is authenticated
+    if (!req.faculty || !req.faculty.facultyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please login again."
+      });
+    }
+
+    // Only get faculty loadeds for the logged-in faculty member
+    const facultyLoadeds = await FacultyLoaded.find({ 
+      faculty_id: req.faculty.facultyId 
+    }).sort({ created_at: -1 });
+    
+    console.log(`Found ${facultyLoadeds.length} faculty loadeds for faculty: ${req.faculty.facultyId}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      data: facultyLoadeds,
+      faculty: {
+        facultyId: req.faculty.facultyId,
+        facultyName: req.faculty.facultyName
+      }
+    });
   } catch (error) {
     console.error("❌ Error fetching faculty loadeds:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get single faculty loaded
+// ✅ Get single faculty loaded - WITH OWNERSHIP CHECK
 export const getFacultyLoadedById = async (req, res) => {
   try {
     const { id } = req.params;
-    const facultyLoaded = await FacultyLoaded.findOne({ faculty_loaded_id: id });
 
-    if (!facultyLoaded) return res.status(404).json({ success: false, message: "Faculty loaded not found" });
+    // Check if faculty is authenticated
+    if (!req.faculty || !req.faculty.facultyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please login again."
+      });
+    }
+
+    const facultyLoaded = await FacultyLoaded.findOne({ 
+      faculty_loaded_id: id,
+      faculty_id: req.faculty.facultyId // Ensure the faculty owns this record
+    });
+
+    if (!facultyLoaded) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Faculty loaded not found or you don't have permission to access it" 
+      });
+    }
 
     res.status(200).json({ success: true, data: facultyLoaded });
   } catch (error) {
@@ -106,16 +163,31 @@ export const getFacultyLoadedById = async (req, res) => {
   }
 };
 
-// ✅ Update faculty loaded
+// ✅ Update faculty loaded - WITH OWNERSHIP CHECK
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
     const { subject_code, subject_title, course_section, semester, school_year, day_time } = req.body;
 
-    // Find the existing faculty loaded to get old values
-    const existingFacultyLoaded = await FacultyLoaded.findOne({ faculty_loaded_id: id });
+    // Check if faculty is authenticated
+    if (!req.faculty || !req.faculty.facultyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please login again."
+      });
+    }
+
+    // Find the existing faculty loaded with ownership check
+    const existingFacultyLoaded = await FacultyLoaded.findOne({ 
+      faculty_loaded_id: id,
+      faculty_id: req.faculty.facultyId 
+    });
+    
     if (!existingFacultyLoaded) {
-      return res.status(404).json({ success: false, message: "Faculty loaded not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Faculty loaded not found or you don't have permission to update it" 
+      });
     }
 
     const oldSubjectCode = existingFacultyLoaded.subject_code;
@@ -123,20 +195,35 @@ export const updateFacultyLoaded = async (req, res) => {
 
     // Update faculty loaded
     const updated = await FacultyLoaded.findOneAndUpdate(
-      { faculty_loaded_id: id },
+      { 
+        faculty_loaded_id: id,
+        faculty_id: req.faculty.facultyId 
+      },
       { subject_code, subject_title, course_section, semester, school_year, day_time, updated_at: new Date() },
       { new: true, runValidators: true }
     );
 
-    if (!updated) return res.status(404).json({ success: false, message: "Faculty loaded not found" });
-
     // AUTO UPDATE: Update corresponding task deliverables if subject_code or course_section changed
     if (oldSubjectCode !== subject_code || oldCourseSection !== course_section) {
-      await TaskDeliverables.findOneAndUpdate(
-        { subject_code: oldSubjectCode, course_section: oldCourseSection },
-        { subject_code, course_section, updated_at: new Date() }
+      const updateResult = await TaskDeliverables.findOneAndUpdate(
+        { 
+          subject_code: oldSubjectCode, 
+          course_section: oldCourseSection,
+          faculty_id: req.faculty.facultyId 
+        },
+        { 
+          subject_code: subject_code, 
+          course_section: course_section, 
+          updated_at: new Date() 
+        },
+        { new: true }
       );
-      console.log(`✅ Auto-updated task deliverables from ${oldSubjectCode}-${oldCourseSection} to ${subject_code}-${course_section}`);
+      
+      if (updateResult) {
+        console.log(`✅ Auto-updated task deliverables from ${oldSubjectCode}-${oldCourseSection} to ${subject_code}-${course_section} for faculty: ${req.faculty.facultyId}`);
+      } else {
+        console.log(`ℹ️ No task deliverables found to update for ${oldSubjectCode}-${oldCourseSection}`);
+      }
     }
 
     res.status(200).json({ success: true, message: "Faculty loaded updated successfully", data: updated });
@@ -146,15 +233,30 @@ export const updateFacultyLoaded = async (req, res) => {
   }
 };
 
-// ✅ Delete faculty loaded - AUTO DELETE TASK DELIVERABLES
+// ✅ Delete faculty loaded - WITH OWNERSHIP CHECK AND TASK DELIVERABLES DELETE
 export const deleteFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Find the faculty loaded first to get subject_code and course_section
-    const facultyLoaded = await FacultyLoaded.findOne({ faculty_loaded_id: id });
+    // Check if faculty is authenticated
+    if (!req.faculty || !req.faculty.facultyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please login again."
+      });
+    }
+
+    // Find the faculty loaded with ownership check
+    const facultyLoaded = await FacultyLoaded.findOne({ 
+      faculty_loaded_id: id,
+      faculty_id: req.faculty.facultyId 
+    });
+    
     if (!facultyLoaded) {
-      return res.status(404).json({ success: false, message: "Faculty loaded not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Faculty loaded not found or you don't have permission to delete it" 
+      });
     }
 
     const { subject_code, course_section } = facultyLoaded;
@@ -162,15 +264,27 @@ export const deleteFacultyLoaded = async (req, res) => {
     // AUTO DELETE: Delete corresponding task deliverables
     const deletedTaskDeliverables = await TaskDeliverables.findOneAndDelete({
       subject_code,
-      course_section
+      course_section,
+      faculty_id: req.faculty.facultyId
     });
 
     if (deletedTaskDeliverables) {
-      console.log(`✅ Auto-deleted task deliverables for ${subject_code}-${course_section}`);
+      console.log(`✅ Auto-deleted task deliverables for ${subject_code}-${course_section} for faculty: ${req.faculty.facultyId}`);
+    } else {
+      console.log(`ℹ️ No task deliverables found to delete for ${subject_code}-${course_section}`);
     }
 
     // Delete faculty loaded
-    const deleted = await FacultyLoaded.findOneAndDelete({ faculty_loaded_id: id });
+    const deleted = await FacultyLoaded.findOneAndDelete({ 
+      faculty_loaded_id: id,
+      faculty_id: req.faculty.facultyId 
+    });
+
+    // Remove from faculty's facultyLoadeds array
+    await Faculty.findOneAndUpdate(
+      { facultyId: req.faculty.facultyId },
+      { $pull: { facultyLoadeds: facultyLoaded._id } }
+    );
 
     res.status(200).json({ 
       success: true, 

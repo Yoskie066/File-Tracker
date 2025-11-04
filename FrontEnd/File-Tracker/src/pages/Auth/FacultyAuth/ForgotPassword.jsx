@@ -2,12 +2,16 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "react-modal";
 import { CheckCircle, XCircle } from "lucide-react";
-import TokenService from "../../../services/tokenService";
 
-Modal.setAppElement("#root"); 
+Modal.setAppElement("#root");
 
-const FacultyLogin = () => {
-  const [formData, setFormData] = useState({ facultyNumber: "", password: "" });
+const FacultyForgotPassword = () => {
+  const [formData, setFormData] = useState({
+    facultyName: "",
+    facultyNumber: "",
+    newPassword: "",
+  });
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("success"); 
   const [modalMessage, setModalMessage] = useState("");
@@ -16,15 +20,18 @@ const FacultyLogin = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prevState) => ({
+      ...prevState,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:3000/api/faculty/login", {
-        method: "POST",
+      const response = await fetch("http://localhost:3000/api/faculty/forgot-password", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
@@ -32,31 +39,28 @@ const FacultyLogin = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(data.message || "Password reset failed");
       }
 
-      // Store tokens using TokenService
-      TokenService.setFacultyAccessToken(data.accessToken);
-      TokenService.setFacultyRefreshToken(data.refreshToken);
-      localStorage.setItem("faculty", JSON.stringify(data.faculty));
-
       setModalType("success");
-      setModalMessage("Login successful!");
+      setModalMessage(data.message);
       setModalOpen(true);
 
+      // Auto-redirect after success
       setTimeout(() => {
         setModalOpen(false);
-        navigate("/faculty-loaded");
+        navigate('/login');
       }, 2000);
+
     } catch (err) {
       setModalType("error");
       setModalMessage(err.message);
       setModalOpen(true);
     }
-  }
+  };
 
-  const handleRegister = () => {
-    navigate('/register');
+  const handleLogin = () => {
+    navigate('/login');
   };
 
   return (
@@ -64,11 +68,31 @@ const FacultyLogin = () => {
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">Faculty Login</h1>
-            <p className="text-gray-600 mt-6">Connect to your account to monitor submissions.</p>
+            <h1 className="text-3xl font-bold text-gray-800">Reset Faculty Password</h1>
+            <p className="text-gray-600 mt-2">
+              Enter your details to reset your password
+            </p>
           </div>
           
           <form onSubmit={handleSubmit}>
+            {/* Faculty Name - First Field */}
+            <div className="mb-6">
+              <label htmlFor="facultyName" className="block text-gray-700 text-sm font-medium mb-2">
+                Faculty Name:
+              </label>
+              <input
+                type="text"
+                id="facultyName"
+                name="facultyName"
+                value={formData.facultyName}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                placeholder="Enter your faculty name"
+                required
+              />
+            </div>
+
+            {/* Faculty Number - Second Field */}
             <div className="mb-6">
               <label htmlFor="facultyNumber" className="block text-gray-700 text-sm font-medium mb-2">
                 Faculty Number:
@@ -85,49 +109,45 @@ const FacultyLogin = () => {
               />
             </div>
             
+            {/* New Password - Third Field */}
             <div className="mb-6">
-              <label htmlFor="password" className="block text-gray-700 text-sm font-medium mb-2">
-                Password:
+              <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
+                New Password:
               </label>
               <input
                 type="password"
-                id="password"
-                name="password"
-                value={formData.password}
+                id="newPassword"
+                name="newPassword"
+                value={formData.newPassword}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                placeholder="Enter your password"
+                placeholder="Enter your new password"
+                minLength="4"
                 required
               />
-            </div>
-
-            <div className="flex justify-end mb-6">
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-black hover:text-yellow-600 transition-colors text-sm font-medium"
-              >
-                Forgot Password?
-              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                Password must be at least 4 characters long
+              </p>
             </div>
             
             <button
               type="submit"
               className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none"
             >
-              Login
+              Reset Password
             </button>
           </form>
           
-          <div className="mt-3 text-center">
+          {/* Login Section */}
+          <div className="mt-6 text-center">
             <p className="text-gray-600 mb-4">
-              Don't have an account yet?
+              You have an existing account?
             </p>
             <button
-              onClick={handleRegister}
+              onClick={handleLogin}
               className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-3 px-6 rounded-lg transition-colors duration-300 focus:outline-none"
             >
-              Register
+              Login
             </button>
           </div>
         </div>
@@ -138,7 +158,7 @@ const FacultyLogin = () => {
           </p>
         </div>
 
-        {/* Modal */}
+        {/* Modal - Updated to match Login style */}
         <Modal
           isOpen={modalOpen}
           onRequestClose={() => setModalOpen(false)}
@@ -165,4 +185,4 @@ const FacultyLogin = () => {
   );
 };
 
-export default FacultyLogin;
+export default FacultyForgotPassword;

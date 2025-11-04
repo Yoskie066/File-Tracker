@@ -1,8 +1,10 @@
+// models/FacultyModel/FacultyLoadedModel.js
 import mongoose from "mongoose";
 
 const facultyLoadedSchema = new mongoose.Schema(
   {
     faculty_loaded_id: { type: String, required: true, unique: true },
+    faculty_id: { type: String, required: true }, // Reference to the faculty who owns this
     subject_code: { type: String, required: true },
     subject_title: { type: String, required: true },
     course_section: { type: String, required: true },

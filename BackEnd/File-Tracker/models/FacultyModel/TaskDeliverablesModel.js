@@ -1,8 +1,10 @@
+// models/FacultyModel/TaskDeliverablesModel.js
 import mongoose from "mongoose";
 
 const taskDeliverablesSchema = new mongoose.Schema(
   {
     task_deliverables_id: { type: String, required: true, unique: true },
+    faculty_id: { type: String, required: true }, // Add faculty_id
     subject_code: { type: String, required: true },
     course_section: { type: String, required: true },
     syllabus: { 

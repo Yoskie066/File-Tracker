@@ -12,6 +12,8 @@ import {
   Legend, 
   ArcElement 
 } from 'chart.js';
+import { useNavigate } from "react-router-dom";
+import tokenService from "../../services/tokenService"
 
 // Register Chart.js components
 ChartJS.register(
@@ -57,6 +59,7 @@ export default function FacultyLoadedManagement() {
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
+  const navigate = useNavigate(); // Add this
 
   // Semester options for combo box
   const semesterOptions = [
@@ -65,13 +68,50 @@ export default function FacultyLoadedManagement() {
     "Summer"
   ];
 
+  // Add authentication check on component mount
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = tokenService.getFacultyAccessToken();
+    const facultyData = localStorage.getItem('faculty');
+    
+    if (!token || !facultyData) {
+      showFeedback("error", "Please login to access this page");
+      navigate('/faculty-login');
+      return;
+    }
+    
+    fetchFacultyLoadeds();
+  }, [navigate]);
+
   // Fetch faculty loadeds from backend 
   const fetchFacultyLoadeds = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/faculty/faculty-loaded"); 
-      if (!res.ok) throw new Error("Server responded with " + res.status);
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        console.error("No access token found");
+        showFeedback("error", "Please login again");
+        navigate('/login');
+        return;
+      }
+
+      const res = await fetch("http://localhost:3000/api/faculty/faculty-loaded", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }); 
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          tokenService.clearFacultyTokens();
+          showFeedback("error", "Session expired. Please login again.");
+          navigate('/login');
+          return;
+        }
+        throw new Error("Server responded with " + res.status);
+      }
+      
       const result = await res.json();
-      console.log("Fetched faculty loadeds:", result);
+      console.log("Fetched faculty loadeds for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
         setFacultyLoadeds(result.data);
@@ -84,10 +124,6 @@ export default function FacultyLoadedManagement() {
       setFacultyLoadeds([]); 
     }
   };
-  
-  useEffect(() => {
-    fetchFacultyLoadeds();
-  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -126,12 +162,19 @@ export default function FacultyLoadedManagement() {
     setIsEditMode(false);
   };
 
-  // Handle form submission
+  // Handle form submission - UPDATED WITH AUTH TOKEN
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
   
     try {
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        showFeedback("error", "Please login again. No authentication token found.");
+        setLoading(false);
+        return;
+      }
+
       const url = isEditMode 
         ? `http://localhost:3000/api/faculty/faculty-loaded/${formData.faculty_loaded_id}`
         : "http://localhost:3000/api/faculty/faculty-loaded";
@@ -162,6 +205,7 @@ export default function FacultyLoadedManagement() {
         method,
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // ADDED THIS LINE
         },
         body: JSON.stringify(requestData),
       });
@@ -170,6 +214,12 @@ export default function FacultyLoadedManagement() {
       console.log("Server response:", result);
   
       if (!response.ok) {
+        if (response.status === 401) {
+          tokenService.clearFacultyTokens();
+          showFeedback("error", "Session expired. Please login again.");
+          setTimeout(() => navigate('/faculty-login'), 2000);
+          return;
+        }
         throw new Error(result.message || `HTTP error! status: ${response.status}`);
       }
   
@@ -191,10 +241,30 @@ export default function FacultyLoadedManagement() {
     }
   };
 
-  // Handle edit faculty loaded
+  // Handle edit faculty loaded - UPDATED WITH AUTH TOKEN
   const handleEdit = async (facultyLoadedId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`);
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        showFeedback("error", "Please login again");
+        return;
+      }
+
+      const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}` // ADDED THIS LINE
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          tokenService.clearFacultyTokens();
+          showFeedback("error", "Session expired. Please login again.");
+          return;
+        }
+        throw new Error("Failed to fetch faculty loaded data");
+      }
+
       const result = await response.json();
   
       if (result.success && result.data) {
@@ -220,14 +290,32 @@ export default function FacultyLoadedManagement() {
     setActionDropdown(null);
   }
 
-  // Handle delete faculty loaded
+  // Handle delete faculty loaded - UPDATED WITH AUTH TOKEN
   const handleDelete = async (facultyLoadedId) => {
     try {
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        showFeedback("error", "Please login again");
+        return;
+      }
+
       const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`, {
         method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${token}` // ADDED THIS LINE
+        }
       });
 
       const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          tokenService.clearFacultyTokens();
+          showFeedback("error", "Session expired. Please login again.");
+          return;
+        }
+        throw new Error(result.message || "Error deleting faculty loaded");
+      }
 
       if (result.success) {
         fetchFacultyLoadeds();

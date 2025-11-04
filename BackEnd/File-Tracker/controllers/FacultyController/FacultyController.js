@@ -6,6 +6,29 @@ const generateFacultyId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
+// Generate tokens function
+const generateTokens = (faculty) => {
+  const accessToken = jwt.sign(
+    {
+      facultyId: faculty.facultyId,
+      facultyName: faculty.facultyName,
+      role: faculty.role,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" } // Short-lived access token
+  );
+
+  const refreshToken = jwt.sign(
+    {
+      facultyId: faculty.facultyId,
+    },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "7d" } // Long-lived refresh token
+  );
+
+  return { accessToken, refreshToken };
+};
+
 // REGISTER FACULTY
 export const registerFaculty = async (req, res) => {
   try {
@@ -24,7 +47,6 @@ export const registerFaculty = async (req, res) => {
       facultyName,
       facultyNumber,
       password: hashedPassword,
-      tempPlainPassword: password,
       role: "faculty",
       status: "offline",
       registeredAt: new Date(),
@@ -44,7 +66,7 @@ export const registerFaculty = async (req, res) => {
   }
 };
 
-// LOGIN FACULTY
+// LOGIN FACULTY - UPDATED WITH REFRESH TOKEN
 export const loginFaculty = async (req, res) => {
   try {
     const { facultyNumber, password } = req.body;
@@ -56,11 +78,11 @@ export const loginFaculty = async (req, res) => {
 
     let isPasswordValid = false;
 
-    // Check kung naka-hash na yung password
+    // Check if password is hashed
     if (faculty.password.startsWith("$2b$") || faculty.password.startsWith("$2a$")) {
       isPasswordValid = await bcrypt.compare(password, faculty.password);
     } else {
-      // Convert plain password to hash kung plain text pa
+      // Convert plain password to hash if still plain text
       if (faculty.password === password) {
         const hashedPassword = await bcrypt.hash(password, 10);
         faculty.password = hashedPassword;
@@ -73,30 +95,17 @@ export const loginFaculty = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // ALTERNATIVE: Mas reliable na paraan - set all faculties individually
-    const allFaculties = await Faculty.find({});
-    for (let fac of allFaculties) {
-      fac.status = fac.facultyId === faculty.facultyId ? "online" : "offline";
-      await fac.save();
-    }
+    // Update only the current faculty status to online
+    faculty.status = "online";
+    await faculty.save();
 
-    // Re-fetch ang current faculty para sa updated data
-    faculty = await Faculty.findOne({ facultyNumber });
-
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        facultyId: faculty.facultyId,
-        facultyName: faculty.facultyName,
-        role: faculty.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    // Generate both tokens
+    const { accessToken, refreshToken } = generateTokens(faculty);
 
     res.status(200).json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       faculty: {
         facultyId: faculty.facultyId,
         facultyName: faculty.facultyName,
@@ -114,3 +123,81 @@ export const loginFaculty = async (req, res) => {
   }
 };
 
+// REFRESH TOKEN ENDPOINT FOR FACULTY
+export const refreshTokenFaculty = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token required" });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    
+    const faculty = await Faculty.findOne({ facultyId: decoded.facultyId });
+    if (!faculty) {
+      return res.status(404).json({ message: "Faculty not found" });
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(faculty);
+
+    res.status(200).json({
+      message: "Token refreshed successfully",
+      accessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: "Refresh token expired" });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+    
+    console.error("Refresh Token Error:", error);
+    res.status(500).json({
+      message: "Error refreshing token",
+      error: error.message,
+    });
+  }
+};
+
+// Forgot Password Faculty
+export const forgotPasswordFaculty = async (req, res) => {
+  try {
+    const { facultyNumber, facultyName, newPassword } = req.body;
+
+    const faculty = await Faculty.findOne({ 
+      facultyNumber, 
+      facultyName: { $regex: new RegExp(`^${facultyName}$`, 'i') } 
+    });
+
+    if (!faculty) {
+      return res.status(404).json({ 
+        message: "Faculty not found. Please check your Faculty Number and Name." 
+      });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ 
+        message: "Password must be at least 4 characters long" 
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    faculty.password = hashedPassword;
+    await faculty.save();
+
+    res.status(200).json({
+      message: "Password reset successfully",
+    });
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({
+      message: "Error resetting password",
+      error: error.message,
+    });
+  }
+};

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, Upload, FileText, User } from "lucide-react";
+import { CheckCircle, XCircle, Upload, FileText } from "lucide-react";
+import tokenService from "../../services/tokenService";
 
 Modal.setAppElement("#root");
 
@@ -11,7 +12,6 @@ export default function FileUpload() {
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
-  const [facultyInfo, setFacultyInfo] = useState(null);
   const [facultyLoadeds, setFacultyLoadeds] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -21,42 +21,22 @@ export default function FileUpload() {
     course_section: ""
   });
 
-  useEffect(() => {
-    const fetchFacultyInfo = async () => {
-      try {
-        const token = localStorage.getItem("facultyToken"); 
-        console.log("Sending token:", token);
-        if (!token) {
-          console.error("No token found");
-          return;
-        }
-
-        const response = await fetch("http://localhost:3000/api/faculty/faculty-profile", {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          setFacultyInfo(result.faculty || result);
-        } else {
-          console.error("Failed to fetch faculty info");
-        }
-      } catch (error) {
-        console.error("Error fetching faculty info:", error);
-      }
-    };
-
-    fetchFacultyInfo();
-  }, []);
-
   // Fetch faculty loadeds for dropdown
   const fetchFacultyLoadeds = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/faculty/faculty-loaded"); 
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        console.error("No token found");
+        showFeedback("error", "Please log in to upload files");
+        return;
+      }
+
+      const res = await fetch("http://localhost:3000/api/faculty/faculty-loaded", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }); 
+      
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
       console.log("Fetched faculty loadeds:", result);
@@ -69,6 +49,7 @@ export default function FileUpload() {
       }
     } catch (err) {
       console.error("Error fetching faculty loadeds:", err);
+      showFeedback("error", "Failed to load your subjects");
       setFacultyLoadeds([]); 
     }
   };
@@ -152,7 +133,8 @@ export default function FileUpload() {
 
   // Handle modal open - fetch faculty loadeds when opening modal
   const handleModalOpen = () => {
-    if (!facultyInfo) {
+    const token = tokenService.getFacultyAccessToken();
+    if (!token) {
       showFeedback("error", "Please log in to upload files");
       return;
     }
@@ -160,17 +142,12 @@ export default function FileUpload() {
     setShowModal(true);
   };
 
-  // Handle form submission - UPDATED with subject_code and course_section
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!selectedFile) {
       showFeedback("error", "Please select a file to upload");
-      return;
-    }
-
-    if (!facultyInfo) {
-      showFeedback("error", "Please log in to upload files");
       return;
     }
 
@@ -182,7 +159,7 @@ export default function FileUpload() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('facultyToken'); 
+      const token = tokenService.getFacultyAccessToken();
       if (!token) {
         throw new Error("Authentication required. Please log in again.");
       }
@@ -244,12 +221,6 @@ export default function FileUpload() {
             <p className="text-sm text-gray-500">
               Upload your course files and deliverables
             </p>
-            {facultyInfo && (
-              <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                <User className="w-4 h-4" />
-                <span>Uploading as: <strong>{facultyInfo.facultyName}</strong></span>
-              </div>
-            )}
           </div>
           <button
             onClick={handleModalOpen}
@@ -266,7 +237,7 @@ export default function FileUpload() {
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
             <li>• Required fields: File Name, File Type, Subject & Section, and the File itself</li>
-            <li>• Files will be automatically associated with your account and selected course</li>
+            <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
           </ul>
         </div>
@@ -298,17 +269,6 @@ export default function FileUpload() {
                 </svg>
               </button>
             </div>
-
-            {/* Faculty Info Display */}
-            {facultyInfo && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">Uploading as: {facultyInfo.facultyName}</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">Faculty ID: {facultyInfo.facultyId}</div>
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Faculty Loaded Selection */}
@@ -432,7 +392,7 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !selectedFile || !facultyInfo || !formData.subject_code || !formData.course_section}
+                  disabled={loading || !selectedFile || !formData.subject_code || !formData.course_section}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Uploading..." : "Upload File"}

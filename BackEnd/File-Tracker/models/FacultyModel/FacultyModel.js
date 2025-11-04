@@ -1,3 +1,4 @@
+// models/FacultyModel/FacultyModel.js
 import mongoose from "mongoose";
 
 const facultySchema = new mongoose.Schema(
@@ -31,6 +32,10 @@ const facultySchema = new mongoose.Schema(
       enum: ["online", "offline"],
       default: "offline",
     },
+    facultyLoadeds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FacultyLoaded'
+    }],
     registeredAt: {
       type: Date,
       default: Date.now,

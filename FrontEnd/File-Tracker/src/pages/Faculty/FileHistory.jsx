@@ -6,6 +6,7 @@ import {
   Calendar,
   Download
 } from "lucide-react";
+import tokenService from '../../services/tokenService';
 
 export default function FileHistory() {
   const [files, setFiles] = useState([]);
@@ -17,42 +18,44 @@ export default function FileHistory() {
 
   // Fetch file history
   const fetchFileHistory = async (page = 1) => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("facultyToken");
-      
-      if (!token) {
-        console.error("No faculty token found");
-        return;
-      }
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: itemsPerPage.toString(),
-        ...(search && { search })
-      });
-
-      const response = await fetch(`http://localhost:3000/api/faculty/file-history?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch file history');
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setFiles(result.data);
-        setPagination(result.pagination);
-      }
-    } catch (error) {
-      console.error("Error fetching file history:", error);
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    
+    // Use tokenService instead of direct localStorage
+    const token = tokenService.getFacultyAccessToken();
+    
+    if (!token) {
+      console.error("No faculty token found");
+      return;
     }
-  };
+
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: itemsPerPage.toString(),
+      ...(search && { search })
+    });
+
+    const response = await fetch(`http://localhost:3000/api/faculty/file-history?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch file history');
+
+    const result = await response.json();
+    
+    if (result.success) {
+      setFiles(result.data);
+      setPagination(result.pagination);
+    }
+  } catch (error) {
+    console.error("Error fetching file history:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchFileHistory(currentPage);

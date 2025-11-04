@@ -1,5 +1,5 @@
 import express from "express";
-import { registerFaculty, loginFaculty } from "../../controllers/FacultyController/FacultyController.js";
+import { registerFaculty, loginFaculty, forgotPasswordFaculty, refreshTokenFaculty } from "../../controllers/FacultyController/FacultyController.js";
 import { logoutFaculty } from "../../controllers/FacultyController/FacultyLogoutController.js"
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { createFacultyLoaded, getFacultyLoadeds, getFacultyLoadedById, updateFacultyLoaded, deleteFacultyLoaded } from "../../controllers/FacultyController/FacultyLoadedController.js";
@@ -12,22 +12,18 @@ const router = express.Router();
 
 router.post("/register", registerFaculty);
 router.post("/login", loginFaculty);
-router.post("/logout", logoutFaculty);
+router.post("/refresh-token", refreshTokenFaculty);
+router.put("/forgot-password", forgotPasswordFaculty);
+router.post("/logout", verifyToken, logoutFaculty);
 
-// Protected routes
-router.get("/faculty-profile", verifyToken, (req, res) => {
-  res.json({
-    message: "Welcome to your profile",
-    faculty: req.faculty,
-  });
-});
 
 // Faculty Loaded Routes
-router.post("/faculty-loaded", createFacultyLoaded);
-router.get("/faculty-loaded", getFacultyLoadeds);
-router.get("/faculty-loaded/:id", getFacultyLoadedById);
-router.put("/faculty-loaded/:id", updateFacultyLoaded);
-router.delete("/faculty-loaded/:id", deleteFacultyLoaded);
+router.post("/faculty-loaded", verifyToken, createFacultyLoaded);
+router.get("/faculty-loaded", verifyToken, getFacultyLoadeds);
+router.get("/faculty-loaded/:id", verifyToken, getFacultyLoadedById);
+router.put("/faculty-loaded/:id", verifyToken, updateFacultyLoaded);
+router.delete("/faculty-loaded/:id", verifyToken, deleteFacultyLoaded);
+
 
 // File upload routes
 router.post("/file-upload", verifyToken, upload.single('file'), uploadFile);
@@ -38,10 +34,10 @@ router.get("/file-upload/my-files", verifyToken, getFacultyFiles);
 router.get("/file-history", verifyToken, getFacultyFileHistory);
 
 // Task Deliverables Routes
-router.post("/task-deliverables", createTaskDeliverables);
-router.get("/task-deliverables", getTaskDeliverables);
-router.get("/task-deliverables/faculty-loaded", getFacultyLoadedsForTaskDeliverables); 
-router.get("/task-deliverables/:id", getTaskDeliverablesById); 
+router.post("/task-deliverables", verifyToken, createTaskDeliverables);
+router.get("/task-deliverables", verifyToken, getTaskDeliverables);
+router.get("/task-deliverables/faculty-loaded", verifyToken, getFacultyLoadedsForTaskDeliverables); 
+router.get("/task-deliverables/:id", verifyToken, getTaskDeliverablesById);
 
 // Notification Routes
 router.post("/notifications", createNotification);

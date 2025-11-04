@@ -12,6 +12,8 @@ import {
   Legend, 
   ArcElement 
 } from 'chart.js';
+import { useNavigate } from "react-router-dom";
+import tokenService from "../../services/tokenService";
 
 // Register Chart.js components
 ChartJS.register(
@@ -47,14 +49,53 @@ export default function TaskDeliverablesManagement() {
     course_section: ""
   });
 
-  // Fetch task deliverables from backend 
+  const navigate = useNavigate(); // Add navigate
+
+  // Add authentication check on component mount
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = tokenService.getFacultyAccessToken();
+    const facultyData = localStorage.getItem('faculty');
+    
+    if (!token || !facultyData) {
+      showFeedback("error", "Please login to access this page");
+      navigate('/faculty-login');
+      return;
+    }
+    
+    fetchTaskDeliverables();
+    fetchFacultyLoadeds();
+  }, [navigate]);
+
+  // Fetch task deliverables from backend - UPDATED WITH AUTH
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/api/faculty/task-deliverables"); 
-      if (!res.ok) throw new Error("Server responded with " + res.status);
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        showFeedback("error", "Please login again");
+        navigate('/faculty-login');
+        return;
+      }
+
+      const res = await fetch("http://localhost:3000/api/faculty/task-deliverables", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }); 
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          TokenService.clearFacultyTokens();
+          showFeedback("error", "Session expired. Please login again.");
+          navigate('/faculty-login');
+          return;
+        }
+        throw new Error("Server responded with " + res.status);
+      }
+      
       const result = await res.json();
-      console.log("Fetched task deliverables:", result);
+      console.log("Fetched task deliverables for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
         setTaskDeliverables(result.data);
@@ -70,13 +111,30 @@ export default function TaskDeliverablesManagement() {
     }
   };
 
-  // Fetch faculty loadeds for dropdown
+  // Fetch faculty loadeds for dropdown - UPDATED WITH AUTH
   const fetchFacultyLoadeds = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/faculty/task-deliverables/faculty-loaded"); 
-      if (!res.ok) throw new Error("Server responded with " + res.status);
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        return;
+      }
+
+      const res = await fetch("http://localhost:3000/api/faculty/task-deliverables/faculty-loaded", {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }); 
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          TokenService.clearFacultyTokens();
+          return;
+        }
+        throw new Error("Server responded with " + res.status);
+      }
+      
       const result = await res.json();
-      console.log("Fetched faculty loadeds:", result);
+      console.log("Fetched faculty loadeds for dropdown:", result);
       
       if (result.success && Array.isArray(result.data)) {
         setFacultyLoadeds(result.data);
@@ -89,11 +147,6 @@ export default function TaskDeliverablesManagement() {
       setFacultyLoadeds([]); 
     }
   };
-  
-  useEffect(() => {
-    fetchTaskDeliverables();
-    fetchFacultyLoadeds();
-  }, []);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -138,12 +191,19 @@ export default function TaskDeliverablesManagement() {
     });
   };
 
-  // Handle form submission (ADD ONLY)
+  // Handle form submission (ADD ONLY) - UPDATED WITH AUTH
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        showFeedback("error", "Please login again. No authentication token found.");
+        setLoading(false);
+        return;
+      }
+
       const url = "http://localhost:3000/api/faculty/task-deliverables";
       
       const requestData = {
@@ -158,6 +218,7 @@ export default function TaskDeliverablesManagement() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // ADDED AUTHORIZATION
         },
         body: JSON.stringify(requestData),
       });
@@ -166,6 +227,12 @@ export default function TaskDeliverablesManagement() {
       console.log("Server response:", result);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          tokenService.clearFacultyTokens();
+          showFeedback("error", "Session expired. Please login again.");
+          setTimeout(() => navigate('/login'), 2000);
+          return;
+        }
         throw new Error(result.message || `HTTP error! status: ${response.status}`);
       }
 
