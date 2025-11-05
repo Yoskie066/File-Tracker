@@ -236,15 +236,13 @@ export default function AdminDeliverables() {
               Comprehensive view of all faculty submissions with aggregated data
             </p>
           </div>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Search deliverables..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Search deliverables..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
+          />
         </div>
 
         {/* Statistics Cards */}

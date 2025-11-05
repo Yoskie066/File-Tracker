@@ -408,7 +408,7 @@ export default function FacultyLoadedManagement() {
               Manage faculty teaching loads, schedules, and course assignments
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full md:w-auto">
             <input
               type="text"
               placeholder="Search faculty loadeds..."

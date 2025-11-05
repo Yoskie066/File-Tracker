@@ -365,7 +365,7 @@ export default function RequirementManagement() {
               Manage and track academic requirements, deadlines, and submissions
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full md:w-auto">
             <input
               type="text"
               placeholder="Search requirements..."
