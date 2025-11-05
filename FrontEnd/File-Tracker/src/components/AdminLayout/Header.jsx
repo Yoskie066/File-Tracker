@@ -10,15 +10,32 @@ import {
   BarChart3,
   LogOut,
 } from "lucide-react";
+import tokenService from "../../services/tokenService";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-  localStorage.removeItem("admin");
-  navigate("/admin-login");
+  const handleLogout = async () => {
+  try {
+    const token = tokenService.getAdminAccessToken();
+    
+    if (token) {
+      await fetch("http://localhost:3000/api/admin/admin-logout", {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Logout API call failed:", error);
+  } finally {
+    // Always clear local storage and redirect
+    tokenService.clearAdminTokens();
+    navigate("/auth/admin-login");
+  }
 };
 
   // Get admin info from localStorage
@@ -33,7 +50,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 bg-black text-white px-6 py-3 flex justify-between items-center shadow-md z-50">
       {/* Logo */}
-      <Link to="/analytics" className="text-xl font-extrabold tracking-wide">
+      <Link to="/admin/analytics" className="text-xl font-extrabold tracking-wide">
         File<span className="text-yellow-400">Tracker</span>
       </Link>
 
@@ -53,35 +70,35 @@ export default function Header() {
       {/* Desktop Navigation */}
       <nav className="hidden lg:flex gap-8 text-sm font-medium">
         <Link
-          to="/analytics"
+          to="/admin/analytics"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <BarChart3 className="w-4 h-4" />
           Analytics
         </Link>
         <Link
-          to="/user-management"
+          to="/admin/user-management"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <Users className="w-4 h-4" />
           User Management
         </Link>
         <Link
-          to="/file-management"
+          to="/admin/file-management"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <FileStack className="w-4 h-4" />
           File Management
         </Link>
         <Link
-          to="/deliverables"
+          to="/admin/deliverables"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <ClipboardCheck className="w-4 h-4" />
           Deliverables
         </Link>
         <Link
-          to="/requirement"
+          to="/admin/requirement"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <BellRing className="w-4 h-4" />
@@ -125,50 +142,50 @@ export default function Header() {
         {/* Mobile Navigation Links */}
         <nav className="flex flex-col w-full max-w-xs gap-1">
           <Link
-            to="/analytics"
+            to="/admin/analytics"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/analytics"
+              "/admin/analytics"
             )}`}
           >
             <BarChart3 className="w-5 h-5" />
             Analytics
           </Link>
           <Link
-            to="/user-management"
+            to="/admin/user-management"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/user-management"
+              "/admin/user-management"
             )}`}
           >
             <Users className="w-5 h-5" />
             User Management
           </Link>
           <Link
-            to="/file-management"
+            to="/admin/file-management"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/file-management"
+              "/admin/file-management"
             )}`}
           >
             <FileStack className="w-5 h-5" />
             File Management
           </Link>
           <Link
-            to="/deliverables"
+            to="/admin/deliverables"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/deliverables"
+              "/admin/deliverables"
             )}`}
           >
             <ClipboardCheck className="w-5 h-5" />
             Deliverables
           </Link>
           <Link
-            to="/requirement"
+            to="/admin/requirement"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/requirement"
+              "/admin/requirement"
             )}`}
           >
             <BellRing className="w-5 h-5" />

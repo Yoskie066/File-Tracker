@@ -67,6 +67,7 @@ export const registerFaculty = async (req, res) => {
 };
 
 // LOGIN FACULTY - UPDATED WITH REFRESH TOKEN
+// LOGIN FACULTY - ENSURE STATUS UPDATE
 export const loginFaculty = async (req, res) => {
   try {
     const { facultyNumber, password } = req.body;
@@ -95,9 +96,12 @@ export const loginFaculty = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Update only the current faculty status to online
-    faculty.status = "online";
-    await faculty.save();
+    // Update only the current faculty status to online - ENSURE UPDATE
+    faculty = await Faculty.findOneAndUpdate(
+      { facultyNumber },
+      { status: "online" },
+      { new: true }
+    );
 
     // Generate both tokens
     const { accessToken, refreshToken } = generateTokens(faculty);
@@ -111,7 +115,7 @@ export const loginFaculty = async (req, res) => {
         facultyName: faculty.facultyName,
         facultyNumber: faculty.facultyNumber,
         role: faculty.role,
-        status: faculty.status,
+        status: faculty.status, // This should now be "online"
       },
     });
   } catch (error) {

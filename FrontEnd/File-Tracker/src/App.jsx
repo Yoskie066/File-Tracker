@@ -1,15 +1,7 @@
-import AuthRoutes from "./routes/AuthRoutes/AuthRoutes";
-import FacultyRoutes from "./routes/FacultyRoutes/FacultyRoutes";
-import AdminRoutes from "./routes/AdminRoutes/AdminRoutes";
+import AppRoutes from './routes/AppRoutes';
 
 function App() {
-  return (
-    <>
-      <AuthRoutes/>
-      <FacultyRoutes/>
-      <AdminRoutes/>
-    </>
-  );
+  return <AppRoutes />;
 }
 
 export default App;

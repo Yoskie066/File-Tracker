@@ -93,9 +93,12 @@ export const loginAdmin = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Update only the current admin status to online
-    admin.status = "online";
-    await admin.save();
+    // Update only the current admin status to online - ENSURE UPDATE
+    admin = await Admin.findOneAndUpdate(
+      { adminNumber },
+      { status: "online" },
+      { new: true }
+    );
 
     // Generate both tokens
     const { accessToken, refreshToken } = generateAdminTokens(admin);
@@ -109,7 +112,7 @@ export const loginAdmin = async (req, res) => {
         adminName: admin.adminName,
         adminNumber: admin.adminNumber,
         role: admin.role,
-        status: admin.status,
+        status: admin.status, // This should now be "online"
       },
     });
   } catch (error) {

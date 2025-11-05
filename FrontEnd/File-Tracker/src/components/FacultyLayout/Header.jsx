@@ -10,7 +10,8 @@ import {
   Bell,
   LogOut,
 } from "lucide-react";
-import useNotification from "../../hooks/useNotification"
+import useNotification from "../../hooks/useNotification";
+import tokenService from "../../services/tokenService";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,10 +19,26 @@ export default function Header() {
   const navigate = useNavigate();
 
   // Handle logout
-  const handleLogout = () => {
-    localStorage.removeItem("faculty");
-    navigate("/login");
-  };
+  const handleLogout = async () => {
+  try {
+    const token = tokenService.getFacultyAccessToken();
+    
+    if (token) {
+      await fetch("http://localhost:3000/api/faculty/logout", {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Logout API call failed:", error);
+  } finally {
+    // Always clear local storage and redirect
+    tokenService.clearFacultyTokens();
+    navigate("/auth/login");
+  }
+};
 
   // Get current user
   const storedFaculty = JSON.parse(localStorage.getItem("faculty"));
@@ -39,7 +56,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 bg-black text-white px-6 py-3 flex justify-between items-center shadow-md z-50">
       {/* Logo */}
-      <Link to="/faculty-loaded" className="text-xl font-extrabold tracking-wide">
+      <Link to="/faculty/faculty-loaded" className="text-xl font-extrabold tracking-wide">
         File<span className="text-yellow-400">Tracker</span>
       </Link>
 
@@ -55,32 +72,32 @@ export default function Header() {
       {/* ===== Desktop Navigation ===== */}
       <nav className="hidden lg:flex gap-8 text-sm font-medium">
         <Link
-          to="/faculty-loaded"
+          to="/faculty/faculty-loaded"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <Users className="w-4 h-4" /> Faculty Loaded
         </Link>
         <Link
-          to="/file-upload"
+          to="/faculty/file-upload"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <Upload className="w-4 h-4" /> File Upload
         </Link>
         <Link
-          to="/file-history"
+          to="/faculty/file-history"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <FolderClock className="w-4 h-4" /> File History
         </Link>
         <Link
-          to="/task-deliverables"
+          to="/faculty/task-deliverables"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <ClipboardList className="w-4 h-4" /> Task Deliverables
         </Link>
         {/* Notification Desktop */}
         <Link
-          to="/notification"
+          to="/faculty/notification"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200 relative"
         >
           <Bell className="w-4 h-4" /> Notification
@@ -128,47 +145,47 @@ export default function Header() {
         {/* Mobile Links */}
         <nav className="flex flex-col w-full max-w-xs gap-1">
           <Link
-            to="/faculty-loaded"
+            to="/faculty/faculty-loaded"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/faculty-loaded"
+              "/faculty/faculty-loaded"
             )}`}
           >
             <Users className="w-5 h-5" /> Faculty Loaded
           </Link>
           <Link
-            to="/file-upload"
+            to="/faculty/file-upload"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/file-upload"
+              "/faculty/file-upload"
             )}`}
           >
             <Upload className="w-5 h-5" /> File Upload
           </Link>
           <Link
-            to="/file-history"
+            to="/faculty/file-history"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/file-history"
+              "/faculty/file-history"
             )}`}
           >
             <FolderClock className="w-5 h-5" /> File History
           </Link>
           <Link
-            to="/task-deliverables"
+            to="/faculty/task-deliverables"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/task-deliverables"
+              "/faculty/task-deliverables"
             )}`}
           >
             <ClipboardList className="w-5 h-5" /> Task Deliverables
           </Link>
           {/* Notification Mobile */}
           <Link
-            to="/notification"
+            to="/faculty/notification"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/notification"
+              "/faculty/notification"
             )}`}
           >
             <Bell className="w-5 h-5" /> Notification

@@ -52,7 +52,7 @@ const AdminRegister = () => {
 
       setTimeout(() => {
         setModal({ ...modal, isOpen: false });
-        navigate("/admin-login");
+        navigate("/auth/admin-login");
       }, 2000);
 
     } catch (err) {
@@ -65,7 +65,7 @@ const AdminRegister = () => {
   };
 
   const handleLogin = () => {
-    navigate('/admin-login');
+    navigate('/auth/admin-login');
   };
 
   return (

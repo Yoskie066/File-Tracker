@@ -49,7 +49,7 @@ const AdminForgotPassword = () => {
       // Auto-redirect after success
       setTimeout(() => {
         setModalOpen(false);
-        navigate('/admin-login');
+        navigate('/auth/admin-login');
       }, 2000);
 
     } catch (err) {
@@ -60,7 +60,7 @@ const AdminForgotPassword = () => {
   };
 
   const handleLogin = () => {
-    navigate('/admin-login');
+    navigate('/auth/admin-login');
   };
 
   return (

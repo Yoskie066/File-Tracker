@@ -53,7 +53,7 @@ const FacultyRegister = () => {
 
       setTimeout(() => {
         setModal({ ...modal, isOpen: false });
-        navigate("/login");
+        navigate("/auth/login");
       }, 2000);
 
     } catch (err) {
@@ -67,7 +67,7 @@ const FacultyRegister = () => {
 
 
   const handleLogin = () => {
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   return (

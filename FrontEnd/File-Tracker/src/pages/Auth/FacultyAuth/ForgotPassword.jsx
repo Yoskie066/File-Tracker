@@ -49,7 +49,7 @@ const FacultyForgotPassword = () => {
       // Auto-redirect after success
       setTimeout(() => {
         setModalOpen(false);
-        navigate('/login');
+        navigate('/auth/login');
       }, 2000);
 
     } catch (err) {
@@ -60,7 +60,7 @@ const FacultyForgotPassword = () => {
   };
 
   const handleLogin = () => {
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   return (

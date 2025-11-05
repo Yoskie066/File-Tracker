@@ -1,26 +1,38 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import tokenService from "../../services/tokenService";
+import apiService from "../../services/apiService"
 
 const FacultyLogout = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const logoutFaculty = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return navigate("/login");
+      const token = tokenService.getFacultyAccessToken();
+      
+      if (!token) {
+        tokenService.clearFacultyTokens();
+        return navigate("/login");
+      }
 
       try {
-        await fetch("http://localhost:3000/api/faculty/logout", {
+        // Call logout API
+        await apiService.facultyApi("http://localhost:3000/api/faculty/logout", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
         });
 
-        localStorage.removeItem("token");
-        localStorage.removeItem("faculty");
-
+        // Clear all faculty data from localStorage
+        tokenService.clearFacultyTokens();
+        
+        console.log("✅ Faculty logged out successfully");
+        
+        // Redirect to login page
         navigate("/login");
       } catch (error) {
         console.error("Logout failed:", error);
+        // Still clear tokens even if API call fails
+        tokenService.clearFacultyTokens();
+        navigate("/login");
       }
     };
 

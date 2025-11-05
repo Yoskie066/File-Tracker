@@ -46,7 +46,7 @@ const FacultyLogin = () => {
 
       setTimeout(() => {
         setModalOpen(false);
-        navigate("/faculty-loaded");
+        navigate("/faculty/faculty-loaded");
       }, 2000);
     } catch (err) {
       setModalType("error");
@@ -56,7 +56,7 @@ const FacultyLogin = () => {
   }
 
   const handleRegister = () => {
-    navigate('/register');
+    navigate('/auth/register');
   };
 
   return (
@@ -104,7 +104,7 @@ const FacultyLogin = () => {
             <div className="flex justify-end mb-6">
               <button
                 type="button"
-                onClick={() => navigate('/forgot-password')}
+                onClick={() => navigate('/auth/forgot-password')}
                 className="text-black hover:text-yellow-600 transition-colors text-sm font-medium"
               >
                 Forgot Password?

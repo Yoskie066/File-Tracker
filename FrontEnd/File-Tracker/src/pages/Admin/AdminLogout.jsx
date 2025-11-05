@@ -1,28 +1,38 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import tokenService from "../../services/tokenService";
+import apiService from "../../services/apiService";
 
 const AdminLogout = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const logoutAdmin = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return navigate("/admin-login");
+      const token = tokenService.getAdminAccessToken();
+      
+      if (!token) {
+        tokenService.clearAdminTokens();
+        return navigate("/admin-login");
+      }
 
       try {
-        await fetch("http://localhost:3000/api/admin/admin-logout", {
+        // Call logout API
+        await apiService.adminApi("http://localhost:3000/api/admin/admin-logout", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
         });
 
-        // Clear local storage
-        localStorage.removeItem("token");
-        localStorage.removeItem("admin");
-
+        // Clear all admin data from localStorage
+        tokenService.clearAdminTokens();
+        
+        console.log("✅ Admin logged out successfully");
+        
         // Redirect to login page
         navigate("/admin-login");
       } catch (error) {
         console.error("Logout failed:", error);
+        // Still clear tokens even if API call fails
+        tokenService.clearAdminTokens();
+        navigate("/admin-login");
       }
     };
 
