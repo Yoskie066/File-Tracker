@@ -12,7 +12,7 @@ const FacultyLogout = () => {
       
       if (!token) {
         tokenService.clearFacultyTokens();
-        return navigate("/login");
+        return navigate("/auth/login");
       }
 
       try {
@@ -27,12 +27,12 @@ const FacultyLogout = () => {
         console.log("✅ Faculty logged out successfully");
         
         // Redirect to login page
-        navigate("/login");
+        navigate("/auth/login");
       } catch (error) {
         console.error("Logout failed:", error);
         // Still clear tokens even if API call fails
         tokenService.clearFacultyTokens();
-        navigate("/login");
+        navigate("/auth/login");
       }
     };
 

@@ -59,7 +59,7 @@ export default function TaskDeliverablesManagement() {
     
     if (!token || !facultyData) {
       showFeedback("error", "Please login to access this page");
-      navigate('/faculty-login');
+      navigate('/auth/login');
       return;
     }
     
@@ -74,7 +74,7 @@ export default function TaskDeliverablesManagement() {
       const token = tokenService.getFacultyAccessToken();
       if (!token) {
         showFeedback("error", "Please login again");
-        navigate('/faculty-login');
+        navigate('/auth/login');
         return;
       }
 
@@ -86,9 +86,9 @@ export default function TaskDeliverablesManagement() {
       
       if (!res.ok) {
         if (res.status === 401) {
-          TokenService.clearFacultyTokens();
+          tokenService.clearFacultyTokens();
           showFeedback("error", "Session expired. Please login again.");
-          navigate('/faculty-login');
+          navigate('/auth/login');
           return;
         }
         throw new Error("Server responded with " + res.status);
@@ -230,7 +230,7 @@ export default function TaskDeliverablesManagement() {
         if (response.status === 401) {
           tokenService.clearFacultyTokens();
           showFeedback("error", "Session expired. Please login again.");
-          setTimeout(() => navigate('/login'), 2000);
+          setTimeout(() => navigate('/auth/login'), 2000);
           return;
         }
         throw new Error(result.message || `HTTP error! status: ${response.status}`);

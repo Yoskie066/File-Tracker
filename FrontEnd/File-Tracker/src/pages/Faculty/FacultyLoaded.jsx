@@ -76,7 +76,7 @@ export default function FacultyLoadedManagement() {
     
     if (!token || !facultyData) {
       showFeedback("error", "Please login to access this page");
-      navigate('/faculty-login');
+      navigate('/auth/login');
       return;
     }
     
@@ -90,7 +90,7 @@ export default function FacultyLoadedManagement() {
       if (!token) {
         console.error("No access token found");
         showFeedback("error", "Please login again");
-        navigate('/login');
+        navigate('/auth/login');
         return;
       }
 
@@ -104,7 +104,7 @@ export default function FacultyLoadedManagement() {
         if (res.status === 401) {
           tokenService.clearFacultyTokens();
           showFeedback("error", "Session expired. Please login again.");
-          navigate('/login');
+          navigate('/auth/login');
           return;
         }
         throw new Error("Server responded with " + res.status);

@@ -12,7 +12,7 @@ const AdminLogout = () => {
       
       if (!token) {
         tokenService.clearAdminTokens();
-        return navigate("/admin-login");
+        return navigate("/auth/admin-login");
       }
 
       try {
@@ -27,12 +27,12 @@ const AdminLogout = () => {
         console.log("✅ Admin logged out successfully");
         
         // Redirect to login page
-        navigate("/admin-login");
+        navigate("/auth/admin-login");
       } catch (error) {
         console.error("Logout failed:", error);
         // Still clear tokens even if API call fails
         tokenService.clearAdminTokens();
-        navigate("/admin-login");
+        navigate("/auth/admin-login");
       }
     };
 
