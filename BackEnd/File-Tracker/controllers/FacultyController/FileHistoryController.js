@@ -12,7 +12,7 @@ export const createFileHistory = async (data) => {
   }
 };
 
-// Get faculty-specific file history - IMPROVED FILTERING
+// Get faculty-specific file history 
 export const getFacultyFileHistory = async (req, res) => {
   try {
     if (!req.faculty || !req.faculty.facultyId) {
@@ -28,9 +28,9 @@ export const getFacultyFileHistory = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // Build filter object for faculty - STRICTER FILTERING
+    // Build filter object for faculty
     const filter = { 
-      faculty_id: req.faculty.facultyId // ONLY current faculty's files
+      faculty_id: req.faculty.facultyId 
     };
     
     if (search) {
@@ -47,11 +47,11 @@ export const getFacultyFileHistory = async (req, res) => {
     
     // Get faculty history records with proper sorting
     const history = await FileHistory.find(filter)
-      .sort({ date_submitted: -1 }) // Most recent first
+      .sort({ date_submitted: -1 }) 
       .skip(skip)
       .limit(limitNum);
 
-    console.log(`📁 Fetched ${history.length} files for faculty: ${req.faculty.facultyId}`);
+    console.log(`Fetched ${history.length} files for faculty: ${req.faculty.facultyId}`);
 
     res.status(200).json({
       success: true,
@@ -65,7 +65,7 @@ export const getFacultyFileHistory = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("❌ Error fetching faculty file history:", error);
+    console.error("Error fetching faculty file history:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching file history",

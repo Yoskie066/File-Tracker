@@ -1,4 +1,3 @@
-// hooks/useNotification.js
 import { useState, useEffect } from "react";
 
 export default function useNotifications(currentUser) {
@@ -8,14 +7,14 @@ export default function useNotifications(currentUser) {
 
   useEffect(() => {
     if (!currentUser?.facultyId) {
-      console.log("❌ No facultyId found in currentUser:", currentUser);
+      console.log("No facultyId found in currentUser:", currentUser);
       setLoading(false);
       return;
     }
 
     const fetchNotifications = async () => {
       try {
-        console.log("🔍 Fetching notifications for facultyId:", currentUser.facultyId);
+        console.log("Fetching notifications for facultyId:", currentUser.facultyId);
         const res = await fetch(
           `http://localhost:3000/api/faculty/notifications/${currentUser.facultyId}`
         );
@@ -25,15 +24,15 @@ export default function useNotifications(currentUser) {
         }
         
         const data = await res.json();
-        console.log("📨 Notifications API response:", data);
+        console.log("Notifications API response:", data);
 
         const list = data?.data || [];
-        console.log("✅ Processed notifications:", list.length);
+        console.log("Processed notifications:", list.length);
         
         setNotifications(list);
         setUnreadCount(list.filter((n) => !n.is_read).length);
       } catch (err) {
-        console.error("❌ Error fetching notifications:", err);
+        console.error("Error fetching notifications:", err);
       } finally {
         setLoading(false);
       }
@@ -44,10 +43,10 @@ export default function useNotifications(currentUser) {
     return () => clearInterval(interval);
   }, [currentUser?.facultyId]); 
 
-  // Mark as read - FIXED to use _id
+  // Mark as read 
   const markAsRead = async (id) => {
     try {
-      console.log("📝 Marking notification as read:", id);
+      console.log("Marking notification as read:", id);
       await fetch(`http://localhost:3000/api/faculty/notifications/${id}/read`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +57,7 @@ export default function useNotifications(currentUser) {
       );
       setUnreadCount((prev) => Math.max(prev - 1, 0));
     } catch (err) {
-      console.error("❌ Error marking as read:", err);
+      console.error("Error marking as read:", err);
     }
   };
 

@@ -51,7 +51,7 @@ const generateFileId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Helper function to map file_type to TaskDeliverables field - FIXED MAPPING
+// Helper function to map file_type to TaskDeliverables field
 const mapFileTypeToField = (fileType) => {
   const mapping = {
     'syllabus': 'syllabus',
@@ -63,18 +63,18 @@ const mapFileTypeToField = (fileType) => {
   return mapping[fileType] || null;
 };
 
-// IMPROVED: Update Task Deliverables when file status changes - COMPLETELY REWRITTEN
+// Update Task Deliverables when file status changes 
 const updateTaskDeliverables = async (fileData) => {
   try {
     const { subject_code, course_section, file_type, status } = fileData;
     
-    console.log(`🔄 Syncing Task Deliverables for: ${subject_code}-${course_section}`);
+    console.log(`Syncing Task Deliverables for: ${subject_code}-${course_section}`);
     console.log(`File Type: ${file_type}, Status: ${status}`);
 
     // Map file_type to TaskDeliverables field name
     const fieldName = mapFileTypeToField(file_type);
     if (!fieldName) {
-      console.warn(`❌ No mapping found for file type: ${file_type}`);
+      console.warn(`No mapping found for file type: ${file_type}`);
       return;
     }
 
@@ -97,11 +97,11 @@ const updateTaskDeliverables = async (fileData) => {
         { new: true, runValidators: true }
       );
       
-      console.log(`✅ Updated TaskDeliverables: ${subject_code}-${course_section}`);
-      console.log(`✅ Field: ${fieldName} = ${status}`);
-      console.log(`📊 Updated document:`, updatedTask);
+      console.log(`Updated TaskDeliverables: ${subject_code}-${course_section}`);
+      console.log(`Field: ${fieldName} = ${status}`);
+      console.log(`Updated document:`, updatedTask);
     } else {
-      console.warn(`⚠️ No TaskDeliverables found for ${subject_code}-${course_section}`);
+      console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
       // Create new TaskDeliverables if doesn't exist
       const task_deliverables_id = generateFileId();
       
@@ -109,17 +109,16 @@ const updateTaskDeliverables = async (fileData) => {
         task_deliverables_id,
         subject_code,
         course_section,
-        [fieldName]: status, // Set only the specific field
-        // Other fields remain as default "pending"
+        [fieldName]: status, 
       });
 
       const savedTask = await newTaskDeliverables.save();
-      console.log(`✅ Created new TaskDeliverables for ${subject_code}-${course_section}`);
-      console.log(`✅ Field: ${fieldName} = ${status}`);
-      console.log(`📊 New document:`, savedTask);
+      console.log(`Created new TaskDeliverables for ${subject_code}-${course_section}`);
+      console.log(`Field: ${fieldName} = ${status}`);
+      console.log(`New document:`, savedTask);
     }
   } catch (error) {
-    console.error("❌ Error updating TaskDeliverables:", error);
+    console.error("Error updating TaskDeliverables:", error);
     throw error;
   }
 };
@@ -127,8 +126,8 @@ const updateTaskDeliverables = async (fileData) => {
 // File Upload Controller
 export const uploadFile = async (req, res) => {
   try {
-    console.log("➡️ Upload request:", req.body);
-    console.log("👤 Faculty user:", req.faculty);
+    console.log("Upload request:", req.body);
+    console.log("Faculty user:", req.faculty);
 
     if (!req.file)
       return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -161,7 +160,7 @@ export const uploadFile = async (req, res) => {
       file_type,
       subject_code,
       course_section,
-      status: "pending", // Changed back to pending for admin approval
+      status: "pending", 
       file_path: req.file.path,
       original_name: req.file.originalname,
       file_size: req.file.size,
@@ -179,7 +178,7 @@ export const uploadFile = async (req, res) => {
       date_submitted: new Date()
     });
 
-    // AUTO-SYNC TO ADMIN DELIVERABLES - ADDED THIS PART
+    // AUTO-SYNC TO ADMIN DELIVERABLES 
     await autoSyncDeliverable({
       faculty_id: savedFile.faculty_id,
       faculty_name: savedFile.faculty_name,
@@ -197,7 +196,7 @@ export const uploadFile = async (req, res) => {
       data: savedFile,
     });
   } catch (error) {
-    console.error("❌ Error uploading file:", error);
+    console.error("Error uploading file:", error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({
       success: false,
@@ -207,16 +206,16 @@ export const uploadFile = async (req, res) => {
   }
 };
 
-// GET ALL FILES - FIXED SORTING
+// GET ALL FILES 
 export const getFiles = async (req, res) => {
   try {
-    const files = await FileManagement.find().sort({ uploaded_at: -1 }); // FIXED: changed createdAt to uploaded_at
+    const files = await FileManagement.find().sort({ uploaded_at: -1 }); 
     res.status(200).json({
       success: true,
       data: files,
     });
   } catch (error) {
-    console.error("❌ Error fetching files:", error);
+    console.error("Error fetching files:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -241,7 +240,7 @@ export const getFacultyFiles = async (req, res) => {
 
     res.status(200).json({ success: true, data: files });
   } catch (error) {
-    console.error("❌ Error fetching faculty files:", error);
+    console.error("Error fetching faculty files:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -261,7 +260,7 @@ export const getFileById = async (req, res) => {
 
     res.status(200).json({ success: true, data: file });
   } catch (error) {
-    console.error("❌ Error fetching file:", error);
+    console.error("Error fetching file:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -287,7 +286,7 @@ export const downloadFile = async (req, res) => {
 
     res.download(file.file_path, file.original_name);
   } catch (error) {
-    console.error("❌ Error downloading file:", error);
+    console.error("Error downloading file:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -311,7 +310,7 @@ export const deleteFile = async (req, res) => {
 
     res.status(200).json({ success: true, message: "File deleted successfully" });
   } catch (error) {
-    console.error("❌ Error deleting file:", error);
+    console.error("Error deleting file:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -320,13 +319,13 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-// UPDATE FILE STATUS - IMPROVED with better sync
+// UPDATE FILE STATUS 
 export const updateFileStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    console.log(`🔄 Updating file status: ${id} to ${status}`);
+    console.log(`Updating file status: ${id} to ${status}`);
 
     const updatedFile = await FileManagement.findOneAndUpdate(
       { file_id: id },
@@ -340,8 +339,7 @@ export const updateFileStatus = async (req, res) => {
     // Update corresponding TaskDeliverables with the EXACT same status
     await updateTaskDeliverables(updatedFile);
 
-    // AUTO-SYNC TO ADMIN DELIVERABLES - UPDATE EXISTING DELIVERABLE STATUS
-    // Enhanced sync with additional data
+    // AUTO-SYNC TO ADMIN DELIVERABLES 
     await autoSyncDeliverable({
       faculty_id: updatedFile.faculty_id,
       faculty_name: updatedFile.faculty_name,
@@ -353,7 +351,7 @@ export const updateFileStatus = async (req, res) => {
       status: updatedFile.status
     });
 
-    console.log(`✅ File status updated and synced across all systems: ${status}`);
+    console.log(`File status updated and synced across all systems: ${status}`);
 
     res.status(200).json({
       success: true,
@@ -361,7 +359,7 @@ export const updateFileStatus = async (req, res) => {
       data: updatedFile,
     });
   } catch (error) {
-    console.error("❌ Error updating file status:", error);
+    console.error("Error updating file status:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

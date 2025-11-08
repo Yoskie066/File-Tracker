@@ -118,7 +118,7 @@ export default function FileManagement() {
       const result = await response.json();
 
       if (result.success) {
-        fetchFiles(); // Refresh the files list
+        fetchFiles(); 
         setStatusModalOpen(false);
         setFileToUpdate(null);
         setNewStatus("");

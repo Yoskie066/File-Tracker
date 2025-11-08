@@ -14,14 +14,14 @@ export const logoutAdmin = async (req, res) => {
     // Add token to blacklist
     await BlacklistedToken.create({ token });
 
-    // Update admin status to offline - FIXED
+    // Update admin status to offline
     await Admin.findOneAndUpdate(
       { adminId }, 
       { status: "offline" },
-      { new: true } // Ensure the update is applied
+      { new: true } 
     );
 
-    console.log(`✅ Admin ${adminId} logged out - status set to offline`);
+    console.log(`Admin ${adminId} logged out - status set to offline`);
 
     return res.status(200).json({ 
       message: "Admin logged out successfully" 

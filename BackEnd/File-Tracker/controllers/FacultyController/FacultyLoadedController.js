@@ -1,4 +1,3 @@
-// controllers/FacultyController/FacultyLoadedController.js
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
@@ -46,7 +45,7 @@ export const createFacultyLoaded = async (req, res) => {
 
     const newFacultyLoaded = new FacultyLoaded({
       faculty_loaded_id,
-      faculty_id: req.faculty.facultyId, // Associate with logged-in faculty
+      faculty_id: req.faculty.facultyId, 
       subject_code,
       subject_title,
       course_section,
@@ -72,7 +71,7 @@ export const createFacultyLoaded = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error creating faculty loaded:", error);
+    console.error("Error creating faculty loaded:", error);
     
     if (error.name === 'ValidationError') {
       return res.status(400).json({ 
@@ -99,7 +98,7 @@ export const createFacultyLoaded = async (req, res) => {
   }
 };
 
-// ✅ Get all faculty loadeds - NOW FILTERED BY LOGGED-IN FACULTY
+// Get all faculty loadeds 
 export const getFacultyLoadeds = async (req, res) => {
   try {
     // Check if faculty is authenticated
@@ -126,12 +125,12 @@ export const getFacultyLoadeds = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("❌ Error fetching faculty loadeds:", error);
+    console.error("Error fetching faculty loadeds:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get single faculty loaded - WITH OWNERSHIP CHECK
+// Get single faculty loaded 
 export const getFacultyLoadedById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -146,7 +145,7 @@ export const getFacultyLoadedById = async (req, res) => {
 
     const facultyLoaded = await FacultyLoaded.findOne({ 
       faculty_loaded_id: id,
-      faculty_id: req.faculty.facultyId // Ensure the faculty owns this record
+      faculty_id: req.faculty.facultyId 
     });
 
     if (!facultyLoaded) {
@@ -158,12 +157,12 @@ export const getFacultyLoadedById = async (req, res) => {
 
     res.status(200).json({ success: true, data: facultyLoaded });
   } catch (error) {
-    console.error("❌ Error fetching faculty loaded:", error);
+    console.error("Error fetching faculty loaded:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Update faculty loaded - WITH OWNERSHIP CHECK
+// Update faculty loaded 
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
@@ -220,20 +219,20 @@ export const updateFacultyLoaded = async (req, res) => {
       );
       
       if (updateResult) {
-        console.log(`✅ Auto-updated task deliverables from ${oldSubjectCode}-${oldCourseSection} to ${subject_code}-${course_section} for faculty: ${req.faculty.facultyId}`);
+        console.log(`Auto-updated task deliverables from ${oldSubjectCode}-${oldCourseSection} to ${subject_code}-${course_section} for faculty: ${req.faculty.facultyId}`);
       } else {
-        console.log(`ℹ️ No task deliverables found to update for ${oldSubjectCode}-${oldCourseSection}`);
+        console.log(`No task deliverables found to update for ${oldSubjectCode}-${oldCourseSection}`);
       }
     }
 
     res.status(200).json({ success: true, message: "Faculty loaded updated successfully", data: updated });
   } catch (error) {
-    console.error("❌ Error updating faculty loaded:", error);
+    console.error("Error updating faculty loaded:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Delete faculty loaded - WITH OWNERSHIP CHECK AND TASK DELIVERABLES DELETE
+// Delete faculty loaded
 export const deleteFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
@@ -269,9 +268,9 @@ export const deleteFacultyLoaded = async (req, res) => {
     });
 
     if (deletedTaskDeliverables) {
-      console.log(`✅ Auto-deleted task deliverables for ${subject_code}-${course_section} for faculty: ${req.faculty.facultyId}`);
+      console.log(`Auto-deleted task deliverables for ${subject_code}-${course_section} for faculty: ${req.faculty.facultyId}`);
     } else {
-      console.log(`ℹ️ No task deliverables found to delete for ${subject_code}-${course_section}`);
+      console.log(`No task deliverables found to delete for ${subject_code}-${course_section}`);
     }
 
     // Delete faculty loaded
@@ -295,7 +294,7 @@ export const deleteFacultyLoaded = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("❌ Error deleting faculty loaded:", error);
+    console.error("Error deleting faculty loaded:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

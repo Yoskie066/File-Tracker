@@ -59,7 +59,7 @@ export default function FacultyLoadedManagement() {
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const navigate = useNavigate(); // Add this
+  const navigate = useNavigate(); 
 
   // Semester options for combo box
   const semesterOptions = [
@@ -162,7 +162,7 @@ export default function FacultyLoadedManagement() {
     setIsEditMode(false);
   };
 
-  // Handle form submission - UPDATED WITH AUTH TOKEN
+  // Handle form submission 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -205,7 +205,7 @@ export default function FacultyLoadedManagement() {
         method,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // ADDED THIS LINE
+          "Authorization": `Bearer ${token}` 
         },
         body: JSON.stringify(requestData),
       });
@@ -241,7 +241,7 @@ export default function FacultyLoadedManagement() {
     }
   };
 
-  // Handle edit faculty loaded - UPDATED WITH AUTH TOKEN
+  // Handle edit faculty loaded 
   const handleEdit = async (facultyLoadedId) => {
     try {
       const token = tokenService.getFacultyAccessToken();
@@ -252,7 +252,7 @@ export default function FacultyLoadedManagement() {
 
       const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`, {
         headers: {
-          'Authorization': `Bearer ${token}` // ADDED THIS LINE
+          'Authorization': `Bearer ${token}` 
         }
       });
       
@@ -290,7 +290,7 @@ export default function FacultyLoadedManagement() {
     setActionDropdown(null);
   }
 
-  // Handle delete faculty loaded - UPDATED WITH AUTH TOKEN
+  // Handle delete faculty loaded 
   const handleDelete = async (facultyLoadedId) => {
     try {
       const token = tokenService.getFacultyAccessToken();
@@ -302,7 +302,7 @@ export default function FacultyLoadedManagement() {
       const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`, {
         method: "DELETE",
         headers: {
-          'Authorization': `Bearer ${token}` // ADDED THIS LINE
+          'Authorization': `Bearer ${token}` 
         }
       });
 

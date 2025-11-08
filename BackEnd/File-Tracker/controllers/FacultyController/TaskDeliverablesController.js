@@ -1,4 +1,3 @@
-// controllers/FacultyController/TaskDeliverablesController.js
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 
@@ -39,7 +38,7 @@ export const createTaskDeliverables = async (req, res) => {
     const facultyLoaded = await FacultyLoaded.findOne({ 
       subject_code, 
       course_section,
-      faculty_id: req.faculty.facultyId // ADDED FACULTY CHECK
+      faculty_id: req.faculty.facultyId 
     });
 
     if (!facultyLoaded) {
@@ -53,7 +52,7 @@ export const createTaskDeliverables = async (req, res) => {
     const existingTaskDeliverables = await TaskDeliverables.findOne({
       subject_code,
       course_section,
-      faculty_id: req.faculty.facultyId // ADDED FACULTY CHECK
+      faculty_id: req.faculty.facultyId 
     });
 
     if (existingTaskDeliverables) {
@@ -69,10 +68,9 @@ export const createTaskDeliverables = async (req, res) => {
 
     const newTaskDeliverables = new TaskDeliverables({
       task_deliverables_id,
-      faculty_id: req.faculty.facultyId, // ADDED FACULTY ID
+      faculty_id: req.faculty.facultyId, 
       subject_code,
       course_section,
-      // All other fields will use default "pending" value
     });
 
     const savedTaskDeliverables = await newTaskDeliverables.save();
@@ -85,7 +83,7 @@ export const createTaskDeliverables = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error creating task deliverables:", error);
+    console.error("Error creating task deliverables:", error);
     
     if (error.name === 'ValidationError') {
       return res.status(400).json({ 
@@ -112,7 +110,7 @@ export const createTaskDeliverables = async (req, res) => {
   }
 };
 
-// ✅ Get all task deliverables - NOW FILTERED BY FACULTY
+// Get all task deliverables 
 export const getTaskDeliverables = async (req, res) => {
   try {
     // Check if faculty is authenticated
@@ -138,12 +136,12 @@ export const getTaskDeliverables = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("❌ Error fetching task deliverables:", error);
+    console.error("Error fetching task deliverables:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get single task deliverables - WITH FACULTY CHECK
+// Get single task deliverables 
 export const getTaskDeliverablesById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -168,12 +166,12 @@ export const getTaskDeliverablesById = async (req, res) => {
 
     res.status(200).json({ success: true, data: taskDeliverables });
   } catch (error) {
-    console.error("❌ Error fetching task deliverables:", error);
+    console.error("Error fetching task deliverables:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get faculty loadeds for dropdown - NOW FILTERED BY FACULTY
+// Get faculty loadeds for dropdown 
 export const getFacultyLoadedsForTaskDeliverables = async (req, res) => {
   try {
     // Check if faculty is authenticated
@@ -192,7 +190,7 @@ export const getFacultyLoadedsForTaskDeliverables = async (req, res) => {
     
     res.status(200).json({ success: true, data: facultyLoadeds });
   } catch (error) {
-    console.error("❌ Error fetching faculty loadeds:", error);
+    console.error("Error fetching faculty loadeds:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

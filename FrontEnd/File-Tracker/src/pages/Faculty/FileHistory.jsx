@@ -61,12 +61,12 @@ export default function FileHistory() {
     fetchFileHistory(currentPage);
   }, [currentPage]);
 
-  // Auto-search when typing (like User Management)
+  // Auto-search when typing 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setCurrentPage(1);
       fetchFileHistory(1);
-    }, 300); // 300ms delay for debouncing
+    }, 300); 
 
     return () => clearTimeout(timeoutId);
   }, [search]);

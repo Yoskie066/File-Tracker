@@ -30,7 +30,7 @@ router.post("/file-upload", verifyToken, upload.single('file'), uploadFile);
 router.get("/file-upload/my-files", verifyToken, getFacultyFiles);
 
 
-// File History Routes - FACULTY ONLY
+// File History Routes 
 router.get("/file-history", verifyToken, getFacultyFileHistory);
 
 // Task Deliverables Routes

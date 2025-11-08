@@ -24,7 +24,7 @@ const FacultyLogout = () => {
         // Clear all faculty data from localStorage
         tokenService.clearFacultyTokens();
         
-        console.log("✅ Faculty logged out successfully");
+        console.log("Faculty logged out successfully");
         
         // Redirect to login page
         navigate("/auth/login");

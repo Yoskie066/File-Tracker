@@ -51,7 +51,7 @@ export default function NotificationPage() {
         )}
       </div>
 
-      {/* 📋 Modal */}
+      {/* Modal */}
       {selectedNote && (
         <Modal
           isOpen={!!selectedNote}

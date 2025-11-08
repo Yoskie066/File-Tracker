@@ -10,11 +10,11 @@ const generateDeliverableId = () => {
 // Sync all file submissions to Admin Deliverables
 export const syncAdminDeliverables = async (req, res) => {
   try {
-    console.log("🔄 Starting Admin Deliverables sync...");
+    console.log("Starting Admin Deliverables sync...");
 
     // Get all files from FileManagement
     const files = await FileManagement.find().sort({ uploaded_at: -1 });
-    console.log(`📁 Found ${files.length} files to sync`);
+    console.log(`Found ${files.length} files to sync`);
 
     let syncedCount = 0;
     let errorCount = 0;
@@ -31,7 +31,7 @@ export const syncAdminDeliverables = async (req, res) => {
         });
 
         if (existingDeliverable) {
-          console.log(`✅ Deliverable already exists: ${file.file_name}`);
+          console.log(`Deliverable already exists: ${file.file_name}`);
           continue;
         }
 
@@ -42,7 +42,7 @@ export const syncAdminDeliverables = async (req, res) => {
         });
 
         if (!facultyLoaded) {
-          console.warn(`⚠️ No faculty loaded found for ${file.subject_code}-${file.course_section}`);
+          console.warn(`No faculty loaded found for ${file.subject_code}-${file.course_section}`);
           continue;
         }
 
@@ -63,11 +63,11 @@ export const syncAdminDeliverables = async (req, res) => {
         });
 
         await newDeliverable.save();
-        console.log(`✅ Synced: ${file.file_name}`);
+        console.log(`Synced: ${file.file_name}`);
         syncedCount++;
 
       } catch (error) {
-        console.error(`❌ Error syncing file ${file.file_name}:`, error);
+        console.error(`Error syncing file ${file.file_name}:`, error);
         errorCount++;
       }
     }
@@ -83,7 +83,7 @@ export const syncAdminDeliverables = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error syncing admin deliverables:", error);
+    console.error("Error syncing admin deliverables:", error);
     res.status(500).json({
       success: false,
       message: "Server error during sync",
@@ -164,7 +164,7 @@ export const getAdminDeliverables = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching admin deliverables:", error);
+    console.error("Error fetching admin deliverables:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching deliverables",
@@ -238,7 +238,7 @@ export const getDeliverablesStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching deliverables stats:", error);
+    console.error("Error fetching deliverables stats:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching statistics",
@@ -266,7 +266,7 @@ export const getDeliverableById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching deliverable:", error);
+    console.error("Error fetching deliverable:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching deliverable",
@@ -296,7 +296,7 @@ export const deleteDeliverable = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error deleting deliverable:", error);
+    console.error("Error deleting deliverable:", error);
     res.status(500).json({
       success: false,
       message: "Server error while deleting deliverable",
@@ -325,7 +325,7 @@ export const autoSyncDeliverable = async (fileData) => {
       existingDeliverable.status = status;
       existingDeliverable.updated_at = new Date();
       await existingDeliverable.save();
-      console.log(`✅ Updated existing deliverable status: ${file_name} -> ${status}`);
+      console.log(`Updated existing deliverable status: ${file_name} -> ${status}`);
     } else {
       // Get faculty loaded details
       const facultyLoaded = await FacultyLoaded.findOne({
@@ -334,7 +334,7 @@ export const autoSyncDeliverable = async (fileData) => {
       });
 
       if (!facultyLoaded) {
-        console.warn(`⚠️ No faculty loaded found for auto-sync: ${subject_code}-${course_section}`);
+        console.warn(`No faculty loaded found for auto-sync: ${subject_code}-${course_section}`);
         return;
       }
 
@@ -355,10 +355,10 @@ export const autoSyncDeliverable = async (fileData) => {
       });
 
       await newDeliverable.save();
-      console.log(`✅ Auto-synced new deliverable: ${file_name}`);
+      console.log(`Auto-synced new deliverable: ${file_name}`);
     }
 
   } catch (error) {
-    console.error("❌ Error in auto-sync deliverable:", error);
+    console.error("Error in auto-sync deliverable:", error);
   }
 };

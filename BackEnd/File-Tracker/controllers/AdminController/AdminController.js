@@ -15,7 +15,7 @@ const generateAdminTokens = (admin) => {
       role: admin.role,
     },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" } // Short-lived access token
+    { expiresIn: "15m" } 
   );
 
   const refreshToken = jwt.sign(
@@ -23,7 +23,7 @@ const generateAdminTokens = (admin) => {
       adminId: admin.adminId,
     },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" } // Long-lived refresh token
+    { expiresIn: "7d" } 
   );
 
   return { accessToken, refreshToken };
@@ -66,7 +66,7 @@ export const registerAdmin = async (req, res) => {
   }
 };
 
-// LOGIN ADMIN - UPDATED WITH REFRESH TOKEN
+// LOGIN ADMIN 
 export const loginAdmin = async (req, res) => {
   try {
     const { adminNumber, password } = req.body;
@@ -93,7 +93,7 @@ export const loginAdmin = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Update only the current admin status to online - ENSURE UPDATE
+    // Update only the current admin status to online
     admin = await Admin.findOneAndUpdate(
       { adminNumber },
       { status: "online" },
@@ -112,7 +112,7 @@ export const loginAdmin = async (req, res) => {
         adminName: admin.adminName,
         adminNumber: admin.adminNumber,
         role: admin.role,
-        status: admin.status, // This should now be "online"
+        status: admin.status, 
       },
     });
   } catch (error) {
@@ -165,7 +165,7 @@ export const refreshTokenAdmin = async (req, res) => {
   }
 };
 
-// Forgot Password - ADMIN
+// Forgot Password ADMIN
 export const forgotPasswordAdmin = async (req, res) => {
   try {
     const { adminNumber, adminName, newPassword } = req.body;

@@ -24,7 +24,7 @@ const AdminLogout = () => {
         // Clear all admin data from localStorage
         tokenService.clearAdminTokens();
         
-        console.log("✅ Admin logged out successfully");
+        console.log("Admin logged out successfully");
         
         // Redirect to login page
         navigate("/auth/admin-login");

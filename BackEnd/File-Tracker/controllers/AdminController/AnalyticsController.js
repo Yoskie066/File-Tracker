@@ -9,7 +9,7 @@ import Faculty from "../../models/FacultyModel/FacultyModel.js";
 // Get comprehensive analytics data
 export const getAnalyticsData = async (req, res) => {
   try {
-    console.log("📊 Analytics endpoint hit");
+    console.log("Analytics endpoint hit");
     
     // Get user statistics from combined Admin and Faculty models
     const admins = await Admin.countDocuments();
@@ -155,7 +155,7 @@ export const getAnalyticsData = async (req, res) => {
     };
 
     // Log analytics data for debugging
-    console.log("📊 Analytics Data Summary:", {
+    console.log("Analytics Data Summary:", {
       totalUsers,
       onlineUsers,
       admins,
@@ -172,7 +172,7 @@ export const getAnalyticsData = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching analytics data:", error);
+    console.error("Error fetching analytics data:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching analytics data",
@@ -188,7 +188,7 @@ export const getAnalyticsTrends = async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
 
-    console.log(`📈 Trends endpoint hit for ${days} days`);
+    console.log(`Trends endpoint hit for ${days} days`);
 
     // Get user registration trends from both Admin and Faculty
     const adminTrends = await Admin.aggregate([
@@ -294,7 +294,7 @@ export const getAnalyticsTrends = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching analytics trends:", error);
+    console.error("Error fetching analytics trends:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching analytics trends",
@@ -306,7 +306,7 @@ export const getAnalyticsTrends = async (req, res) => {
 // Get faculty performance analytics
 export const getFacultyPerformance = async (req, res) => {
   try {
-    console.log("👨‍🏫 Faculty performance endpoint hit");
+    console.log("Faculty performance endpoint hit");
 
     const facultyPerformance = await FileManagement.aggregate([
       {
@@ -354,7 +354,7 @@ export const getFacultyPerformance = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching faculty performance:", error);
+    console.error("Error fetching faculty performance:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching faculty performance",
@@ -366,7 +366,7 @@ export const getFacultyPerformance = async (req, res) => {
 // Get system overview with real-time data
 export const getSystemOverview = async (req, res) => {
   try {
-    console.log("🖥️ System overview endpoint hit");
+    console.log("System overview endpoint hit");
 
     // Get real-time user status
     const onlineAdmins = await Admin.countDocuments({ status: 'online' });
@@ -422,7 +422,7 @@ export const getSystemOverview = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching system overview:", error);
+    console.error("Error fetching system overview:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching system overview",
@@ -506,7 +506,7 @@ export const storeAnalyticsSnapshot = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error storing analytics snapshot:", error);
+    console.error("Error storing analytics snapshot:", error);
     res.status(500).json({
       success: false,
       message: "Server error while storing analytics snapshot",
@@ -529,7 +529,7 @@ export const getAnalyticsByDateRange = async (req, res) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // End of the day
+    end.setHours(23, 59, 59, 999);
 
     // Get files within date range
     const filesInRange = await FileManagement.countDocuments({
@@ -580,7 +580,7 @@ export const getAnalyticsByDateRange = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error fetching analytics by date range:", error);
+    console.error("Error fetching analytics by date range:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching date range analytics",

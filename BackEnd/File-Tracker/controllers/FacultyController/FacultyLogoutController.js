@@ -14,14 +14,14 @@ export const logoutFaculty = async (req, res) => {
     // Add token to blacklist
     await BlacklistedToken.create({ token });
 
-    // Update faculty status to offline - FIXED
+    // Update faculty status to offline
     await Faculty.findOneAndUpdate(
       { facultyId }, 
       { status: "offline" },
-      { new: true } // Ensure the update is applied
+      { new: true } 
     );
 
-    console.log(`✅ Faculty ${facultyId} logged out - status set to offline`);
+    console.log(`Faculty ${facultyId} logged out - status set to offline`);
 
     return res.status(200).json({ 
       message: "Faculty logged out successfully" 

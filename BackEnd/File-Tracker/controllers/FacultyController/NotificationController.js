@@ -5,7 +5,7 @@ const generateNotificationId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// ✅ Create notification
+// Create notification
 export const createNotification = async (req, res) => {
   try {
     const { recipient_id, recipient_type, recipient_name, title, message, related_requirement_id } = req.body;
@@ -27,22 +27,22 @@ export const createNotification = async (req, res) => {
     const savedNotification = await notification.save();
     res.status(201).json({ success: true, message: "Notification created successfully", data: savedNotification });
   } catch (error) {
-    console.error("❌ Error creating notification:", error);
+    console.error("Error creating notification:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// FIXED: Get notifications by recipient_id
+// Get notifications by recipient_id
 export const getNotificationsByRecipient = async (req, res) => {
   try {
     const { recipient_id } = req.params;
-    console.log("🔍 Fetching notifications for recipient_id:", recipient_id);
+    console.log("Fetching notifications for recipient_id:", recipient_id);
     
     const notifications = await Notification.find({ 
       recipient_id: recipient_id 
     }).sort({ created_at: -1 });
     
-    console.log("📊 Found notifications:", notifications.length);
+    console.log("Found notifications:", notifications.length);
     
     // Debug: Log what we found
     if (notifications.length > 0) {
@@ -53,24 +53,24 @@ export const getNotificationsByRecipient = async (req, res) => {
     
     res.status(200).json({ success: true, data: notifications });
   } catch (error) {
-    console.error("❌ Error fetching notifications:", error);
+    console.error("Error fetching notifications:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Get unread count by recipient_id
+// Get unread count by recipient_id
 export const getUnreadCount = async (req, res) => {
   try {
     const { recipient_id } = req.params;
     const count = await Notification.countDocuments({ recipient_id, is_read: false });
     res.status(200).json({ success: true, count });
   } catch (error) {
-    console.error("❌ Error fetching unread count:", error);
+    console.error("Error fetching unread count:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Mark as read
+// Mark as read
 export const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,12 +82,12 @@ export const markAsRead = async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: "Notification not found" });
     res.status(200).json({ success: true, message: "Marked as read", data: updated });
   } catch (error) {
-    console.error("❌ Error marking notification as read:", error);
+    console.error("Error marking notification as read:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Mark all as read
+// Mark all as read
 export const markAllAsRead = async (req, res) => {
   try {
     const { recipient_id } = req.params;
@@ -98,7 +98,7 @@ export const markAllAsRead = async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error("❌ Error marking all as read:", error);
+    console.error("Error marking all as read:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

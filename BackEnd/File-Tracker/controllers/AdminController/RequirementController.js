@@ -114,7 +114,7 @@ export const createRequirement = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error creating requirement:", error);
+    console.error("Error creating requirement:", error);
     
     // More specific error messages
     if (error.name === 'ValidationError') {
@@ -142,7 +142,7 @@ export const createRequirement = async (req, res) => {
   }
 };
 
-// ✅ Get all requirements
+// Get all requirements
 export const getRequirements = async (req, res) => {
   try {
     const requirements = await Requirement.find().sort({ created_at: -1 });
@@ -153,7 +153,7 @@ export const getRequirements = async (req, res) => {
   }
 };
 
-// ✅ Get single requirement
+// Get single requirement
 export const getRequirementById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -163,12 +163,12 @@ export const getRequirementById = async (req, res) => {
 
     res.status(200).json({ success: true, data: requirement });
   } catch (error) {
-    console.error("❌ Error fetching requirement:", error);
+    console.error("Error fetching requirement:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Update requirement
+// Update requirement
 export const updateRequirement = async (req, res) => {
   try {
     const { id } = req.params;
@@ -195,12 +195,12 @@ export const updateRequirement = async (req, res) => {
     );
     res.status(200).json({ success: true, message: "Requirement updated successfully", data: updated });
   } catch (error) {
-    console.error("❌ Error updating requirement:", error);
+    console.error("Error updating requirement:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// ✅ Delete requirement
+// Delete requirement
 export const deleteRequirement = async (req, res) => {
   try {
     const { id } = req.params;
@@ -213,7 +213,7 @@ export const deleteRequirement = async (req, res) => {
 
     res.status(200).json({ success: true, message: "Requirement deleted successfully", data: deleted });
   } catch (error) {
-    console.error("❌ Error deleting requirement:", error);
+    console.error("Error deleting requirement:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

@@ -49,7 +49,7 @@ export default function TaskDeliverablesManagement() {
     course_section: ""
   });
 
-  const navigate = useNavigate(); // Add navigate
+  const navigate = useNavigate(); 
 
   // Add authentication check on component mount
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function TaskDeliverablesManagement() {
     fetchFacultyLoadeds();
   }, [navigate]);
 
-  // Fetch task deliverables from backend - UPDATED WITH AUTH
+  // Fetch task deliverables from backend 
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
@@ -111,7 +111,7 @@ export default function TaskDeliverablesManagement() {
     }
   };
 
-  // Fetch faculty loadeds for dropdown - UPDATED WITH AUTH
+  // Fetch faculty loadeds for dropdown 
   const fetchFacultyLoadeds = async () => {
     try {
       const token = tokenService.getFacultyAccessToken();
@@ -191,7 +191,7 @@ export default function TaskDeliverablesManagement() {
     });
   };
 
-  // Handle form submission (ADD ONLY) - UPDATED WITH AUTH
+  // Handle form submission (ADD ONLY) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -218,7 +218,7 @@ export default function TaskDeliverablesManagement() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // ADDED AUTHORIZATION
+          "Authorization": `Bearer ${token}` 
         },
         body: JSON.stringify(requestData),
       });
@@ -282,11 +282,11 @@ export default function TaskDeliverablesManagement() {
     const totalDeliverables = pendingCount + completedCount + rejectedCount;
 
     return {
-      total: taskDeliverables.length, // Total tasks
-      pending: pendingCount, // Total pending deliverables
-      completed: completedCount, // Total completed deliverables
-      rejected: rejectedCount, // Total rejected deliverables
-      totalDeliverables: totalDeliverables // Total individual deliverables
+      total: taskDeliverables.length, 
+      pending: pendingCount, 
+      completed: completedCount, 
+      rejected: rejectedCount,
+      totalDeliverables: totalDeliverables 
     };
   };
 
@@ -324,9 +324,9 @@ export default function TaskDeliverablesManagement() {
           taskDeliverablesStats.rejected
         ],
         backgroundColor: [
-          '#F59E0B', // Yellow for pending
-          '#10B981', // Green for completed
-          '#EF4444'  // Red for rejected
+          '#F59E0B', 
+          '#10B981', 
+          '#EF4444'  
         ],
         borderColor: [
           '#F59E0B',
@@ -380,7 +380,7 @@ export default function TaskDeliverablesManagement() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTaskDeliverables();
-    }, 10000); // Refresh every 10 seconds
+    }, 10000); 
 
     return () => clearInterval(interval);
   }, []);
@@ -421,7 +421,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Statistics Cards - COMPLETELY REVISED */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>

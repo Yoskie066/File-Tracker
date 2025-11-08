@@ -30,7 +30,7 @@ export const getAllUsers = async (req, res) => {
     ];
 
     // Log for debugging
-    console.log(`📊 User Management Stats: Total: ${combinedUsers.length}, Online: ${combinedUsers.filter(u => u.status === 'online').length}, Offline: ${combinedUsers.filter(u => u.status === 'offline').length}`);
+    console.log(`User Management Stats: Total: ${combinedUsers.length}, Online: ${combinedUsers.filter(u => u.status === 'online').length}, Offline: ${combinedUsers.filter(u => u.status === 'offline').length}`);
 
     res.status(200).json(combinedUsers);
   } catch (err) {
@@ -49,7 +49,7 @@ export const deleteAdmin = async (req, res) => {
       return res.status(404).json({ message: "Admin not found" });
     }
 
-    console.log(`🗑️ Admin deleted: ${admin.adminName} (${admin.adminId})`);
+    console.log(`Admin deleted: ${admin.adminName} (${admin.adminId})`);
     res.status(200).json({ 
       message: "Admin deleted successfully",
       deletedAdmin: {
@@ -73,7 +73,7 @@ export const deleteFaculty = async (req, res) => {
       return res.status(404).json({ message: "Faculty not found" });
     }
 
-    console.log(`🗑️ Faculty deleted: ${faculty.facultyName} (${faculty.facultyId})`);
+    console.log(`Faculty deleted: ${faculty.facultyName} (${faculty.facultyId})`);
     res.status(200).json({ 
       message: "Faculty deleted successfully",
       deletedFaculty: {
