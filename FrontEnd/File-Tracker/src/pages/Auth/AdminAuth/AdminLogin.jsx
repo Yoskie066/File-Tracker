@@ -23,7 +23,7 @@ const AdminLogin = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch("https://file-tracker1.onrender.com/api/admin/admin-login", {
+      const response = await fetch("http://localhost:3000/api/admin/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
