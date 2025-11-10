@@ -19,39 +19,21 @@ const AdminLogin = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-   const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch("/api/admin/admin-login", {
+      const response = await fetch("http://localhost:3000/api/admin/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      // Check if response is OK and has content
-      if (!response.ok) {
-        // Try to get error message from response
-        const errorText = await response.text();
-        let errorMessage = "Login failed";
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          errorMessage = errorText || `HTTP error! status: ${response.status}`;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      // Check if response has content
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server returned non-JSON response");
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
 
       // Store tokens using TokenService
       TokenService.setAdminAccessToken(data.accessToken);
