@@ -12,7 +12,7 @@ export default defineConfig({
           // React core
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           
-          // Charts library - malaki ito
+          // Charts library
           'charts': ['chart.js', 'react-chartjs-2'],
           
           // UI components
