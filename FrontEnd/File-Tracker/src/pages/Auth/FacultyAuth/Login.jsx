@@ -11,6 +11,7 @@ const FacultyLogin = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("success"); 
   const [modalMessage, setModalMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -21,18 +22,46 @@ const FacultyLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
-      const response = await fetch("https://file-tracker-f94d.onrender.com/api/faculty/login", {
+      const response = await fetch("/api/faculty/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
+      const responseText = await response.text();
+      
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        let errorMessage = "Login failed";
+        
+        // Try to parse as JSON, if fails use text
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = responseText || `HTTP error! status: ${response.status}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Parse successful response
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        throw new Error("Invalid response from server");
+      }
+
+      // Validate response structure
+      if (!data.accessToken || !data.refreshToken || !data.faculty) {
+        throw new Error("Invalid response format from server");
       }
 
       // Store tokens using TokenService
@@ -49,9 +78,12 @@ const FacultyLogin = () => {
         navigate("/faculty/faculty-loaded");
       }, 2000);
     } catch (err) {
+      console.error('Login Error:', err);
       setModalType("error");
-      setModalMessage(err.message);
+      setModalMessage(err.message || "An unexpected error occurred");
       setModalOpen(true);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -84,6 +116,7 @@ const FacultyLogin = () => {
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
                 placeholder="Enter your faculty number"
                 required
+                disabled={isLoading}
               />
             </div>
             
@@ -100,6 +133,7 @@ const FacultyLogin = () => {
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
                 placeholder="Enter your password"
                 required
+                disabled={isLoading}
               />
             </div>
 
@@ -108,6 +142,7 @@ const FacultyLogin = () => {
                 type="button"
                 onClick={() => navigate('/auth/forgot-password')}
                 className="text-black hover:text-yellow-600 transition-colors text-sm font-medium"
+                disabled={isLoading}
               >
                 Forgot Password?
               </button>
@@ -115,9 +150,10 @@ const FacultyLogin = () => {
             
             <button
               type="submit"
-              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
+              disabled={isLoading}
+              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Login
+              {isLoading ? "Logging in..." : "Login"}
             </button>
           </form>
           
@@ -127,7 +163,8 @@ const FacultyLogin = () => {
             </p>
             <button
               onClick={handleRegister}
-              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
+              disabled={isLoading}
+              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Register
             </button>
@@ -143,7 +180,7 @@ const FacultyLogin = () => {
         {/* Modal */}
         <Modal
           isOpen={modalOpen}
-          onRequestClose={() => setModalOpen(false)}
+          onRequestClose={() => !isLoading && setModalOpen(false)}
           className="bg-white p-4 sm:p-6 rounded-xl max-w-xs sm:max-w-sm mx-auto shadow-lg"
           overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
         >
