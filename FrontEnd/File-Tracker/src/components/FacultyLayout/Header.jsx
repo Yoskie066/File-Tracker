@@ -18,13 +18,15 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Handle logout
   const handleLogout = async () => {
   try {
     const token = tokenService.getFacultyAccessToken();
     
     if (token) {
-      await fetch("http://localhost:3000/api/faculty/logout", {
+      await fetch(`${API_BASE_URL}/api/faculty/logout`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`

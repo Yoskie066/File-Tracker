@@ -16,6 +16,8 @@ export default function FileHistory() {
   const [pagination, setPagination] = useState({});
   const itemsPerPage = 12;
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Fetch file history
   const fetchFileHistory = async (page = 1) => {
   try {
@@ -35,7 +37,7 @@ export default function FileHistory() {
       ...(search && { search })
     });
 
-    const response = await fetch(`http://localhost:3000/api/faculty/file-history?${params}`, {
+    const response = await fetch(`${API_BASE_URL}/api/faculty/file-history?${params}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

@@ -61,6 +61,8 @@ export default function FacultyLoadedManagement() {
   const [isEditMode, setIsEditMode] = useState(false);
   const navigate = useNavigate(); 
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Semester options for combo box
   const semesterOptions = [
     "1st Semester",
@@ -94,7 +96,7 @@ export default function FacultyLoadedManagement() {
         return;
       }
 
-      const res = await fetch("http://localhost:3000/api/faculty/faculty-loaded", {
+      const res = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -176,8 +178,8 @@ export default function FacultyLoadedManagement() {
       }
 
       const url = isEditMode 
-        ? `http://localhost:3000/api/faculty/faculty-loaded/${formData.faculty_loaded_id}`
-        : "http://localhost:3000/api/faculty/faculty-loaded";
+        ? `${API_BASE_URL}/api/faculty/faculty-loaded/${formData.faculty_loaded_id}`
+        : `${API_BASE_URL}/api/faculty/faculty-loaded`;
       
       const method = isEditMode ? "PUT" : "POST";
   
@@ -250,7 +252,7 @@ export default function FacultyLoadedManagement() {
         return;
       }
 
-      const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/${facultyLoadedId}`, {
         headers: {
           'Authorization': `Bearer ${token}` 
         }
@@ -299,7 +301,7 @@ export default function FacultyLoadedManagement() {
         return;
       }
 
-      const response = await fetch(`http://localhost:3000/api/faculty/faculty-loaded/${facultyLoadedId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/${facultyLoadedId}`, {
         method: "DELETE",
         headers: {
           'Authorization': `Bearer ${token}` 

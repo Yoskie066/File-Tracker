@@ -51,6 +51,8 @@ export default function TaskDeliverablesManagement() {
 
   const navigate = useNavigate(); 
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Add authentication check on component mount
   useEffect(() => {
     // Check if user is authenticated
@@ -78,7 +80,7 @@ export default function TaskDeliverablesManagement() {
         return;
       }
 
-      const res = await fetch("http://localhost:3000/api/faculty/task-deliverables", {
+      const res = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -119,7 +121,7 @@ export default function TaskDeliverablesManagement() {
         return;
       }
 
-      const res = await fetch("http://localhost:3000/api/faculty/task-deliverables/faculty-loaded", {
+      const res = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables/faculty-loaded`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -127,7 +129,7 @@ export default function TaskDeliverablesManagement() {
       
       if (!res.ok) {
         if (res.status === 401) {
-          TokenService.clearFacultyTokens();
+          tokenService.clearFacultyTokens();
           return;
         }
         throw new Error("Server responded with " + res.status);
@@ -204,7 +206,7 @@ export default function TaskDeliverablesManagement() {
         return;
       }
 
-      const url = "http://localhost:3000/api/faculty/task-deliverables";
+      const url = `${API_BASE_URL}/api/faculty/task-deliverables`;
       
       const requestData = {
         subject_code: formData.subject_code,

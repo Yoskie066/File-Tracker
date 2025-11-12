@@ -17,12 +17,14 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   const handleLogout = async () => {
   try {
     const token = tokenService.getAdminAccessToken();
     
     if (token) {
-      await fetch("http://localhost:3000/api/admin/admin-logout", {
+      await fetch(`${API_BASE_URL}/api/admin/admin-logout`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`

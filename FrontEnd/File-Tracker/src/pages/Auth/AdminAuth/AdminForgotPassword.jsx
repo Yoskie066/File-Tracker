@@ -5,6 +5,8 @@ import { CheckCircle, XCircle } from "lucide-react";
 
 Modal.setAppElement("#root");
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
 const AdminForgotPassword = () => {
   const [formData, setFormData] = useState({
     adminName: "",
@@ -30,7 +32,7 @@ const AdminForgotPassword = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:3000/api/admin/admin-forgot-password", {
+      const response = await fetch(`${API_BASE_URL}/api/admin/admin-forgot-password`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

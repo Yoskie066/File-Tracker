@@ -6,6 +6,8 @@ import apiService from "../../services/apiService";
 const AdminLogout = () => {
   const navigate = useNavigate();
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   useEffect(() => {
     const logoutAdmin = async () => {
       const token = tokenService.getAdminAccessToken();
@@ -17,7 +19,7 @@ const AdminLogout = () => {
 
       try {
         // Call logout API
-        await apiService.adminApi("http://localhost:3000/api/admin/admin-logout", {
+        await apiService.adminApi(`${API_BASE_URL}/api/admin/admin-logout`, {
           method: "POST",
         });
 

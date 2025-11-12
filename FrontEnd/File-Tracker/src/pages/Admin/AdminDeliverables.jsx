@@ -47,11 +47,13 @@ export default function AdminDeliverables() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [deliverableToPreview, setDeliverableToPreview] = useState(null);
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Fetch deliverables from backend
   const fetchDeliverables = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/api/admin/deliverables");
+      const res = await fetch(`${API_BASE_URL}/api/admin/deliverables`);
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
       console.log("Fetched deliverables:", result);
@@ -97,7 +99,7 @@ export default function AdminDeliverables() {
   // Handle delete deliverable
   const handleDelete = async (deliverableId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/deliverables/${deliverableId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/deliverables/${deliverableId}`, {
         method: "DELETE",
       });
 

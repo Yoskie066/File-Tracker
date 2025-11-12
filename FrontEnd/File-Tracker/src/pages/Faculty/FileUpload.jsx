@@ -21,6 +21,8 @@ export default function FileUpload() {
     course_section: ""
   });
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Fetch faculty loadeds for dropdown
   const fetchFacultyLoadeds = async () => {
     try {
@@ -31,7 +33,7 @@ export default function FileUpload() {
         return;
       }
 
-      const res = await fetch("http://localhost:3000/api/faculty/faculty-loaded", {
+      const res = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -171,7 +173,7 @@ export default function FileUpload() {
       formDataToSend.append('course_section', formData.course_section);
       formDataToSend.append('file', selectedFile);
 
-      const response = await fetch("http://localhost:3000/api/faculty/file-upload", {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`

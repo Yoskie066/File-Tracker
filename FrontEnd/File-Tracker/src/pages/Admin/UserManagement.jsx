@@ -41,11 +41,13 @@ export default function UserManagement() {
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Fetch users from backend
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/api/admin/user-management", {
+      const res = await fetch(`${API_BASE_URL}/api/admin/user-management`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -149,8 +151,8 @@ export default function UserManagement() {
     try {
       const token = localStorage.getItem("token");
       const endpoint = deleteUser.role === 'admin'
-        ? `http://localhost:3000/api/admin/delete-admin/${deleteUser.user_id}`
-        : `http://localhost:3000/api/admin/delete-faculty/${deleteUser.user_id}`;
+        ? `${API_BASE_URL}/api/admin/delete-admin/${deleteUser.user_id}`
+        : `${API_BASE_URL}/api/admin/delete-faculty/${deleteUser.user_id}`;
       
       const response = await fetch(endpoint, {
         method: 'DELETE',

@@ -1,5 +1,7 @@
 import tokenService from './tokenService';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
 class ApiService {
   constructor() {
     this.isRefreshing = false;
@@ -31,7 +33,7 @@ class ApiService {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await fetch(`${API_BASE_URL}${url}`, config);
       
       if (response.status === 401) {
         // Token expired, try to refresh
@@ -57,16 +59,16 @@ class ApiService {
 
     try {
       const refreshToken = userType === 'faculty'
-        ? tokenService.getFacultyRefreshToken()
-        : tokenService.getAdminRefreshToken();
+        ? `${API_BASE_URL}/api/faculty/refresh-token`
+        : `${API_BASE_URL}/api/admin/admin-refresh-token`;
 
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
 
       const refreshUrl = userType === 'faculty'
-        ? 'http://localhost:3000/api/faculty/refresh-token'
-        : 'http://localhost:3000/api/admin/admin-refresh-token';
+        ? `${API_BASE_URL}/api/faculty/refresh-token`
+        : `${API_BASE_URL}/api/admin/admin-refresh-token`;
 
       const response = await fetch(refreshUrl, {
         method: 'POST',
@@ -95,7 +97,7 @@ class ApiService {
       originalConfig.headers.Authorization = `Bearer ${data.accessToken}`;
 
       // Retry original request
-      const retryResponse = await fetch(originalUrl, originalConfig);
+      const retryResponse = await fetch(`${API_BASE_URL}${originalUrl}`, originalConfig);
 
       // Process any queued requests
       this.processFailedRequests(data.accessToken);
@@ -105,10 +107,10 @@ class ApiService {
       // Clear tokens and redirect to login
       if (userType === 'faculty') {
         tokenService.clearFacultyTokens();
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       } else {
         tokenService.clearAdminTokens();
-        window.location.href = '/admin-login';
+        window.location.href = '/auth/admin-login';
       }
       
       this.processFailedRequests(null, error);
@@ -125,7 +127,7 @@ class ApiService {
         request.reject(error);
       } else {
         request.originalConfig.headers.Authorization = `Bearer ${newToken}`;
-        fetch(request.originalUrl, request.originalConfig)
+        fetch(`${API_BASE_URL}${request.originalUrl}`, request.originalConfig)
           .then(request.resolve)
           .catch(request.reject);
       }

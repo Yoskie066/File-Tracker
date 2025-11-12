@@ -6,6 +6,8 @@ import TokenService from "../../../services/tokenService";
 
 Modal.setAppElement("#root"); 
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
 const FacultyLogin = () => {
   const [formData, setFormData] = useState({ facultyNumber: "", password: "" });
   const [modalOpen, setModalOpen] = useState(false);
@@ -23,7 +25,7 @@ const FacultyLogin = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:3000/api/faculty/login", {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

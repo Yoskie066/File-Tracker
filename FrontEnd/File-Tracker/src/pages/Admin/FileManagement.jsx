@@ -30,11 +30,13 @@ export default function FileManagement() {
   const [fileToUpdate, setFileToUpdate] = useState(null);
   const [newStatus, setNewStatus] = useState("");
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Fetch files from backend
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/api/admin/file-management");
+      const res = await fetch(`${API_BASE_URL}/api/admin/file-management`);
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
       console.log("Fetched files:", result);
@@ -74,7 +76,7 @@ export default function FileManagement() {
   // Handle download file
   const handleDownload = async (fileId, fileName) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/file-management/${fileId}/download`);
+      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}/download`);
       
       if (!response.ok) {
         throw new Error('Download failed');
@@ -107,7 +109,7 @@ export default function FileManagement() {
     if (!fileToUpdate || !newStatus) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/file-management/${fileToUpdate.file_id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileToUpdate.file_id}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -143,7 +145,7 @@ export default function FileManagement() {
   // Handle delete file
   const handleDelete = async (fileId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/file-management/${fileId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}`, {
         method: "DELETE",
       });
 

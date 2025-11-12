@@ -5,6 +5,8 @@ import { CheckCircle, XCircle } from "lucide-react";
 
 Modal.setAppElement("#root");
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
 const FacultyForgotPassword = () => {
   const [formData, setFormData] = useState({
     facultyName: "",
@@ -30,7 +32,7 @@ const FacultyForgotPassword = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:3000/api/faculty/forgot-password", {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/forgot-password`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

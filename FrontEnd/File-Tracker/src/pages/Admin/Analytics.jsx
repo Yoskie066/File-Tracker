@@ -39,6 +39,8 @@ export default function Analytics() {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // Fetch analytics data
   const fetchAnalyticsData = async () => {
     try {
@@ -46,15 +48,15 @@ export default function Analytics() {
       setError(null);
       
       const [analyticsRes, trendsRes, facultyRes] = await Promise.all([
-        fetch("http://localhost:3000/api/admin/analytics").catch(err => {
+        fetch(`${API_BASE_URL}/api/admin/analytics`).catch(err => {
           console.error("Error fetching analytics:", err);
           return { ok: false, status: 500 };
         }),
-        fetch("http://localhost:3000/api/admin/analytics/trends?days=30").catch(err => {
+        fetch(`${API_BASE_URL}/api/admin/analytics/trends?days=30`).catch(err => {
           console.error("Error fetching trends:", err);
           return { ok: false, status: 500 };
         }),
-        fetch("http://localhost:3000/api/admin/analytics/faculty-performance").catch(err => {
+        fetch(`${API_BASE_URL}/api/admin/analytics/faculty-performance`).catch(err => {
           console.error("Error fetching faculty performance:", err);
           return { ok: false, status: 500 };
         })

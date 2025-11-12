@@ -4,6 +4,8 @@ export default function useNotifications(currentUser) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   useEffect(() => {
     if (!currentUser?.facultyId) {
@@ -16,7 +18,7 @@ export default function useNotifications(currentUser) {
       try {
         console.log("Fetching notifications for facultyId:", currentUser.facultyId);
         const res = await fetch(
-          `http://localhost:3000/api/faculty/notifications/${currentUser.facultyId}`
+          `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}`
         );
         
         if (!res.ok) {
@@ -47,7 +49,7 @@ export default function useNotifications(currentUser) {
   const markAsRead = async (id) => {
     try {
       console.log("Marking notification as read:", id);
-      await fetch(`http://localhost:3000/api/faculty/notifications/${id}/read`, {
+      await fetch(`${API_BASE_URL}/api/faculty/notifications/${id}/read`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
       });

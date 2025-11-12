@@ -60,6 +60,8 @@ export default function RequirementManagement() {
 
   const [isEditMode, setIsEditMode] = useState(false);
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   // File type options for combo box
   const fileTypeOptions = [
     "syllabus",
@@ -72,7 +74,7 @@ export default function RequirementManagement() {
   // Fetch requirements from backend 
   const fetchRequirements = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/admin/requirement"); 
+      const res = await fetch(`${API_BASE_URL}/api/admin/requirement`); 
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
       console.log("Fetched requirements:", result);
@@ -93,7 +95,7 @@ export default function RequirementManagement() {
   const fetchFacultyList = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/api/admin/user-management", {
+      const res = await fetch(`${API_BASE_URL}/api/admin/user-management`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -167,8 +169,8 @@ export default function RequirementManagement() {
   
     try {
       const url = isEditMode 
-        ? `http://localhost:3000/api/admin/requirement/${formData.requirement_id}`
-        : "http://localhost:3000/api/admin/requirement";
+        ? `${API_BASE_URL}/api/admin/requirement/${formData.requirement_id}`
+        : `${API_BASE_URL}/api/admin/requirement`;
       
       const method = isEditMode ? "PUT" : "POST";
   
@@ -230,7 +232,7 @@ export default function RequirementManagement() {
   // Handle edit requirement
   const handleEdit = async (requirementId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/requirement/${requirementId}`);
+      const response = await fetch(`${API_BASE_URL}/api/admin/requirement/${requirementId}`);
       const result = await response.json();
   
       if (result.success && result.data) {
@@ -260,7 +262,7 @@ export default function RequirementManagement() {
   // Handle delete requirement
   const handleDelete = async (requirementId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/requirement/${requirementId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/requirement/${requirementId}`, {
         method: "DELETE",
       });
 

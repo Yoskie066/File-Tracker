@@ -6,6 +6,8 @@ import apiService from "../../services/apiService"
 const FacultyLogout = () => {
   const navigate = useNavigate();
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
   useEffect(() => {
     const logoutFaculty = async () => {
       const token = tokenService.getFacultyAccessToken();
@@ -17,7 +19,7 @@ const FacultyLogout = () => {
 
       try {
         // Call logout API
-        await apiService.facultyApi("http://localhost:3000/api/faculty/logout", {
+        await apiService.facultyApi(`${API_BASE_URL}/api/faculty/logout`, {
           method: "POST",
         });
 
