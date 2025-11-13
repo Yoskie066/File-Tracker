@@ -106,9 +106,9 @@ export default function FileHistory() {
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - Same as User Management */}
+        {/* Header  */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
-          <div>
+          <div className="text-left w-full md:w-auto">
             <h1 className="text-2xl font-bold text-gray-800">File History</h1>
             <p className="text-sm text-gray-500">
               Collection of all your submitted files
