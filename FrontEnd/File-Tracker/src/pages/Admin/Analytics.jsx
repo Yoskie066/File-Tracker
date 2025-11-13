@@ -389,7 +389,7 @@ export default function Analytics() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">System Analytics</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
             <p className="text-sm text-gray-500">
               Comprehensive insights across all system modules and performance metrics
             </p>
@@ -427,7 +427,7 @@ export default function Analytics() {
         {analyticsData?.summary && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-blue-600 text-sm font-medium">System Health</div>
+              <div className="text-blue-600 text-sm font-medium">System Overview</div>
               <div className="text-2xl font-bold text-blue-800">
                 {analyticsData.summary.system_health}%
               </div>

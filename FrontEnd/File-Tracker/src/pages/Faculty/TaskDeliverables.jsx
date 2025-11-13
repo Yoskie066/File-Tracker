@@ -394,9 +394,9 @@ export default function TaskDeliverablesManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Task Deliverables Management</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Task Deliverables</h1>
             <p className="text-sm text-gray-500">
-              Manage and track faculty task deliverables - Status syncs automatically with File Management
+              Monitor the status of your submitted deliverables with ease
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">

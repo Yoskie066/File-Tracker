@@ -245,7 +245,7 @@ export default function FileManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">File Management</h1>
             <p className="text-sm text-gray-500">
-              Manage and track uploaded files - Status updates will sync with Task Deliverables
+              A secure file management system for storing, organizing, and monitoring all details
             </p>
           </div>
           <input

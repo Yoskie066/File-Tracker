@@ -97,7 +97,7 @@ export default function Header() {
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <ClipboardCheck className="w-4 h-4" />
-          Deliverables
+          Admin Deliverables
         </Link>
         <Link
           to="/admin/requirement"
@@ -181,7 +181,7 @@ export default function Header() {
             )}`}
           >
             <ClipboardCheck className="w-5 h-5" />
-            Deliverables
+            Admin Deliverables
           </Link>
           <Link
             to="/admin/requirement"

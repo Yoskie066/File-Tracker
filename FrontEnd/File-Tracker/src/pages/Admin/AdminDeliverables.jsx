@@ -235,7 +235,7 @@ export default function AdminDeliverables() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Admin Deliverables</h1>
             <p className="text-sm text-gray-500">
-              Comprehensive view of all faculty submissions with aggregated data
+              Monitor, review, and manage all faculty submissions 
             </p>
           </div>
           <input
