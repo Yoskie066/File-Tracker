@@ -9,6 +9,7 @@ import {
   BellRing,
   BarChart3,
   LogOut,
+  Settings
 } from "lucide-react";
 import tokenService from "../../services/tokenService";
 
@@ -106,6 +107,13 @@ export default function Header() {
           <BellRing className="w-4 h-4" />
           Requirement
         </Link>
+        <Link
+          to="/admin/system-variables"
+          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
+        >
+          <Settings className="w-4 h-4" />
+          System Variables
+        </Link>
         <button
           onClick={handleLogout}
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
@@ -193,6 +201,17 @@ export default function Header() {
             <BellRing className="w-5 h-5" />
             Requirement
           </Link>
+          <Link
+            to="/admin/system-variables"
+            onClick={() => setIsOpen(false)}
+            className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
+              "/admin/system-variables"
+            )}`}
+          >
+            <Settings className="w-5 h-5" />
+            System Variables
+          </Link>
+          
           <button
             onClick={() => {
               setIsOpen(false);
