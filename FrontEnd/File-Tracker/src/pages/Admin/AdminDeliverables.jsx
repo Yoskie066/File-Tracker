@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye } from "lucide-react";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -188,7 +188,7 @@ export default function AdminDeliverables() {
     ],
   };
 
-  // Chart data for file type distribution - CHANGED TO DOUGHNUT
+  // Chart data for file type distribution
   const fileTypeChartData = {
     labels: Object.keys(fileTypeDistribution).map(getFileTypeLabel),
     datasets: [
@@ -214,7 +214,7 @@ export default function AdminDeliverables() {
   // Search filter
   const filteredDeliverables = (Array.isArray(deliverables) ? deliverables : [])
     .filter((deliverable) =>
-      [deliverable.deliverable_id, deliverable.faculty_name, deliverable.file_name, deliverable.file_type, deliverable.status, deliverable.subject_code, deliverable.subject_title]
+      [deliverable.deliverable_id, deliverable.faculty_name, deliverable.file_name, deliverable.file_type, deliverable.status, deliverable.subject_code]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -303,7 +303,7 @@ export default function AdminDeliverables() {
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Deliverable ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Title</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code & Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Details</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Info</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
@@ -318,8 +318,8 @@ export default function AdminDeliverables() {
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{deliverable.deliverable_id}</td>
                     <td className="px-4 py-3 text-gray-700">{deliverable.faculty_name}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 text-xs">{deliverable.subject_title}</div>
-                      <div className="text-gray-500 font-mono text-xs">{deliverable.subject_code} - {deliverable.course_section}</div>
+                      <div className="font-medium text-gray-900 font-mono text-xs">{deliverable.subject_code}</div>
+                      <div className="text-gray-500 text-xs">Section: {deliverable.course_section}</div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-sm">{deliverable.file_name}</div>
@@ -440,13 +440,17 @@ export default function AdminDeliverables() {
                   </div>
                   <div>
                     <span className="text-gray-500">Subject:</span>
-                    <p className="font-medium">{deliverable.subject_code} - {deliverable.course_section}</p>
+                    <p className="font-medium font-mono">{deliverable.subject_code}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Section:</span>
+                    <p className="font-medium">{deliverable.course_section}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Semester:</span>
                     <p className="font-medium">{deliverable.semester}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <span className="text-gray-500">School Year:</span>
                     <p className="font-medium">{deliverable.school_year}</p>
                   </div>
@@ -558,7 +562,7 @@ export default function AdminDeliverables() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Subject Code</label>
-                    <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.subject_code}</p>
+                    <p className="mt-1 text-sm text-gray-900 font-mono">{deliverableToPreview.subject_code}</p>
                   </div>
                 </div>
 
@@ -568,25 +572,20 @@ export default function AdminDeliverables() {
                     <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.course_section}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Subject Title</label>
-                    <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.subject_title}</p>
+                    <label className="block text-sm font-medium text-gray-700">Semester</label>
+                    <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.semester}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Semester</label>
-                    <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.semester}</p>
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700">School Year</label>
                     <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.school_year}</p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Date Submitted</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(deliverableToPreview.date_submitted)}</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Date Submitted</label>
+                    <p className="mt-1 text-sm text-gray-900">{formatDate(deliverableToPreview.date_submitted)}</p>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">

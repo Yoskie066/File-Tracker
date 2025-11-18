@@ -35,7 +35,7 @@ export const syncAdminDeliverables = async (req, res) => {
           continue;
         }
 
-        // Get faculty loaded details to get subject_title, semester, school_year
+        // Get faculty loaded details to get semester, school_year
         const facultyLoaded = await FacultyLoaded.findOne({
           subject_code: file.subject_code,
           course_section: file.course_section
@@ -52,7 +52,6 @@ export const syncAdminDeliverables = async (req, res) => {
           faculty_id: file.faculty_id,
           faculty_name: file.faculty_name,
           subject_code: file.subject_code,
-          subject_title: facultyLoaded.subject_title,
           semester: facultyLoaded.semester,
           school_year: facultyLoaded.school_year,
           file_name: file.file_name,
@@ -117,7 +116,6 @@ export const getAdminDeliverables = async (req, res) => {
       filter.$or = [
         { faculty_name: { $regex: search, $options: 'i' } },
         { subject_code: { $regex: search, $options: 'i' } },
-        { subject_title: { $regex: search, $options: 'i' } },
         { file_name: { $regex: search, $options: 'i' } }
       ];
     }
@@ -338,13 +336,12 @@ export const autoSyncDeliverable = async (fileData) => {
         return;
       }
 
-      // Create new deliverable
+      // Create new deliverable - REMOVED SUBJECT_TITLE
       const newDeliverable = new AdminDeliverables({
         deliverable_id: generateDeliverableId(),
         faculty_id,
         faculty_name,
         subject_code,
-        subject_title: facultyLoaded.subject_title,
         semester: facultyLoaded.semester,
         school_year: facultyLoaded.school_year,
         file_name,
