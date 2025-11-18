@@ -31,6 +31,7 @@ Modal.setAppElement("#root");
 
 export default function FacultyLoadedManagement() {
   const [facultyLoadeds, setFacultyLoadeds] = useState([]);
+  const [systemVariables, setSystemVariables] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -47,15 +48,13 @@ export default function FacultyLoadedManagement() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [facultyLoadedToDelete, setFacultyLoadedToDelete] = useState(null);
 
-  // Form state
+  // Form state - removed subject_title field
   const [formData, setFormData] = useState({
     faculty_loaded_id: "",
     subject_code: "",
-    subject_title: "",
     course_section: "",
     semester: "",
-    school_year: "",
-    day_time: ""
+    school_year: ""
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -63,12 +62,68 @@ export default function FacultyLoadedManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Semester options for combo box
-  const semesterOptions = [
-    "1st Semester",
-    "2nd Semester",
-    "Summer"
-  ];
+  // Fetch system variables for dropdowns
+  const fetchSystemVariables = async () => {
+    try {
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        console.error("No access token found");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }); 
+      
+      if (!res.ok) {
+        throw new Error("Server responded with " + res.status);
+      }
+      
+      const result = await res.json();
+      console.log("Fetched system variables:", result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        setSystemVariables(result.data);
+      } else {
+        console.error("Unexpected API response format for system variables:", result);
+        setSystemVariables([]);
+      }
+    } catch (err) {
+      console.error("Error fetching system variables:", err);
+      setSystemVariables([]); 
+    }
+  };
+
+  // Filter system variables by type
+  const getVariablesByType = (type) => {
+    return systemVariables
+      .filter(variable => variable.variable_type === type)
+      .map(variable => variable.variable_name)
+      .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+  };
+
+  // Get available semesters from system variables
+  const getSemesterOptions = () => {
+    const semesters = getVariablesByType('semester');
+    return semesters.length > 0 ? semesters : ["1st Semester", "2nd Semester", "Summer"];
+  };
+
+  // Get available school years from system variables
+  const getSchoolYearOptions = () => {
+    return getVariablesByType('academic_year');
+  };
+
+  // Get available subject codes from system variables
+  const getSubjectCodeOptions = () => {
+    return getVariablesByType('subject_code');
+  };
+
+  // Get available course sections from system variables
+  const getCourseSectionOptions = () => {
+    return getVariablesByType('course_section');
+  };
 
   // Add authentication check on component mount
   useEffect(() => {
@@ -83,6 +138,7 @@ export default function FacultyLoadedManagement() {
     }
     
     fetchFacultyLoadeds();
+    fetchSystemVariables();
   }, [navigate]);
 
   // Fetch faculty loadeds from backend 
@@ -155,11 +211,9 @@ export default function FacultyLoadedManagement() {
     setFormData({
       faculty_loaded_id: "",
       subject_code: "",
-      subject_title: "",
       course_section: "",
       semester: "",
-      school_year: "",
-      day_time: ""
+      school_year: ""
     });
     setIsEditMode(false);
   };
@@ -185,18 +239,14 @@ export default function FacultyLoadedManagement() {
   
       const requestData = isEditMode ? {
         subject_code: formData.subject_code,
-        subject_title: formData.subject_title,
         course_section: formData.course_section,
         semester: formData.semester,
-        school_year: formData.school_year,
-        day_time: formData.day_time
+        school_year: formData.school_year
       } : {
         subject_code: formData.subject_code,
-        subject_title: formData.subject_title,
         course_section: formData.course_section,
         semester: formData.semester,
-        school_year: formData.school_year,
-        day_time: formData.day_time
+        school_year: formData.school_year
       };
   
       console.log("Sending request to:", url);
@@ -274,11 +324,9 @@ export default function FacultyLoadedManagement() {
         setFormData({
           faculty_loaded_id: facultyLoaded.faculty_loaded_id,
           subject_code: facultyLoaded.subject_code,
-          subject_title: facultyLoaded.subject_title,
           course_section: facultyLoaded.course_section,
           semester: facultyLoaded.semester,
-          school_year: facultyLoaded.school_year,
-          day_time: facultyLoaded.day_time
+          school_year: facultyLoaded.school_year
         });
         setIsEditMode(true);
         setShowModal(true);
@@ -343,27 +391,27 @@ export default function FacultyLoadedManagement() {
   // Calculate stats for charts
   const facultyLoadedStats = {
     total: Array.isArray(facultyLoadeds) ? facultyLoadeds.length : 0,
-    firstSemester: Array.isArray(facultyLoadeds) ? facultyLoadeds.filter(fl => fl.semester === '1st Semester').length : 0,
-    secondSemester: Array.isArray(facultyLoadeds) ? facultyLoadeds.filter(fl => fl.semester === '2nd Semester').length : 0,
-    summer: Array.isArray(facultyLoadeds) ? facultyLoadeds.filter(fl => fl.semester === 'Summer').length : 0
+    subjectCode: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.subject_code))].length : 0,
+    courseSection: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.course_section))].length : 0,
+    schoolYear: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.school_year))].length : 0
   };
 
   // Search filter
   const filteredFacultyLoadeds = (Array.isArray(facultyLoadeds) ? facultyLoadeds : [])
     .filter((fl) =>
-      [fl.faculty_loaded_id, fl.subject_code, fl.subject_title, fl.course_section, fl.semester, fl.school_year, fl.day_time]
+      [fl.faculty_loaded_id, fl.subject_code, fl.course_section, fl.semester, fl.school_year]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
-  // Chart data for semester distribution
-  const semesterChartData = {
-    labels: ['1st Semester', '2nd Semester', 'Summer'],
+  // Chart data for distribution
+  const distributionChartData = {
+    labels: ['Subject Codes', 'Course Sections', 'School Years'],
     datasets: [
       {
         data: [
-          facultyLoadedStats.firstSemester,
-          facultyLoadedStats.secondSemester,
-          facultyLoadedStats.summer
+          facultyLoadedStats.subjectCode,
+          facultyLoadedStats.courseSection,
+          facultyLoadedStats.schoolYear
         ],
         backgroundColor: [
           '#4F46E5',
@@ -407,7 +455,7 @@ export default function FacultyLoadedManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Faculty Loaded</h1>
             <p className="text-sm text-gray-500">
-              Manage faculty teaching loads, schedules, and course assignments
+              Manage faculty teaching loads and course assignments
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
@@ -441,25 +489,25 @@ export default function FacultyLoadedManagement() {
             <div className="text-2xl font-bold text-blue-800">{facultyLoadedStats.total}</div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">1st Semester</div>
-            <div className="text-2xl font-bold text-purple-800">{facultyLoadedStats.firstSemester}</div>
+            <div className="text-purple-600 text-sm font-medium">Subject Codes</div>
+            <div className="text-2xl font-bold text-purple-800">{facultyLoadedStats.subjectCode}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">2nd Semester</div>
-            <div className="text-2xl font-bold text-green-800">{facultyLoadedStats.secondSemester}</div>
+            <div className="text-green-600 text-sm font-medium">Course Sections</div>
+            <div className="text-2xl font-bold text-green-800">{facultyLoadedStats.courseSection}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Summer</div>
-            <div className="text-2xl font-bold text-yellow-800">{facultyLoadedStats.summer}</div>
+            <div className="text-yellow-600 text-sm font-medium">School Years</div>
+            <div className="text-2xl font-bold text-yellow-800">{facultyLoadedStats.schoolYear}</div>
           </div>
         </div>
 
         {/* Chart Section */}
         <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
           <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Semester Distribution</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Distribution Overview</h3>
             <div className="h-64">
-              <Doughnut data={semesterChartData} options={chartOptions} />
+              <Doughnut data={distributionChartData} options={chartOptions} />
             </div>
           </div>
         </div>
@@ -471,11 +519,9 @@ export default function FacultyLoadedManagement() {
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Load ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">School Year</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Day & Time</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
@@ -485,7 +531,6 @@ export default function FacultyLoadedManagement() {
                   <tr key={facultyLoaded._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoaded.faculty_loaded_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoaded.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.subject_title}</td>
                     <td className="px-4 py-3 text-gray-700">{facultyLoaded.course_section}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -497,7 +542,6 @@ export default function FacultyLoadedManagement() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{facultyLoaded.school_year}</td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.day_time}</td>
                     <td className="px-4 py-3 relative">
                       <button
                         onClick={(e) => {
@@ -532,7 +576,7 @@ export default function FacultyLoadedManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
                     No faculty loadeds found.
                   </td>
                 </tr>
@@ -548,7 +592,7 @@ export default function FacultyLoadedManagement() {
               <div key={facultyLoaded._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800">{facultyLoaded.subject_title}</h2>
+                    <h2 className="font-semibold text-gray-800 font-mono">{facultyLoaded.subject_code}</h2>
                     <p className="text-sm text-gray-600 font-mono">ID: {facultyLoaded.faculty_loaded_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -596,20 +640,12 @@ export default function FacultyLoadedManagement() {
                 
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div>
-                    <span className="text-gray-500">Subject Code:</span>
-                    <p className="font-medium font-mono">{facultyLoaded.subject_code}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Section:</span>
+                    <span className="text-gray-500">Course Section:</span>
                     <p className="font-medium">{facultyLoaded.course_section}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">School Year:</span>
                     <p className="font-medium">{facultyLoaded.school_year}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Schedule:</span>
-                    <p className="font-medium">{facultyLoaded.day_time}</p>
                   </div>
                 </div>
 
@@ -705,55 +741,49 @@ export default function FacultyLoadedManagement() {
                 </div>
               )}
 
-              {/* Subject Code */}
+              {/* Subject Code - Dropdown from System Variables */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Code *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="subject_code"
                   value={formData.subject_code}
                   onChange={handleInputChange}
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter subject code"
-                />
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select subject code</option>
+                  {getSubjectCodeOptions().map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Subject Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject Title *
-                </label>
-                <input
-                  type="text"
-                  name="subject_title"
-                  value={formData.subject_title}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter subject title"
-                />
-              </div>
-
-              {/* Course Section */}
+              {/* Course Section - Dropdown from System Variables */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Course Section *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="course_section"
                   value={formData.course_section}
                   onChange={handleInputChange}
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter course section"
-                />
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select course section</option>
+                  {getCourseSectionOptions().map((section) => (
+                    <option key={section} value={section}>
+                      {section}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Semester - Combo Box */}
+              {/* Semester - Dropdown from System Variables */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Semester *
@@ -766,7 +796,7 @@ export default function FacultyLoadedManagement() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
                   <option value="">Select semester</option>
-                  {semesterOptions.map((semester) => (
+                  {getSemesterOptions().map((semester) => (
                     <option key={semester} value={semester}>
                       {semester}
                     </option>
@@ -774,36 +804,25 @@ export default function FacultyLoadedManagement() {
                 </select>
               </div>
 
-              {/* School Year - Input Type */}
+              {/* School Year - Dropdown from System Variables */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   School Year *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="school_year"
                   value={formData.school_year}
                   onChange={handleInputChange}
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="e.g., 2023-2024"
-                />
-              </div>
-
-              {/* Day & Time */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Day & Time *
-                </label>
-                <input
-                  type="text"
-                  name="day_time"
-                  value={formData.day_time}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="e.g., MWF 8:00-9:30 AM"
-                />
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select school year</option>
+                  {getSchoolYearOptions().map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Form Actions */}
