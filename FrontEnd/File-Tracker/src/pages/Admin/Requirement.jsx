@@ -30,6 +30,7 @@ Modal.setAppElement("#root");
 export default function RequirementManagement() {
   const [requirements, setRequirements] = useState([]);
   const [facultyList, setFacultyList] = useState([]);
+  const [systemVariables, setSystemVariables] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -118,10 +119,31 @@ export default function RequirementManagement() {
       setFacultyList([]);
     }
   };
+
+  // Fetch system variables for dropdowns
+  const fetchSystemVariables = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables`); 
+      if (!res.ok) throw new Error("Server responded with " + res.status);
+      const result = await res.json();
+      console.log("Fetched system variables for dropdowns:", result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        setSystemVariables(result.data);
+      } else {
+        console.error("Unexpected API response format for system variables:", result);
+        setSystemVariables([]);
+      }
+    } catch (err) {
+      console.error("Error fetching system variables:", err);
+      setSystemVariables([]); 
+    }
+  };
   
   useEffect(() => {
     fetchRequirements();
     fetchFacultyList();
+    fetchSystemVariables();
   }, []);
 
   // Close dropdown when clicking outside
@@ -287,6 +309,24 @@ export default function RequirementManagement() {
   const confirmDelete = (requirementId) => {
     setRequirementToDelete(requirementId);
     setDeleteModalOpen(true);
+  };
+
+  // Get unique subject codes from system variables
+  const getSubjectCodes = () => {
+    const subjectCodes = systemVariables
+      .filter(variable => variable.variable_type === 'subject_code')
+      .map(variable => variable.variable_name);
+    
+    return [...new Set(subjectCodes)]; // Remove duplicates
+  };
+
+  // Get unique course sections from system variables
+  const getCourseSections = () => {
+    const courseSections = systemVariables
+      .filter(variable => variable.variable_type === 'course_section')
+      .map(variable => variable.variable_name);
+    
+    return [...new Set(courseSections)]; // Remove duplicates
   };
 
   // Calculate stats for charts
@@ -719,7 +759,7 @@ export default function RequirementManagement() {
                 />
               </div>
 
-              {/* Professor Name - DROPDOWN (UPDATED - NAME ONLY) */}
+              {/* Professor Name - DROPDOWN */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Professor Name *
@@ -732,6 +772,7 @@ export default function RequirementManagement() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
                   <option value="">Select professor</option>
+                  <option value="ALL">ALL FACULTY</option>
                   {facultyList.map((faculty) => (
                     <option key={faculty.user_id} value={faculty.name}>
                       {faculty.name}
@@ -743,38 +784,63 @@ export default function RequirementManagement() {
                     No faculty accounts found. Please register faculty users first.
                   </p>
                 )}
+                {formData.prof_name === "ALL" && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    This requirement will be sent to ALL faculty members.
+                  </p>
+                )}
               </div>
 
-              {/* Subject Code */}
+              {/* Subject Code - DROPDOWN FROM SYSTEM VARIABLES */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Code *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="subject_code"
                   value={formData.subject_code}
                   onChange={handleInputChange}
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter subject code"
-                />
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select subject code</option>
+                  {getSubjectCodes().map((subjectCode, index) => (
+                    <option key={index} value={subjectCode}>
+                      {subjectCode}
+                    </option>
+                  ))}
+                </select>
+                {getSubjectCodes().length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    No subject codes found. Please add subject codes in System Variables first.
+                  </p>
+                )}
               </div>
 
-              {/* Course Section */}
+              {/* Course Section - DROPDOWN FROM SYSTEM VARIABLES */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Course Section *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="course_section"
                   value={formData.course_section}
                   onChange={handleInputChange}
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter course section"
-                />
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select course section</option>
+                  {getCourseSections().map((courseSection, index) => (
+                    <option key={index} value={courseSection}>
+                      {courseSection}
+                    </option>
+                  ))}
+                </select>
+                {getCourseSections().length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    No course sections found. Please add course sections in System Variables first.
+                  </p>
+                )}
               </div>
 
               {/* File Type - Combo Box */}

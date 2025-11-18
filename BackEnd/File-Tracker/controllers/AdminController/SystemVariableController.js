@@ -12,7 +12,7 @@ export const createSystemVariable = async (req, res) => {
     
     const { variable_name, variable_type, created_by } = req.body;
 
-    // Validation - removed variable_value from required fields
+    // Validation 
     if (!variable_name || !variable_type || !created_by) {
       return res.status(400).json({ 
         success: false, 
@@ -60,7 +60,7 @@ export const getSystemVariables = async (req, res) => {
     const variables = await SystemVariable.find().sort({ created_at: -1 });
     res.status(200).json({ success: true, data: variables });
   } catch (error) {
-    console.error("❌ Error fetching system variables:", error);
+    console.error("Error fetching system variables:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
@@ -72,7 +72,7 @@ export const getVariablesByCategory = async (req, res) => {
     const variables = await SystemVariable.find({ variable_type: category }).sort({ created_at: -1 });
     res.status(200).json({ success: true, data: variables });
   } catch (error) {
-    console.error("❌ Error fetching system variables by category:", error);
+    console.error("Error fetching system variables by category:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

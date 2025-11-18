@@ -17,8 +17,10 @@ export default function useNotifications(currentUser) {
     const fetchNotifications = async () => {
       try {
         console.log("Fetching notifications for facultyId:", currentUser.facultyId);
+        
+        // USE THE NEW ENDPOINT that handles "ALL" notifications
         const res = await fetch(
-          `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}`
+          `${API_BASE_URL}/api/faculty/faculty-notifications/${currentUser.facultyId}`
         );
         
         if (!res.ok) {
@@ -29,18 +31,43 @@ export default function useNotifications(currentUser) {
         console.log("Notifications API response:", data);
 
         const list = data?.data || [];
-        console.log("Processed notifications:", list.length);
+        console.log(`Processed ${list.length} notifications for faculty`);
         
         setNotifications(list);
         setUnreadCount(list.filter((n) => !n.is_read).length);
       } catch (err) {
         console.error("Error fetching notifications:", err);
+        // Fallback to old endpoint if new one fails
+        await fetchNotificationsFallback();
       } finally {
         setLoading(false);
       }
     };
 
+    // Fallback method using old endpoint
+    const fetchNotificationsFallback = async () => {
+      try {
+        console.log("Trying fallback notification fetch...");
+        const res = await fetch(
+          `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}`
+        );
+        
+        if (res.ok) {
+          const data = await res.json();
+          const list = data?.data || [];
+          console.log(`Fallback found ${list.length} notifications`);
+          
+          setNotifications(list);
+          setUnreadCount(list.filter((n) => !n.is_read).length);
+        }
+      } catch (fallbackError) {
+        console.error("Fallback notification fetch also failed:", fallbackError);
+      }
+    };
+
     fetchNotifications();
+    
+    // Refresh every 15 seconds
     const interval = setInterval(fetchNotifications, 15000); 
     return () => clearInterval(interval);
   }, [currentUser?.facultyId]); 
@@ -49,15 +76,17 @@ export default function useNotifications(currentUser) {
   const markAsRead = async (id) => {
     try {
       console.log("Marking notification as read:", id);
-      await fetch(`${API_BASE_URL}/api/faculty/notifications/${id}/read`, {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/notifications/${id}/read`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
       });
       
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, is_read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(prev - 1, 0));
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => (n._id === id ? { ...n, is_read: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(prev - 1, 0));
+      }
     } catch (err) {
       console.error("Error marking as read:", err);
     }

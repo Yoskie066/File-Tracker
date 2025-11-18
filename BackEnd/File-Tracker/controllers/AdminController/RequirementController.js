@@ -53,60 +53,94 @@ export const createRequirement = async (req, res) => {
     const savedRequirement = await newRequirement.save();
     console.log("Requirement saved successfully:", savedRequirement._id);
 
-    // Create notification
+    // Create notifications based on professor selection
     try {
-      console.log("Looking for faculty with name:", prof_name);
-    
-      // Find faculty by name to get their facultyId
-      const faculty = await Faculty.findOne({ facultyName: new RegExp(`^${prof_name}$`, "i") });
-      console.log("Found faculty:", faculty);
-    
-      if (faculty) {
-        // Create notification linked to that faculty
-        const notification = new Notification({
-          notification_id: generateNotificationId(),
-          recipient_id: faculty.facultyId,
-          recipient_type: "Faculty",
-          recipient_name: faculty.facultyName,
-          title: "New Requirement Assigned",
-          message: `You have a new requirement: ${savedRequirement.task_name}`,
-          subject_code: subject_code,
-          course_section: course_section,
-          file_type: file_type,
-          due_date: new Date(due_date),
-          notes: notes || "",
-          related_requirement_id: savedRequirement.requirement_id,
-          is_read: false,
+      if (prof_name === "ALL") {
+        // Send notification to ALL faculty members
+        console.log("Sending notification to ALL faculty members");
+        
+        const allFaculty = await Faculty.find({});
+        console.log(`Found ${allFaculty.length} faculty members`);
+        
+        // Create notifications for each faculty member
+        const notificationPromises = allFaculty.map(faculty => {
+          const notification = new Notification({
+            notification_id: generateNotificationId(),
+            recipient_id: faculty.facultyId,
+            recipient_type: "Faculty",
+            recipient_name: faculty.facultyName,
+            title: "New Requirement Assigned",
+            message: `You have a new requirement: ${savedRequirement.task_name}`,
+            subject_code: subject_code,
+            course_section: course_section,
+            file_type: file_type,
+            due_date: new Date(due_date),
+            notes: notes || "",
+            related_requirement_id: savedRequirement.requirement_id,
+            is_read: false,
+          });
+          return notification.save();
         });
-    
-        const savedNotification = await notification.save();
-        console.log("Notification saved successfully:", savedNotification);
+        
+        await Promise.all(notificationPromises);
+        console.log(`Created ${notificationPromises.length} notifications for all faculty`);
+        
       } else {
-        console.warn("Faculty not found for notification:", prof_name);
-    
-        // Fallback notification (if faculty name not matched)
-        const fallbackNotification = new Notification({
-          notification_id: generateNotificationId(),
-          recipient_id: "unknown",
-          recipient_type: "Faculty",
-          recipient_name: prof_name,
-          title: "New Task Assignment",
-          message: `Admin assigned you a new task: ${task_name} for ${subject_code} - ${course_section}. Due: ${new Date(due_date).toLocaleDateString()}`,
-          subject_code: subject_code,
-          course_section: course_section,
-          file_type: file_type,
-          due_date: new Date(due_date),
-          notes: notes || "",
-          related_requirement_id: savedRequirement.requirement_id,
-          is_read: false,
-        });
-    
-        await fallbackNotification.save();
-        console.log("Notification created with fallback ID.");
+        // Send notification to specific faculty member only
+        console.log("Looking for specific faculty with name:", prof_name);
+        
+        // Find faculty by name to get their facultyId
+        const faculty = await Faculty.findOne({ facultyName: new RegExp(`^${prof_name}$`, "i") });
+        console.log("Found faculty:", faculty);
+        
+        if (faculty) {
+          // Create notification linked to that faculty
+          const notification = new Notification({
+            notification_id: generateNotificationId(),
+            recipient_id: faculty.facultyId,
+            recipient_type: "Faculty",
+            recipient_name: faculty.facultyName,
+            title: "New Requirement Assigned",
+            message: `You have a new requirement: ${savedRequirement.task_name}`,
+            subject_code: subject_code,
+            course_section: course_section,
+            file_type: file_type,
+            due_date: new Date(due_date),
+            notes: notes || "",
+            related_requirement_id: savedRequirement.requirement_id,
+            is_read: false,
+          });
+          
+          const savedNotification = await notification.save();
+          console.log("Notification saved successfully:", savedNotification);
+        } else {
+          console.warn("Faculty not found for notification:", prof_name);
+          
+          // Fallback notification (if faculty name not matched)
+          const fallbackNotification = new Notification({
+            notification_id: generateNotificationId(),
+            recipient_id: "unknown",
+            recipient_type: "Faculty",
+            recipient_name: prof_name,
+            title: "New Task Assignment",
+            message: `Admin assigned you a new task: ${task_name} for ${subject_code} - ${course_section}. Due: ${new Date(due_date).toLocaleDateString()}`,
+            subject_code: subject_code,
+            course_section: course_section,
+            file_type: file_type,
+            due_date: new Date(due_date),
+            notes: notes || "",
+            related_requirement_id: savedRequirement.requirement_id,
+            is_read: false,
+          });
+          
+          await fallbackNotification.save();
+          console.log("Notification created with fallback ID.");
+        }
       }
     } catch (notificationError) {
       console.error("Error creating notification:", notificationError);
     }
+    
     res.status(201).json({
       success: true,
       message: "Requirement created successfully",
@@ -148,7 +182,7 @@ export const getRequirements = async (req, res) => {
     const requirements = await Requirement.find().sort({ created_at: -1 });
     res.status(200).json({ success: true, data: requirements });
   } catch (error) {
-    console.error("❌ Error fetching requirements:", error);
+    console.error("Error fetching requirements:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
@@ -182,17 +216,36 @@ export const updateRequirement = async (req, res) => {
 
     if (!updated) return res.status(404).json({ success: false, message: "Requirement not found" });
 
-    await Notification.findOneAndUpdate(
-      { related_requirement_id: id },
-      {
-        message: `You have an updated requirement: ${task_name}`,
-        subject_code,
-        course_section,
-        file_type,
-        due_date,
-        notes,
-      }
-    );
+    // Update notifications - handle both specific faculty and ALL cases
+    if (prof_name === "ALL") {
+      // When updating to ALL, we might want to create new notifications for all faculty
+      // or update existing ones. For simplicity, we'll just update the message for existing notifications.
+      await Notification.updateMany(
+        { related_requirement_id: id },
+        {
+          message: `You have an updated requirement: ${task_name}`,
+          subject_code,
+          course_section,
+          file_type,
+          due_date,
+          notes,
+        }
+      );
+    } else {
+      // Update notification for specific faculty
+      await Notification.findOneAndUpdate(
+        { related_requirement_id: id },
+        {
+          message: `You have an updated requirement: ${task_name}`,
+          subject_code,
+          course_section,
+          file_type,
+          due_date,
+          notes,
+        }
+      );
+    }
+    
     res.status(200).json({ success: true, message: "Requirement updated successfully", data: updated });
   } catch (error) {
     console.error("Error updating requirement:", error);

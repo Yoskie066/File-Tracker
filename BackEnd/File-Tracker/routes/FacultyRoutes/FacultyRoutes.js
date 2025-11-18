@@ -6,7 +6,7 @@ import { createFacultyLoaded, getFacultyLoadeds, getFacultyLoadedById, updateFac
 import { uploadFile, upload, getFacultyFiles } from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import { createTaskDeliverables, getTaskDeliverables, getTaskDeliverablesById, getFacultyLoadedsForTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
-import { createNotification, getNotificationsByRecipient, getUnreadCount, markAsRead, markAllAsRead } from "../../controllers/FacultyController/NotificationController.js";
+import { createNotification, getNotificationsByRecipient, getUnreadCount, markAsRead, markAllAsRead, getFacultyNotifications, getFacultyUnreadCount } from "../../controllers/FacultyController/NotificationController.js";
 
 const router = express.Router();
 
@@ -45,6 +45,9 @@ router.get("/notifications/:recipient_id", getNotificationsByRecipient);
 router.get("/notifications/:recipient_id/unread-count", getUnreadCount);
 router.put("/notifications/:id/read", markAsRead);
 router.put("/notifications/:recipient_id/read-all", markAllAsRead);
+
+router.get("/faculty-notifications/:facultyId", getFacultyNotifications);
+router.get("/faculty-notifications/:facultyId/unread-count", getFacultyUnreadCount);
 
 
 export default router;
