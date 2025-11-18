@@ -7,11 +7,8 @@ const systemVariableSchema = new mongoose.Schema(
     variable_type: { 
       type: String, 
       required: true,
-      enum: ['subject_code', 'course_section', 'academic_year', 'semester', 'other']
+      enum: ['subject_code', 'course_section', 'academic_year', 'semester']
     },
-    variable_value: { type: String, required: true },
-    description: { type: String },
-    is_active: { type: Boolean, default: true },
     created_by: { type: String, required: true },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },

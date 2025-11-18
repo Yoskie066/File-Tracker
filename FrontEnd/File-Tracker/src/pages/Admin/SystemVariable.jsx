@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -45,14 +45,11 @@ export default function SystemVariableManagement() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [variableToDelete, setVariableToDelete] = useState(null);
 
-  // Form state
+  // Form state - removed variable_value
   const [formData, setFormData] = useState({
     variable_id: "",
     variable_name: "",
     variable_type: "",
-    variable_value: "",
-    description: "",
-    is_active: true,
     created_by: ""
   });
 
@@ -60,13 +57,12 @@ export default function SystemVariableManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Variable type options
+  // Variable type options 
   const variableTypeOptions = [
     "subject_code",
     "course_section", 
     "academic_year",
-    "semester",
-    "other"
+    "semester"
   ];
 
   // Fetch variables from backend 
@@ -89,23 +85,6 @@ export default function SystemVariableManagement() {
     }
   };
 
-  // Fetch variable statistics
-  const fetchVariableStats = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables/stats`);
-      if (!res.ok) throw new Error("Server responded with " + res.status);
-      const result = await res.json();
-      
-      if (result.success) {
-        return result.data;
-      }
-      return null;
-    } catch (err) {
-      console.error("Error fetching variable stats:", err);
-      return null;
-    }
-  };
-
   useEffect(() => {
     fetchVariables();
   }, []);
@@ -119,10 +98,10 @@ export default function SystemVariableManagement() {
 
   // Handle form input changes
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
   };
 
@@ -139,106 +118,100 @@ export default function SystemVariableManagement() {
       variable_id: "",
       variable_name: "",
       variable_type: "",
-      variable_value: "",
-      description: "",
-      is_active: true,
-      created_by: "admin" // You can get this from logged in user
+      created_by: "admin" 
     });
     setIsEditMode(false);
   };
 
-  // Handle form submission
+  // Handle form submission 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-  
-    try {
-      const url = isEditMode 
-        ? `${API_BASE_URL}/api/admin/system-variables/${formData.variable_id}`
-        : `${API_BASE_URL}/api/admin/system-variables`;
-      
-      const method = isEditMode ? "PUT" : "POST";
-  
-      const requestData = isEditMode ? {
-        variable_name: formData.variable_name,
-        variable_type: formData.variable_type,
-        variable_value: formData.variable_value,
-        description: formData.description,
-        is_active: formData.is_active
-      } : {
-        variable_name: formData.variable_name,
-        variable_type: formData.variable_type,
-        variable_value: formData.variable_value,
-        description: formData.description,
-        is_active: formData.is_active,
-        created_by: formData.created_by
-      };
-  
-      console.log("Sending request to:", url);
-      console.log("Request method:", method);
-      console.log("Request data:", requestData);
-  
-      const response = await fetch(url, { 
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestData),
-      });
-  
-      const result = await response.json();
-      console.log("Server response:", result);
-  
-      if (!response.ok) {
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
-      }
-  
-      if (result.success) {
-        resetForm();
-        setShowModal(false);
-        fetchVariables();
-        showFeedback("success", 
-          isEditMode ? "System variable updated successfully!" : "System variable added successfully!"
-        );
-      } else {
-        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} system variable`);
-      }
-    } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} system variable:`, error);
-      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} system variable`);
-    } finally {
-      setLoading(false);
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    const url = isEditMode 
+      ? `${API_BASE_URL}/api/admin/system-variables/${formData.variable_id}`
+      : `${API_BASE_URL}/api/admin/system-variables`;
+    
+    const method = isEditMode ? "PUT" : "POST";
+
+    const requestData = isEditMode ? {
+      variable_name: formData.variable_name,
+      variable_type: formData.variable_type,
+    } : {
+      variable_name: formData.variable_name,
+      variable_type: formData.variable_type,
+      created_by: formData.created_by
+    };
+
+    console.log("Sending request to:", url);
+    console.log("Request method:", method);
+    console.log("Request data:", requestData);
+    console.log("Form data state:", formData);
+
+    // Check if any required field is empty
+    if (!requestData.variable_name || !requestData.variable_type || (!isEditMode && !requestData.created_by)) {
+      throw new Error("Please fill in all required fields");
     }
-  };
+
+    const response = await fetch(url, { 
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    });
+
+    const result = await response.json();
+    console.log("Server response:", result);
+
+    if (!response.ok) {
+      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+    }
+
+    if (result.success) {
+      resetForm();
+      setShowModal(false);
+      fetchVariables();
+      showFeedback("success", 
+        isEditMode ? "System variable updated successfully!" : "System variable added successfully!"
+      );
+    } else {
+      showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} system variable`);
+    }
+  } catch (error) {
+    console.error(`Error ${isEditMode ? 'updating' : 'creating'} system variable:`, error);
+    showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} system variable`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Handle edit variable
   const handleEdit = async (variableId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/system-variables/id/${variableId}`);
-      const result = await response.json();
-  
-      if (result.success && result.data) {
-        const variable = result.data;
-        setFormData({
-          variable_id: variable.variable_id,
-          variable_name: variable.variable_name,
-          variable_type: variable.variable_type,
-          variable_value: variable.variable_value,
-          description: variable.description || "",
-          is_active: variable.is_active,
-          created_by: variable.created_by
-        });
-        setIsEditMode(true);
-        setShowModal(true);
-      } else {
-        showFeedback("error", "Error loading system variable data");
-      }
-    } catch (error) {
-      console.error("Error fetching system variable:", error);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/system-variables/${variableId}`);
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      const variable = result.data;
+      setFormData({
+        variable_id: variable.variable_id,
+        variable_name: variable.variable_name,
+        variable_type: variable.variable_type,
+        created_by: variable.created_by
+      });
+      setIsEditMode(true);
+      setShowModal(true);
+    } else {
       showFeedback("error", "Error loading system variable data");
     }
-    setActionDropdown(null);
+  } catch (error) {
+    console.error("Error fetching system variable:", error);
+    showFeedback("error", "Error loading system variable data");
   }
+  setActionDropdown(null);
+}
 
   // Handle delete variable
   const handleDelete = async (variableId) => {
@@ -270,77 +243,44 @@ export default function SystemVariableManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Toggle active status
-  const toggleActiveStatus = async (variableId, currentStatus) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/system-variables/${variableId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          is_active: !currentStatus
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchVariables();
-        showFeedback("success", `System variable ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
-      } else {
-        showFeedback("error", result.message || "Error updating system variable");
-      }
-    } catch (error) {
-      console.error("Error updating system variable:", error);
-      showFeedback("error", "Error updating system variable");
-    }
-  };
-
   // Calculate stats for charts
   const variableStats = {
     total: Array.isArray(variables) ? variables.length : 0,
-    active: Array.isArray(variables) ? variables.filter(v => v.is_active).length : 0,
-    inactive: Array.isArray(variables) ? variables.filter(v => !v.is_active).length : 0,
     subject_code: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'subject_code').length : 0,
     course_section: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'course_section').length : 0,
     academic_year: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'academic_year').length : 0,
-    semester: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'semester').length : 0,
-    other: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'other').length : 0
+    semester: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'semester').length : 0
   };
 
   // Search filter
   const filteredVariables = (Array.isArray(variables) ? variables : [])
     .filter((v) =>
-      [v.variable_id, v.variable_name, v.variable_type, v.variable_value, v.description, v.created_by]
+      [v.variable_id, v.variable_name, v.variable_type, v.created_by]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
   // Chart data for variable type distribution
   const variableTypeChartData = {
-    labels: ['Subject Code', 'Course Section', 'Academic Year', 'Semester', 'Other'],
+    labels: ['Subject Code', 'Course Section', 'Academic Year', 'Semester'],
     datasets: [
       {
         data: [
           variableStats.subject_code,
           variableStats.course_section,
           variableStats.academic_year,
-          variableStats.semester,
-          variableStats.other
+          variableStats.semester
         ],
         backgroundColor: [
           '#4F46E5',
           '#10B981',
           '#F59E0B',
-          '#EF4444',
-          '#8B5CF6'
+          '#EF4444'
         ],
         borderColor: [
           '#4F46E5',
           '#10B981',
           '#F59E0B',
-          '#EF4444',
-          '#8B5CF6'
+          '#EF4444'
         ],
         borderWidth: 2,
       },
@@ -406,21 +346,21 @@ export default function SystemVariableManagement() {
             <div className="text-blue-600 text-sm font-medium">Total Variables</div>
             <div className="text-2xl font-bold text-blue-800">{variableStats.total}</div>
           </div>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Active</div>
-            <div className="text-2xl font-bold text-green-800">{variableStats.active}</div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Inactive</div>
-            <div className="text-2xl font-bold text-red-800">{variableStats.inactive}</div>
-          </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Subject Codes</div>
+            <div className="text-purple-600 text-sm font-medium">Subject Code</div>
             <div className="text-2xl font-bold text-purple-800">{variableStats.subject_code}</div>
           </div>
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="text-green-600 text-sm font-medium">Course Section</div>
+            <div className="text-2xl font-bold text-green-800">{variableStats.course_section}</div>
+          </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Course Sections</div>
-            <div className="text-2xl font-bold text-yellow-800">{variableStats.course_section}</div>
+            <div className="text-yellow-600 text-sm font-medium">Academic Year</div>
+            <div className="text-2xl font-bold text-yellow-800">{variableStats.academic_year}</div>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+            <div className="text-red-600 text-sm font-medium">Semester</div>
+            <div className="text-2xl font-bold text-red-800">{variableStats.semester}</div>
           </div>
         </div>
 
@@ -442,9 +382,6 @@ export default function SystemVariableManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Variable ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Variable Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Type</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Value</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Description</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created By</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
@@ -461,37 +398,10 @@ export default function SystemVariableManagement() {
                         variable.variable_type === 'subject_code' ? 'bg-purple-100 text-purple-800' :
                         variable.variable_type === 'course_section' ? 'bg-green-100 text-green-800' :
                         variable.variable_type === 'academic_year' ? 'bg-yellow-100 text-yellow-800' :
-                        variable.variable_type === 'semester' ? 'bg-red-100 text-red-800' :
-                        'bg-indigo-100 text-indigo-800'
+                        'bg-red-100 text-red-800'
                       }`}>
                         {variable.variable_type}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 font-mono text-sm">{variable.variable_value}</td>
-                    <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={variable.description}>
-                      {variable.description || "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleActiveStatus(variable.variable_id, variable.is_active)}
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          variable.is_active 
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                            : 'bg-red-100 text-red-800 hover:bg-red-200'
-                        }`}
-                      >
-                        {variable.is_active ? (
-                          <>
-                            <ToggleRight className="w-4 h-4 mr-1" />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <ToggleLeft className="w-4 h-4 mr-1" />
-                            Inactive
-                          </>
-                        )}
-                      </button>
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-sm">{variable.created_by}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">
@@ -537,7 +447,7 @@ export default function SystemVariableManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
                     No system variables found.
                   </td>
                 </tr>
@@ -561,8 +471,7 @@ export default function SystemVariableManagement() {
                       variable.variable_type === 'subject_code' ? 'bg-purple-100 text-purple-800' :
                       variable.variable_type === 'course_section' ? 'bg-green-100 text-green-800' :
                       variable.variable_type === 'academic_year' ? 'bg-yellow-100 text-yellow-800' :
-                      variable.variable_type === 'semester' ? 'bg-red-100 text-red-800' :
-                      'bg-indigo-100 text-indigo-800'
+                      'bg-red-100 text-red-800'
                     }`}>
                       {variable.variable_type}
                     </span>
@@ -600,33 +509,15 @@ export default function SystemVariableManagement() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                <div className="grid grid-cols-1 gap-3 text-sm mb-3">
                   <div>
-                    <span className="text-gray-500">Value:</span>
-                    <p className="font-medium font-mono">{variable.variable_value}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Status:</span>
-                    <button
-                      onClick={() => toggleActiveStatus(variable.variable_id, variable.is_active)}
-                      className={`mt-1 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        variable.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {variable.is_active ? 'Active' : 'Inactive'}
-                    </button>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Description:</span>
-                    <p className="mt-1 text-gray-700">{variable.description || "No description"}</p>
+                    <span className="text-gray-500">Created By:</span>
+                    <p className="font-medium">{variable.created_by}</p>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center text-xs text-gray-500 mt-3">
-                  <span>By: {variable.created_by}</span>
-                  <span>Created: {new Date(variable.created_at).toLocaleDateString()}</span>
+                <div className="text-xs text-gray-500 mt-3">
+                  Created: {new Date(variable.created_at).toLocaleDateString()}
                 </div>
               </div>
             ))
@@ -754,37 +645,6 @@ export default function SystemVariableManagement() {
                 </select>
               </div>
 
-              {/* Variable Value */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Variable Value *
-                </label>
-                <input
-                  type="text"
-                  name="variable_value"
-                  value={formData.variable_value}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter variable value"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Variable description (optional)"
-                />
-              </div>
-
               {/* Created By (hidden in edit mode) */}
               {!isEditMode && (
                 <div>
@@ -802,20 +662,6 @@ export default function SystemVariableManagement() {
                   />
                 </div>
               )}
-
-              {/* Active Status */}
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                  className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
-                />
-                <label className="ml-2 text-sm font-medium text-gray-700">
-                  Active
-                </label>
-              </div>
 
               {/* Form Actions */}
               <div className="flex gap-3 pt-4">

@@ -10,10 +10,10 @@ export const createSystemVariable = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { variable_name, variable_type, variable_value, description, is_active, created_by } = req.body;
+    const { variable_name, variable_type, created_by } = req.body;
 
-    // Validation
-    if (!variable_name || !variable_type || !variable_value || !created_by) {
+    // Validation - removed variable_value from required fields
+    if (!variable_name || !variable_type || !created_by) {
       return res.status(400).json({ 
         success: false, 
         message: "All required fields must be filled.",
@@ -27,9 +27,6 @@ export const createSystemVariable = async (req, res) => {
       variable_id,
       variable_name,
       variable_type,
-      variable_value,
-      description: description || "",
-      is_active: is_active !== undefined ? is_active : true,
       created_by,
     });
 
@@ -102,16 +99,13 @@ export const getSystemVariableById = async (req, res) => {
 export const updateSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { variable_name, variable_type, variable_value, description, is_active } = req.body;
+    const { variable_name, variable_type } = req.body;
 
     const updated = await SystemVariable.findOneAndUpdate(
       { variable_id: id },
       { 
         variable_name, 
         variable_type, 
-        variable_value, 
-        description, 
-        is_active, 
         updated_at: new Date() 
       },
       { new: true, runValidators: true }
@@ -159,8 +153,6 @@ export const deleteSystemVariable = async (req, res) => {
 export const getVariableStats = async (req, res) => {
   try {
     const totalVariables = await SystemVariable.countDocuments();
-    const activeVariables = await SystemVariable.countDocuments({ is_active: true });
-    const inactiveVariables = await SystemVariable.countDocuments({ is_active: false });
     
     const typeCounts = await SystemVariable.aggregate([
       { $group: { _id: "$variable_type", count: { $sum: 1 } } }
@@ -170,8 +162,6 @@ export const getVariableStats = async (req, res) => {
       success: true,
       data: {
         total: totalVariables,
-        active: activeVariables,
-        inactive: inactiveVariables,
         by_type: typeCounts
       }
     });
