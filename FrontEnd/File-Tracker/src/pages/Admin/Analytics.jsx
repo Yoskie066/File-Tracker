@@ -48,216 +48,46 @@ export default function Analytics() {
       setError(null);
       
       const [analyticsRes, trendsRes, facultyRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/admin/analytics`).catch(err => {
-          console.error("Error fetching analytics:", err);
-          return { ok: false, status: 500 };
-        }),
-        fetch(`${API_BASE_URL}/api/admin/analytics/trends?days=30`).catch(err => {
-          console.error("Error fetching trends:", err);
-          return { ok: false, status: 500 };
-        }),
-        fetch(`${API_BASE_URL}/api/admin/analytics/faculty-performance`).catch(err => {
-          console.error("Error fetching faculty performance:", err);
-          return { ok: false, status: 500 };
-        })
+        fetch(`${API_BASE_URL}/api/admin/analytics`),
+        fetch(`${API_BASE_URL}/api/admin/analytics/trends?days=30`),
+        fetch(`${API_BASE_URL}/api/admin/analytics/faculty-performance`)
       ]);
 
       // Handle analytics response
       if (analyticsRes.ok) {
         const analyticsResult = await analyticsRes.json();
-        setAnalyticsData(analyticsResult.data);
+        if (analyticsResult.success) {
+          setAnalyticsData(analyticsResult.data);
+        } else {
+          throw new Error(analyticsResult.message || "Failed to fetch analytics data");
+        }
       } else {
-        console.warn("Analytics endpoint not available");
-        // Create mock data for demo purposes
-        setAnalyticsData(generateMockAnalyticsData());
+        throw new Error(`Analytics endpoint returned ${analyticsRes.status}`);
       }
 
       // Handle trends response
       if (trendsRes.ok) {
         const trendsResult = await trendsRes.json();
-        setTrendsData(trendsResult.data);
-      } else {
-        console.warn("Trends endpoint not available");
+        if (trendsResult.success) {
+          setTrendsData(trendsResult.data);
+        }
       }
 
       // Handle faculty performance response
       if (facultyRes.ok) {
         const facultyResult = await facultyRes.json();
-        setFacultyPerformance(facultyResult.data || []);
-      } else {
-        console.warn("Faculty performance endpoint not available");
-        // Mock faculty performance data
-        setFacultyPerformance([
-          {
-            faculty_id: "FAC001",
-            faculty_name: "Dr. Maria Santos",
-            total_submissions: 45,
-            completed_submissions: 38,
-            pending_submissions: 5,
-            rejected_submissions: 2,
-            completion_rate: 84.4,
-            average_file_size: 2097152,
-            status: "active",
-            last_activity: "2024-01-15T10:30:00Z"
-          },
-          {
-            faculty_id: "FAC002",
-            faculty_name: "Prof. Juan Dela Cruz",
-            total_submissions: 32,
-            completed_submissions: 28,
-            pending_submissions: 3,
-            rejected_submissions: 1,
-            completion_rate: 87.5,
-            average_file_size: 1887436,
-            status: "active",
-            last_activity: "2024-01-14T15:45:00Z"
-          },
-          {
-            faculty_id: "FAC003",
-            faculty_name: "Dr. Ana Reyes",
-            total_submissions: 28,
-            completed_submissions: 22,
-            pending_submissions: 4,
-            rejected_submissions: 2,
-            completion_rate: 78.6,
-            average_file_size: 2457600,
-            status: "active",
-            last_activity: "2024-01-14T09:20:00Z"
-          },
-          {
-            faculty_id: "FAC004",
-            faculty_name: "Prof. Carlos Lim",
-            total_submissions: 51,
-            completed_submissions: 45,
-            pending_submissions: 4,
-            rejected_submissions: 2,
-            completion_rate: 88.2,
-            average_file_size: 1782579,
-            status: "active",
-            last_activity: "2024-01-15T14:15:00Z"
-          },
-          {
-            faculty_id: "FAC005",
-            faculty_name: "Dr. Sofia Chen",
-            total_submissions: 36,
-            completed_submissions: 30,
-            pending_submissions: 5,
-            rejected_submissions: 1,
-            completion_rate: 83.3,
-            average_file_size: 2129920,
-            status: "active",
-            last_activity: "2024-01-13T11:30:00Z"
-          },
-          {
-            faculty_id: "FAC006",
-            faculty_name: "Prof. James Wilson",
-            total_submissions: 29,
-            completed_submissions: 24,
-            pending_submissions: 4,
-            rejected_submissions: 1,
-            completion_rate: 82.8,
-            average_file_size: 1998848,
-            status: "active",
-            last_activity: "2024-01-15T08:45:00Z"
-          },
-          {
-            faculty_id: "FAC007",
-            faculty_name: "Dr. Lisa Garcia",
-            total_submissions: 42,
-            completed_submissions: 35,
-            pending_submissions: 6,
-            rejected_submissions: 1,
-            completion_rate: 83.3,
-            average_file_size: 2254438,
-            status: "active",
-            last_activity: "2024-01-14T16:20:00Z"
-          },
-          {
-            faculty_id: "FAC008",
-            faculty_name: "Prof. Robert Tan",
-            total_submissions: 38,
-            completed_submissions: 32,
-            pending_submissions: 5,
-            rejected_submissions: 1,
-            completion_rate: 84.2,
-            average_file_size: 1947678,
-            status: "active",
-            last_activity: "2024-01-15T12:10:00Z"
-          }
-        ]);
+        if (facultyResult.success) {
+          setFacultyPerformance(facultyResult.data || []);
+        }
       }
     } catch (error) {
       console.error("Error fetching analytics data:", error);
-      setError("Failed to load analytics data. Using demo data.");
-      // Set mock data as fallback
-      setAnalyticsData(generateMockAnalyticsData());
+      setError("Failed to load analytics data. Please try again.");
+      setAnalyticsData(null);
+      setFacultyPerformance([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Generate mock data for demo purposes
-  const generateMockAnalyticsData = () => {
-    // Calculate total records based on actual data from all modules
-    const userManagementTotal = 45;
-    const fileManagementTotal = 128;
-    const adminDeliverablesTotal = 120;
-    const requirementManagementTotal = 65;
-    
-    const totalRecords = userManagementTotal + fileManagementTotal + adminDeliverablesTotal + requirementManagementTotal;
-
-    return {
-      user_management: {
-        total_users: userManagementTotal,
-        online_users: 32,
-        offline_users: 13,
-        admin_count: 5,
-        faculty_count: 40,
-        active_rate: 71
-      },
-      file_management: {
-        total_files: fileManagementTotal,
-        pending_files: 25,
-        completed_files: 95,
-        rejected_files: 8,
-        file_type_distribution: {
-          'syllabus': 45,
-          'tos': 32,
-          'midterm-exam': 28,
-          'final-exam': 15,
-          'instructional-materials': 8
-        }
-      },
-      admin_deliverables: {
-        total_deliverables: adminDeliverablesTotal,
-        pending_deliverables: 18,
-        completed_deliverables: 98,
-        rejected_deliverables: 4,
-        deliverable_type_distribution: {
-          'syllabus': 42,
-          'tos': 35,
-          'midterm-exam': 25,
-          'final-exam': 12,
-          'instructional-materials': 6
-        }
-      },
-      requirement_management: {
-        total_requirements: requirementManagementTotal,
-        requirement_type_distribution: {
-          'syllabus': 25,
-          'tos': 20,
-          'midterm-exam': 12,
-          'final-exam': 5,
-          'instrumental materials': 3
-        },
-        overdue_requirements: 3
-      },
-      summary: {
-        total_records: totalRecords,
-        completion_rate: 74,
-        system_health: 82
-      }
-    };
   };
 
   useEffect(() => {
@@ -371,6 +201,49 @@ export default function Analytics() {
     };
   };
 
+  // System Variables Distribution
+  const getSystemVariablesData = () => {
+    const variableTypes = analyticsData?.system_variables?.variable_type_distribution || {
+      subject_code: 0,
+      course_section: 0,
+      academic_year: 0,
+      semester: 0
+    };
+    
+    const labels = [
+      'Subject Code',
+      'Course Section', 
+      'Academic Year',
+      'Semester'
+    ];
+
+    const data = [
+      variableTypes.subject_code || 0,
+      variableTypes.course_section || 0,
+      variableTypes.academic_year || 0,
+      variableTypes.semester || 0
+    ];
+
+    const backgroundColors = [
+      '#4F46E5', // Indigo - Subject Code
+      '#10B981', // Emerald - Course Section
+      '#F59E0B', // Amber - Academic Year
+      '#EF4444'  // Red - Semester
+    ];
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 2,
+        }
+      ],
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white p-8 flex items-center justify-center">
@@ -471,7 +344,7 @@ export default function Analytics() {
         {activeTab === 'overview' && analyticsData && (
           <div className="space-y-8">
             {/* Module Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               {/* User Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">User Management</h3>
@@ -555,6 +428,33 @@ export default function Analytics() {
                   </div>
                 </div>
               </div>
+
+              {/* System Variables Card */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Variables:</span>
+                    <span className="font-semibold">{analyticsData.system_variables.total_variables}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subject Codes:</span>
+                    <span className="font-semibold text-purple-600">{analyticsData.system_variables.variable_type_distribution.subject_code || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Course Sections:</span>
+                    <span className="font-semibold text-green-600">{analyticsData.system_variables.variable_type_distribution.course_section || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Academic Years:</span>
+                    <span className="font-semibold text-yellow-600">{analyticsData.system_variables.variable_type_distribution.academic_year || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Semesters:</span>
+                    <span className="font-semibold text-red-600">{analyticsData.system_variables.variable_type_distribution.semester || 0}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Charts Section*/}
@@ -575,11 +475,11 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* File Type Distribution */}
+              {/* System Variables Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">File Type Distribution</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables Distribution</h3>
                 <div className="h-64">
-                  <Doughnut data={getFileTypeComparisonData()} options={chartOptions} />
+                  <Doughnut data={getSystemVariablesData()} options={chartOptions} />
                 </div>
               </div>
             </div>

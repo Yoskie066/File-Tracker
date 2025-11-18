@@ -5,6 +5,7 @@ import AdminDeliverables from "../../models/AdminModel/AdminDeliverablesModel.js
 import Requirement from "../../models/AdminModel/RequirementModel.js";
 import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
+import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
 
 // Get comprehensive analytics data
 export const getAnalyticsData = async (req, res) => {
@@ -38,6 +39,17 @@ export const getAnalyticsData = async (req, res) => {
     const overdueRequirements = await Requirement.countDocuments({
       due_date: { $lt: new Date() }
     });
+
+    // Get system variables statistics
+    const totalVariables = await SystemVariable.countDocuments();
+    const variableTypeDistribution = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: '$variable_type',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
 
     // Get file type distributions
     const fileTypeDistribution = await FileManagement.aggregate([
@@ -81,6 +93,18 @@ export const getAnalyticsData = async (req, res) => {
     const requirementTypeDist = {};
     requirementTypeDistribution.forEach(item => {
       requirementTypeDist[item._id] = item.count;
+    });
+
+    const variableTypeDist = {
+      subject_code: 0,
+      course_section: 0,
+      academic_year: 0,
+      semester: 0
+    };
+    variableTypeDistribution.forEach(item => {
+      if (variableTypeDist.hasOwnProperty(item._id)) {
+        variableTypeDist[item._id] = item.count;
+      }
     });
 
     // Get storage stats
@@ -141,6 +165,10 @@ export const getAnalyticsData = async (req, res) => {
         requirement_type_distribution: requirementTypeDist,
         overdue_requirements: overdueRequirements
       },
+      system_variables: {
+        total_variables: totalVariables,
+        variable_type_distribution: variableTypeDist
+      },
       system_performance: {
         total_storage_used: storageData.totalStorage,
         average_upload_size: storageData.avgFileSize,
@@ -148,7 +176,7 @@ export const getAnalyticsData = async (req, res) => {
         storage_efficiency: totalFiles > 0 ? (storageData.totalStorage / totalFiles) : 0
       },
       summary: {
-        total_records: totalUsers + totalFiles + totalDeliverables + totalRequirements,
+        total_records: totalUsers + totalFiles + totalDeliverables + totalRequirements + totalVariables,
         completion_rate: completionRate,
         system_health: systemHealth
       }
@@ -162,6 +190,7 @@ export const getAnalyticsData = async (req, res) => {
       faculties,
       totalFiles,
       completedFiles,
+      totalVariables,
       systemHealth
     });
 
@@ -217,6 +246,23 @@ export const getAnalyticsTrends = async (req, res) => {
         $group: {
           _id: {
             $dateToString: { format: "%Y-%m-%d", date: "$registeredAt" }
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get system variable trends
+    const variableTrends = await SystemVariable.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$created_at" }
           },
           count: { $sum: 1 }
         }
@@ -288,7 +334,8 @@ export const getAnalyticsTrends = async (req, res) => {
       data: {
         user_trends: userTrends,
         file_trends: fileTrends,
-        deliverable_trends: deliverableTrends
+        deliverable_trends: deliverableTrends,
+        variable_trends: variableTrends
       },
       period: `${days} days`
     });
@@ -384,6 +431,11 @@ export const getSystemOverview = async (req, res) => {
       .limit(5)
       .select('file_name faculty_name status date_submitted');
 
+    const recentVariables = await SystemVariable.find()
+      .sort({ created_at: -1 })
+      .limit(5)
+      .select('variable_name variable_type created_by created_at');
+
     // Get system metrics
     const totalStorage = await FileManagement.aggregate([
       {
@@ -403,14 +455,28 @@ export const getSystemOverview = async (req, res) => {
       }
     ]);
 
+    const variableTypeDistribution = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: '$variable_type',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
     const systemOverview = {
       online_users: totalOnline,
       recent_activities: {
         files: recentFiles,
-        deliverables: recentDeliverables
+        deliverables: recentDeliverables,
+        variables: recentVariables
       },
       storage_usage: totalStorage[0]?.total || 0,
       file_status: fileStatusDistribution.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, {}),
+      variable_types: variableTypeDistribution.reduce((acc, curr) => {
         acc[curr._id] = curr.count;
         return acc;
       }, {})
@@ -452,6 +518,29 @@ export const storeAnalyticsSnapshot = async (req, res) => {
 
     const totalDeliverables = await AdminDeliverables.countDocuments();
     const totalRequirements = await Requirement.countDocuments();
+    const totalVariables = await SystemVariable.countDocuments();
+
+    // Get system variable distribution
+    const variableTypeDistribution = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: '$variable_type',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const variableTypeDist = {
+      subject_code: 0,
+      course_section: 0,
+      academic_year: 0,
+      semester: 0
+    };
+    variableTypeDistribution.forEach(item => {
+      if (variableTypeDist.hasOwnProperty(item._id)) {
+        variableTypeDist[item._id] = item.count;
+      }
+    });
 
     const storageStats = await FileManagement.aggregate([
       {
@@ -490,6 +579,10 @@ export const storeAnalyticsSnapshot = async (req, res) => {
       },
       requirement_stats: {
         total_requirements: totalRequirements
+      },
+      system_variable_stats: {
+        total_variables: totalVariables,
+        variable_type_distribution: variableTypeDist
       },
       system_stats: {
         total_storage_used: storageStats[0]?.totalStorage || 0,
@@ -545,6 +638,10 @@ export const getAnalyticsByDateRange = async (req, res) => {
       date_submitted: { $gte: start, $lte: end }
     });
 
+    const variablesInRange = await SystemVariable.countDocuments({
+      created_at: { $gte: start, $lte: end }
+    });
+
     // Get user registrations in range
     const adminRegistrations = await Admin.countDocuments({
       registeredAt: { $gte: start, $lte: end }
@@ -567,6 +664,9 @@ export const getAnalyticsByDateRange = async (req, res) => {
       deliverables: {
         total: deliverablesInRange
       },
+      system_variables: {
+        total: variablesInRange
+      },
       user_registrations: {
         admins: adminRegistrations,
         faculty: facultyRegistrations,
@@ -584,6 +684,84 @@ export const getAnalyticsByDateRange = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while fetching date range analytics",
+      error: error.message
+    });
+  }
+};
+
+// Get system variables analytics
+export const getSystemVariablesAnalytics = async (req, res) => {
+  try {
+    console.log("System variables analytics endpoint hit");
+
+    // Get total count
+    const totalVariables = await SystemVariable.countDocuments();
+
+    // Get distribution by type
+    const typeDistribution = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: '$variable_type',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ]);
+
+    // Get recent variables
+    const recentVariables = await SystemVariable.find()
+      .sort({ created_at: -1 })
+      .limit(10)
+      .select('variable_id variable_name variable_type created_by created_at');
+
+    // Get creation trends (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const creationTrends = await SystemVariable.aggregate([
+      {
+        $match: {
+          created_at: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$created_at" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    const systemVariablesAnalytics = {
+      summary: {
+        total_variables: totalVariables,
+        variable_types_count: typeDistribution.length
+      },
+      type_distribution: typeDistribution.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, {}),
+      recent_activity: recentVariables,
+      creation_trends: creationTrends
+    };
+
+    res.status(200).json({
+      success: true,
+      data: systemVariablesAnalytics
+    });
+
+  } catch (error) {
+    console.error("Error fetching system variables analytics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching system variables analytics",
       error: error.message
     });
   }
@@ -614,5 +792,6 @@ export default {
   getFacultyPerformance,
   getSystemOverview,
   storeAnalyticsSnapshot,
-  getAnalyticsByDateRange
+  getAnalyticsByDateRange,
+  getSystemVariablesAnalytics
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Eye } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Archive, Download, Calendar, History } from "lucide-react";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -34,6 +34,13 @@ export default function AdminDeliverables() {
   const [actionDropdown, setActionDropdown] = useState(null);
   const deliverablesPerPage = 10;
 
+  // History of Records states
+  const [historyView, setHistoryView] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [availableYears, setAvailableYears] = useState([]);
+  const [selectedSemester, setSelectedSemester] = useState("all");
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState("all");
+
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState("success");
@@ -47,6 +54,9 @@ export default function AdminDeliverables() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [deliverableToPreview, setDeliverableToPreview] = useState(null);
 
+  // History of Records management modal
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   // Fetch deliverables from backend
@@ -59,14 +69,28 @@ export default function AdminDeliverables() {
       console.log("Fetched deliverables:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setDeliverables(result.data);
+        const deliverablesData = result.data;
+        setDeliverables(deliverablesData);
+        
+        // Extract available years from deliverables
+        const years = [...new Set(deliverablesData.map(d => {
+          const date = new Date(d.date_submitted);
+          return date.getFullYear();
+        }))].sort((a, b) => b - a);
+        
+        setAvailableYears(years);
+        if (years.length > 0 && !years.includes(selectedYear)) {
+          setSelectedYear(years[0]);
+        }
       } else {
         console.error("Unexpected API response format:", result);
         setDeliverables([]);
+        setAvailableYears([]);
       }
     } catch (err) {
       console.error("Error fetching deliverables:", err);
       setDeliverables([]);
+      setAvailableYears([]);
     } finally {
       setLoading(false);
     }
@@ -158,21 +182,70 @@ export default function AdminDeliverables() {
     }
   };
 
-  // Calculate stats and chart data
-  const deliverableStats = {
-    total: deliverables.length,
-    pending: deliverables.filter(d => d.status === 'pending').length,
-    completed: deliverables.filter(d => d.status === 'completed').length,
-    rejected: deliverables.filter(d => d.status === 'rejected').length
+  // Get unique school years and semesters for filtering
+  const getUniqueSchoolYears = () => {
+    const schoolYears = [...new Set(deliverables.map(d => d.school_year))].filter(Boolean).sort().reverse();
+    return schoolYears;
   };
+
+  const getUniqueSemesters = () => {
+    const semesters = [...new Set(deliverables.map(d => d.semester))].filter(Boolean).sort();
+    return semesters;
+  };
+
+  // Filter deliverables based on current view (history or current)
+  const getFilteredDeliverables = () => {
+    let filtered = Array.isArray(deliverables) ? deliverables : [];
+
+    // Apply search filter
+    filtered = filtered.filter((deliverable) =>
+      [deliverable.deliverable_id, deliverable.faculty_name, deliverable.file_name, deliverable.file_type, deliverable.status, deliverable.subject_code]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    // Apply filters for history view
+    if (historyView) {
+      // Year filter
+      filtered = filtered.filter(deliverable => {
+        const deliverableYear = new Date(deliverable.date_submitted).getFullYear();
+        return deliverableYear === selectedYear;
+      });
+
+      // Semester filter
+      if (selectedSemester !== "all") {
+        filtered = filtered.filter(deliverable => deliverable.semester === selectedSemester);
+      }
+
+      // School Year filter
+      if (selectedSchoolYear !== "all") {
+        filtered = filtered.filter(deliverable => deliverable.school_year === selectedSchoolYear);
+      }
+    }
+
+    return filtered;
+  };
+
+  const filteredDeliverables = getFilteredDeliverables();
+
+  // Calculate stats based on current view
+  const calculateStats = (deliverablesList) => {
+    return {
+      total: deliverablesList.length,
+      pending: deliverablesList.filter(d => d.status === 'pending').length,
+      completed: deliverablesList.filter(d => d.status === 'completed').length,
+      rejected: deliverablesList.filter(d => d.status === 'rejected').length
+    };
+  };
+
+  const deliverableStats = calculateStats(filteredDeliverables);
 
   // Calculate file type distribution
   const fileTypeDistribution = {
-    syllabus: deliverables.filter(d => d.file_type === 'syllabus').length,
-    tos: deliverables.filter(d => d.file_type === 'tos').length,
-    'midterm-exam': deliverables.filter(d => d.file_type === 'midterm-exam').length,
-    'final-exam': deliverables.filter(d => d.file_type === 'final-exam').length,
-    'instructional-materials': deliverables.filter(d => d.file_type === 'instructional-materials').length
+    syllabus: filteredDeliverables.filter(d => d.file_type === 'syllabus').length,
+    tos: filteredDeliverables.filter(d => d.file_type === 'tos').length,
+    'midterm-exam': filteredDeliverables.filter(d => d.file_type === 'midterm-exam').length,
+    'final-exam': filteredDeliverables.filter(d => d.file_type === 'final-exam').length,
+    'instructional-materials': filteredDeliverables.filter(d => d.file_type === 'instructional-materials').length
   };
 
   // Chart data for status distribution
@@ -211,13 +284,6 @@ export default function AdminDeliverables() {
     },
   };
 
-  // Search filter
-  const filteredDeliverables = (Array.isArray(deliverables) ? deliverables : [])
-    .filter((deliverable) =>
-      [deliverable.deliverable_id, deliverable.faculty_name, deliverable.file_name, deliverable.file_type, deliverable.status, deliverable.subject_code]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
-    );
-
   // Pagination
   const totalPages = Math.ceil(filteredDeliverables.length / deliverablesPerPage);
   const startIndex = (currentPage - 1) * deliverablesPerPage;
@@ -226,6 +292,47 @@ export default function AdminDeliverables() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
+  // History of Records functions
+  const handleExportHistory = async (year) => {
+    try {
+      const deliverablesForYear = deliverables.filter(d => 
+        new Date(d.date_submitted).getFullYear() === year
+      );
+      
+      // Create CSV content
+      const headers = ['Deliverable ID', 'Faculty Name', 'Subject Code', 'File Type', 'Status', 'Date Submitted', 'Semester', 'School Year'];
+      const csvContent = [
+        headers.join(','),
+        ...deliverablesForYear.map(d => [
+          d.deliverable_id,
+          `"${d.faculty_name}"`,
+          d.subject_code,
+          d.file_type,
+          d.status,
+          new Date(d.date_submitted).toISOString(),
+          d.semester,
+          d.school_year
+        ].join(','))
+      ].join('\n');
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `history-of-records-${year}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showFeedback("success", `History of Records for ${year} exported successfully!`);
+    } catch (error) {
+      console.error("Error exporting history:", error);
+      showFeedback("error", "Error exporting history");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -233,75 +340,189 @@ export default function AdminDeliverables() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Admin Deliverables</h1>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {historyView ? `History of Records - ${selectedYear}` : 'Admin Deliverables'}
+            </h1>
             <p className="text-sm text-gray-500">
-              Monitor, review, and manage all faculty submissions 
+              {historyView 
+                ? `Viewing historical records and submissions for ${selectedYear}`
+                : 'Monitor, review, and manage all faculty submissions'
+              }
             </p>
           </div>
-          <input
-            type="text"
-            placeholder="Search deliverables..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
-          />
+          
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            {/* History of Records Filters */}
+            {historyView && (
+              <div className="flex flex-col md:flex-row gap-2">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    setSelectedYear(parseInt(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  {availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedSemester}
+                  onChange={(e) => {
+                    setSelectedSemester(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  <option value="all">All Semesters</option>
+                  {getUniqueSemesters().map(semester => (
+                    <option key={semester} value={semester}>{semester}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedSchoolYear}
+                  onChange={(e) => {
+                    setSelectedSchoolYear(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  <option value="all">All School Years</option>
+                  {getUniqueSchoolYears().map(schoolYear => (
+                    <option key={schoolYear} value={schoolYear}>{schoolYear}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* View Toggle Buttons */}
+            <div className="flex border border-gray-300 rounded-md overflow-hidden">
+              <button
+                onClick={() => {
+                  setHistoryView(false);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  !historyView 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Current
+              </button>
+              <button
+                onClick={() => {
+                  setHistoryView(true);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  historyView 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  History of Records
+                </div>
+              </button>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search deliverables..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
+            />
+          </div>
         </div>
+
+        {/* History of Records Management Bar */}
+        {historyView && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-gray-600" />
+                <span className="text-sm text-gray-800">
+                  Viewing {filteredDeliverables.length} historical records from {selectedYear}
+                  {selectedSemester !== "all" && ` • ${selectedSemester}`}
+                  {selectedSchoolYear !== "all" && ` • ${selectedSchoolYear}`}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportHistory(selectedYear)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export {selectedYear} History
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-blue-600 text-sm font-medium">Total Deliverables</div>
+            <div className="text-blue-600 text-sm font-medium">Total {historyView ? 'Records' : 'Deliverables'}</div>
             <div className="text-2xl font-bold text-blue-800">{deliverableStats.total}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Pending Deliverables</div>
+            <div className="text-yellow-600 text-sm font-medium">Pending {historyView ? 'Records' : 'Deliverables'}</div>
             <div className="text-2xl font-bold text-yellow-800">{deliverableStats.pending}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Completed Deliverables</div>
+            <div className="text-green-600 text-sm font-medium">Completed {historyView ? 'Records' : 'Deliverables'}</div>
             <div className="text-2xl font-bold text-green-800">{deliverableStats.completed}</div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
+            <div className="text-red-600 text-sm font-medium">Rejected {historyView ? 'Records' : 'Deliverables'}</div>
             <div className="text-2xl font-bold text-red-800">{deliverableStats.rejected}</div>
           </div>
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status Distribution</h3>
-            <div className="h-64">
-              {deliverableStats.total > 0 ? (
-                <Doughnut data={statusChartData} options={chartOptions} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No data available
-                </div>
-              )}
+        {/* Charts Section - Hide in history view */}
+        {!historyView && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-xl border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status Distribution</h3>
+              <div className="h-64">
+                {deliverableStats.total > 0 ? (
+                  <Doughnut data={statusChartData} options={chartOptions} />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No data available
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="bg-white p-6 rounded-xl border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">File Type Distribution</h3>
-            <div className="h-64">
-              {deliverableStats.total > 0 ? (
-                <Doughnut data={fileTypeChartData} options={chartOptions} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No data available
-                </div>
-              )}
+            <div className="bg-white p-6 rounded-xl border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">File Type Distribution</h3>
+              <div className="h-64">
+                {deliverableStats.total > 0 ? (
+                  <Doughnut data={fileTypeChartData} options={chartOptions} />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No data available
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Deliverable ID</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">{historyView ? 'Record' : 'Deliverable'} ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code & Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Details</th>
@@ -357,13 +578,15 @@ export default function AdminDeliverables() {
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
                           </button>
-                          <button
-                            onClick={() => confirmDelete(deliverable.deliverable_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
+                          {!historyView && (
+                            <button
+                              onClick={() => confirmDelete(deliverable.deliverable_id)}
+                              className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -372,7 +595,7 @@ export default function AdminDeliverables() {
               ) : (
                 <tr>
                   <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
-                    {loading ? "Loading deliverables..." : "No deliverables found."}
+                    {loading ? "Loading deliverables..." : `No ${historyView ? 'historical records' : 'deliverables'} found.`}
                   </td>
                 </tr>
               )}
@@ -416,13 +639,15 @@ export default function AdminDeliverables() {
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
                           </button>
-                          <button
-                            onClick={() => confirmDelete(deliverable.deliverable_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
+                          {!historyView && (
+                            <button
+                              onClick={() => confirmDelete(deliverable.deliverable_id)}
+                              className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -463,7 +688,7 @@ export default function AdminDeliverables() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              {loading ? "Loading deliverables..." : "No deliverables found."}
+              {loading ? "Loading deliverables..." : `No ${historyView ? 'historical records' : 'deliverables'} found.`}
             </div>
           )}
         </div>
@@ -471,7 +696,8 @@ export default function AdminDeliverables() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentDeliverables.length} of {filteredDeliverables.length} deliverables
+            Showing {currentDeliverables.length} of {filteredDeliverables.length} {historyView ? 'historical records' : 'deliverables'}
+            {historyView && ` for ${selectedYear}`}
           </div>
           
           <div className="flex items-center gap-3">
@@ -503,6 +729,120 @@ export default function AdminDeliverables() {
           </div>
         </div>
 
+        {/* History of Records Management Modal */}
+        <Modal
+          isOpen={historyModalOpen}
+          onRequestClose={() => setHistoryModalOpen(false)}
+          className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-800">
+                History of Records Overview
+              </h3>
+              <button
+                onClick={() => setHistoryModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="font-medium text-gray-700">Available Historical Records by Year</h4>
+              
+              <div className="grid gap-4">
+                {availableYears.map(year => {
+                  const yearDeliverables = deliverables.filter(d => 
+                    new Date(d.date_submitted).getFullYear() === year
+                  );
+                  const yearStats = calculateStats(yearDeliverables);
+                  
+                  // Calculate semester distribution
+                  const semesterStats = {
+                    first: yearDeliverables.filter(d => d.semester === '1st').length,
+                    second: yearDeliverables.filter(d => d.semester === '2nd').length,
+                    other: yearDeliverables.filter(d => !['1st', '2nd'].includes(d.semester)).length
+                  };
+                  
+                  return (
+                    <div key={year} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h5 className="font-semibold text-gray-800">Historical Records {year}</h5>
+                        <span className="text-sm text-gray-500">{yearDeliverables.length} total records</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-xs">
+                        <div className="text-center">
+                          <div className="text-green-600 font-semibold">{yearStats.completed}</div>
+                          <div className="text-gray-500">Completed</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-yellow-600 font-semibold">{yearStats.pending}</div>
+                          <div className="text-gray-500">Pending</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-red-600 font-semibold">{yearStats.rejected}</div>
+                          <div className="text-gray-500">Rejected</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-blue-600 font-semibold">{yearStats.total}</div>
+                          <div className="text-gray-500">Total</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
+                        <div className="text-center">
+                          <div className="text-blue-600 font-semibold">{semesterStats.first}</div>
+                          <div className="text-gray-500">1st Sem</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-green-600 font-semibold">{semesterStats.second}</div>
+                          <div className="text-gray-500">2nd Sem</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-purple-600 font-semibold">{semesterStats.other}</div>
+                          <div className="text-gray-500">Other</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedYear(year);
+                            setHistoryView(true);
+                            setHistoryModalOpen(false);
+                            setCurrentPage(1);
+                          }}
+                          className="flex-1 bg-black text-white px-3 py-2 rounded text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                        >
+                          View History
+                        </button>
+                        <button
+                          onClick={() => handleExportHistory(year)}
+                          className="flex items-center gap-2 px-3 py-2 bg-black text-white rounded text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          Export
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {availableYears.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No historical records available yet
+                </div>
+              )}
+            </div>
+          </div>
+        </Modal>
+
         {/* Deliverable Preview Modal */}
         <Modal
           isOpen={previewModalOpen}
@@ -514,7 +854,7 @@ export default function AdminDeliverables() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  Deliverable Details
+                  {historyView ? 'Historical Record' : 'Deliverable'} Details
                 </h3>
                 <button
                   onClick={() => setPreviewModalOpen(false)}
@@ -529,7 +869,7 @@ export default function AdminDeliverables() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Deliverable ID</label>
+                    <label className="block text-sm font-medium text-gray-700">{historyView ? 'Record' : 'Deliverable'} ID</label>
                     <p className="mt-1 text-sm text-gray-900 font-mono">{deliverableToPreview.deliverable_id}</p>
                   </div>
                   <div>
@@ -589,16 +929,20 @@ export default function AdminDeliverables() {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => confirmDelete(deliverableToPreview.deliverable_id)}
-                    className="flex-1 bg-red-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete Deliverable
-                  </button>
+                  {!historyView && (
+                    <button
+                      onClick={() => confirmDelete(deliverableToPreview.deliverable_id)}
+                      className="flex-1 bg-red-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete {historyView ? 'Record' : 'Deliverable'}
+                    </button>
+                  )}
                   <button
                     onClick={() => setPreviewModalOpen(false)}
-                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                    className={`${
+                      historyView ? 'flex-1' : 'flex-1'
+                    } border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors`}
                   >
                     Close
                   </button>
@@ -619,7 +963,7 @@ export default function AdminDeliverables() {
             <XCircle className="text-red-500 w-12 h-12 mb-4" />
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this deliverable? This action cannot be undone.
+              Are you sure you want to delete this {historyView ? 'historical record' : 'deliverable'}? This action cannot be undone.
             </p>
             <div className="flex gap-3 w-full">
               <button

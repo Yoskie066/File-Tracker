@@ -59,6 +59,17 @@ const analyticsSchema = new mongoose.Schema(
       overdue_requirements: Number
     },
     
+    // System Variables Stats
+    system_variable_stats: {
+      total_variables: Number,
+      variable_type_distribution: {
+        subject_code: Number,
+        course_section: Number,
+        academic_year: Number,
+        semester: Number
+      }
+    },
+    
     // System Performance
     system_stats: {
       total_storage_used: Number,
