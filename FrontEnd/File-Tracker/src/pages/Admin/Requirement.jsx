@@ -451,7 +451,7 @@ export default function RequirementManagement() {
             </div>
           </div>
           <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-            <div className="text-indigo-600 text-sm font-medium">Instrumental</div>
+            <div className="text-indigo-600 text-sm font-medium">Instrumental Materials</div>
             <div className="text-2xl font-bold text-indigo-800">{requirementStats.instrumental}</div>
           </div>
         </div>

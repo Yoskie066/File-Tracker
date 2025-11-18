@@ -489,15 +489,15 @@ export default function FacultyLoadedManagement() {
             <div className="text-2xl font-bold text-blue-800">{facultyLoadedStats.total}</div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Subject Codes</div>
+            <div className="text-purple-600 text-sm font-medium">Subject Code</div>
             <div className="text-2xl font-bold text-purple-800">{facultyLoadedStats.subjectCode}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Course Sections</div>
+            <div className="text-green-600 text-sm font-medium">Course Section</div>
             <div className="text-2xl font-bold text-green-800">{facultyLoadedStats.courseSection}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">School Years</div>
+            <div className="text-yellow-600 text-sm font-medium">School Year</div>
             <div className="text-2xl font-bold text-yellow-800">{facultyLoadedStats.schoolYear}</div>
           </div>
         </div>
