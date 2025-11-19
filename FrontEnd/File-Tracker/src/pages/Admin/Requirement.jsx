@@ -55,6 +55,7 @@ export default function RequirementManagement() {
     subject_code: "",
     course_section: "",
     file_type: "",
+    tos_type: "",
     due_date: "",
     notes: ""
   });
@@ -69,7 +70,14 @@ export default function RequirementManagement() {
     "tos",
     "midterm-exam",
     "final-exam",
-    "instrumental materials"
+    "instrumental materials",
+    "all-files"
+  ];
+
+  // TOS type options (only shown when file_type is "tos")
+  const tosTypeOptions = [
+    "TOS-Midterm",
+    "TOS-Finals"
   ];
 
   // Fetch requirements from backend 
@@ -156,10 +164,20 @@ export default function RequirementManagement() {
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // If file type is changed and it's not "tos", clear the tos_type
+    if (name === "file_type" && value !== "tos") {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        tos_type: ""
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Show feedback modal
@@ -178,6 +196,7 @@ export default function RequirementManagement() {
       subject_code: "",
       course_section: "",
       file_type: "",
+      tos_type: "",
       due_date: "",
       notes: ""
     });
@@ -202,6 +221,7 @@ export default function RequirementManagement() {
         subject_code: formData.subject_code,
         course_section: formData.course_section,
         file_type: formData.file_type,
+        tos_type: formData.tos_type,
         due_date: formData.due_date,
         notes: formData.notes
       } : {
@@ -210,6 +230,7 @@ export default function RequirementManagement() {
         subject_code: formData.subject_code,
         course_section: formData.course_section,
         file_type: formData.file_type,
+        tos_type: formData.tos_type,
         due_date: formData.due_date,
         notes: formData.notes
       };
@@ -266,6 +287,7 @@ export default function RequirementManagement() {
           subject_code: requirement.subject_code,
           course_section: requirement.course_section,
           file_type: requirement.file_type,
+          tos_type: requirement.tos_type || "",
           due_date: requirement.due_date ? requirement.due_date.split('T')[0] : "",
           notes: requirement.notes || ""
         });
@@ -336,19 +358,20 @@ export default function RequirementManagement() {
     tos: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'tos').length : 0,
     midterm: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'midterm-exam').length : 0,
     final: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'final-exam').length : 0,
-    instrumental: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'instrumental materials').length : 0
+    instrumental: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'instrumental materials').length : 0,
+    allFiles: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'all-files').length : 0
   };
 
   // Search filter
   const filteredRequirements = (Array.isArray(requirements) ? requirements : [])
     .filter((req) =>
-      [req.requirement_id, req.task_name, req.prof_name, req.subject_code, req.course_section, req.file_type]
+      [req.requirement_id, req.task_name, req.prof_name, req.subject_code, req.course_section, req.file_type, req.tos_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
   // Chart data for file type distribution
   const fileTypeChartData = {
-    labels: ['Syllabus', 'TOS', 'Midterm', 'Final Exam', 'Instrumental'],
+    labels: ['Syllabus', 'TOS', 'Midterm', 'Final Exam', 'Instrumental', 'All Files'],
     datasets: [
       {
         data: [
@@ -356,21 +379,24 @@ export default function RequirementManagement() {
           requirementStats.tos,
           requirementStats.midterm,
           requirementStats.final,
-          requirementStats.instrumental
+          requirementStats.instrumental,
+          requirementStats.allFiles
         ],
         backgroundColor: [
           '#4F46E5',
           '#10B981',
           '#F59E0B',
           '#EF4444',
-          '#8B5CF6'
+          '#8B5CF6',
+          '#06B6D4'
         ],
         borderColor: [
           '#4F46E5',
           '#10B981',
           '#F59E0B',
           '#EF4444',
-          '#8B5CF6'
+          '#8B5CF6',
+          '#06B6D4'
         ],
         borderWidth: 2,
       },
@@ -385,6 +411,27 @@ export default function RequirementManagement() {
         position: 'bottom',
       },
     },
+  };
+
+  // Get display text for file type with TOS type
+  const getFileTypeDisplay = (requirement) => {
+    if (requirement.file_type === 'tos' && requirement.tos_type) {
+      return `${requirement.file_type} (${requirement.tos_type})`;
+    }
+    return requirement.file_type;
+  };
+
+  // Get badge color for file type
+  const getFileTypeBadgeColor = (fileType) => {
+    switch (fileType) {
+      case 'syllabus': return 'bg-purple-100 text-purple-800';
+      case 'tos': return 'bg-green-100 text-green-800';
+      case 'midterm-exam': return 'bg-yellow-100 text-yellow-800';
+      case 'final-exam': return 'bg-red-100 text-red-800';
+      case 'instrumental materials': return 'bg-indigo-100 text-indigo-800';
+      case 'all-files': return 'bg-cyan-100 text-cyan-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   // Pagination
@@ -431,7 +478,7 @@ export default function RequirementManagement() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Requirements</div>
             <div className="text-2xl font-bold text-blue-800">{requirementStats.total}</div>
@@ -453,6 +500,10 @@ export default function RequirementManagement() {
           <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
             <div className="text-indigo-600 text-sm font-medium">Instrumental Materials</div>
             <div className="text-2xl font-bold text-indigo-800">{requirementStats.instrumental}</div>
+          </div>
+          <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
+            <div className="text-cyan-600 text-sm font-medium">All Files</div>
+            <div className="text-2xl font-bold text-cyan-800">{requirementStats.allFiles}</div>
           </div>
         </div>
 
@@ -492,14 +543,8 @@ export default function RequirementManagement() {
                     <td className="px-4 py-3 text-gray-700 font-mono">{requirement.subject_code}</td>
                     <td className="px-4 py-3 text-gray-700">{requirement.course_section}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        requirement.file_type === 'syllabus' ? 'bg-purple-100 text-purple-800' :
-                        requirement.file_type === 'tos' ? 'bg-green-100 text-green-800' :
-                        requirement.file_type === 'midterm-exam' ? 'bg-yellow-100 text-yellow-800' :
-                        requirement.file_type === 'final-exam' ? 'bg-red-100 text-red-800' :
-                        'bg-indigo-100 text-indigo-800'
-                      }`}>
-                        {requirement.file_type}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getFileTypeBadgeColor(requirement.file_type)}`}>
+                        {getFileTypeDisplay(requirement)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -578,14 +623,8 @@ export default function RequirementManagement() {
                     <p className="text-sm text-gray-600 font-mono">ID: {requirement.requirement_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      requirement.file_type === 'syllabus' ? 'bg-purple-100 text-purple-800' :
-                      requirement.file_type === 'tos' ? 'bg-green-100 text-green-800' :
-                      requirement.file_type === 'midterm-exam' ? 'bg-yellow-100 text-yellow-800' :
-                      requirement.file_type === 'final-exam' ? 'bg-red-100 text-red-800' :
-                      'bg-indigo-100 text-indigo-800'
-                    }`}>
-                      {requirement.file_type}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getFileTypeBadgeColor(requirement.file_type)}`}>
+                      {getFileTypeDisplay(requirement)}
                     </span>
                     
                     <div className="relative">
@@ -858,11 +897,42 @@ export default function RequirementManagement() {
                   <option value="">Select file type</option>
                   {fileTypeOptions.map((type) => (
                     <option key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {type === 'all-files' ? 'All Files' : type.charAt(0).toUpperCase() + type.slice(1)}
                     </option>
                   ))}
                 </select>
+                {formData.file_type === "all-files" && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    This requirement includes ALL file types for the selected subject and section.
+                  </p>
+                )}
               </div>
+
+              {/* TOS Type Dropdown (only shown when file_type is "tos") */}
+              {formData.file_type === "tos" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    TOS Type *
+                  </label>
+                  <select
+                    name="tos_type"
+                    value={formData.tos_type}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                  >
+                    <option value="">Select TOS type</option>
+                    {tosTypeOptions.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-blue-600 mt-1">
+                    The status will still be recorded as "TOS" in the system.
+                  </p>
+                </div>
+              )}
 
               {/* Due Date */}
               <div>
