@@ -66,14 +66,13 @@ export default function NotificationPage() {
               {selectedNote.message.replace("You have a new requirement: ", "")}
             </p>
             <p>
-              <span className="font-semibold">Subject Code:</span> {selectedNote.subject_code || "N/A"}
-            </p>
-            <p>
-              <span className="font-semibold">Course Section:</span> {selectedNote.course_section || "N/A"}
-            </p>
-            <p>
               <span className="font-semibold">File Type:</span> {selectedNote.file_type || "N/A"}
             </p>
+            {selectedNote.tos_type && (
+              <p>
+                <span className="font-semibold">TOS Type:</span> {selectedNote.tos_type}
+              </p>
+            )}
             <p>
               <span className="font-semibold">Due Date:</span>{" "}
               {selectedNote.due_date
