@@ -17,21 +17,27 @@ export const createRequirement = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { task_name, prof_name, subject_code, course_section, file_type, due_date, notes } = req.body;
+    const { task_name, prof_name, file_type, tos_type, due_date, notes } = req.body;
 
     // Validation
-    if (!task_name || !prof_name || !subject_code || !course_section || !file_type || !due_date) {
+    if (!task_name || !prof_name || !file_type || !due_date) {
       return res.status(400).json({ 
         success: false, 
         message: "All required fields must be filled.",
         missing_fields: {
           task_name: !task_name,
           prof_name: !prof_name,
-          subject_code: !subject_code,
-          course_section: !course_section,
           file_type: !file_type,
           due_date: !due_date
         }
+      });
+    }
+
+    // If file_type is "tos", tos_type is required
+    if (file_type === "tos" && !tos_type) {
+      return res.status(400).json({
+        success: false,
+        message: "TOS type is required when file type is TOS."
       });
     }
 
@@ -43,15 +49,22 @@ export const createRequirement = async (req, res) => {
       requirement_id,
       task_name,
       prof_name,
-      subject_code,
-      course_section,
       file_type,
+      tos_type: file_type === "tos" ? tos_type : undefined,
       due_date: new Date(due_date), 
       notes: notes || "",
     });
 
     const savedRequirement = await newRequirement.save();
     console.log("Requirement saved successfully:", savedRequirement._id);
+
+    // Create notification message based on file type and TOS type
+    let notificationMessage = `You have a new requirement: ${savedRequirement.task_name}`;
+    
+    // Add TOS type to message if applicable
+    if (savedRequirement.file_type === 'tos' && savedRequirement.tos_type) {
+      notificationMessage += ` (${savedRequirement.tos_type})`;
+    }
 
     // Create notifications based on professor selection
     try {
@@ -70,10 +83,9 @@ export const createRequirement = async (req, res) => {
             recipient_type: "Faculty",
             recipient_name: faculty.facultyName,
             title: "New Requirement Assigned",
-            message: `You have a new requirement: ${savedRequirement.task_name}`,
-            subject_code: subject_code,
-            course_section: course_section,
+            message: notificationMessage,
             file_type: file_type,
+            tos_type: file_type === "tos" ? tos_type : undefined, // Include TOS type in notification
             due_date: new Date(due_date),
             notes: notes || "",
             related_requirement_id: savedRequirement.requirement_id,
@@ -101,10 +113,9 @@ export const createRequirement = async (req, res) => {
             recipient_type: "Faculty",
             recipient_name: faculty.facultyName,
             title: "New Requirement Assigned",
-            message: `You have a new requirement: ${savedRequirement.task_name}`,
-            subject_code: subject_code,
-            course_section: course_section,
+            message: notificationMessage,
             file_type: file_type,
+            tos_type: file_type === "tos" ? tos_type : undefined, // Include TOS type in notification
             due_date: new Date(due_date),
             notes: notes || "",
             related_requirement_id: savedRequirement.requirement_id,
@@ -123,10 +134,9 @@ export const createRequirement = async (req, res) => {
             recipient_type: "Faculty",
             recipient_name: prof_name,
             title: "New Task Assignment",
-            message: `Admin assigned you a new task: ${task_name} for ${subject_code} - ${course_section}. Due: ${new Date(due_date).toLocaleDateString()}`,
-            subject_code: subject_code,
-            course_section: course_section,
+            message: notificationMessage,
             file_type: file_type,
+            tos_type: file_type === "tos" ? tos_type : undefined, // Include TOS type in notification
             due_date: new Date(due_date),
             notes: notes || "",
             related_requirement_id: savedRequirement.requirement_id,
@@ -206,45 +216,59 @@ export const getRequirementById = async (req, res) => {
 export const updateRequirement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { task_name, prof_name, subject_code, course_section, file_type, due_date, notes } = req.body;
+    const { task_name, prof_name, file_type, tos_type, due_date, notes } = req.body;
+
+    // If file_type is "tos", tos_type is required
+    if (file_type === "tos" && !tos_type) {
+      return res.status(400).json({
+        success: false,
+        message: "TOS type is required when file type is TOS."
+      });
+    }
+
+    const updateData = {
+      task_name,
+      prof_name,
+      file_type,
+      due_date,
+      notes,
+      updated_at: new Date()
+    };
+
+    // Only include tos_type if file_type is "tos"
+    if (file_type === "tos") {
+      updateData.tos_type = tos_type;
+    } else {
+      updateData.tos_type = undefined;
+    }
 
     const updated = await Requirement.findOneAndUpdate(
       { requirement_id: id },
-      { task_name, prof_name, subject_code, course_section, file_type, due_date, notes, updated_at: new Date() },
+      updateData,
       { new: true, runValidators: true }
     );
 
     if (!updated) return res.status(404).json({ success: false, message: "Requirement not found" });
 
-    // Update notifications - handle both specific faculty and ALL cases
-    if (prof_name === "ALL") {
-      // When updating to ALL, we might want to create new notifications for all faculty
-      // or update existing ones. For simplicity, we'll just update the message for existing notifications.
-      await Notification.updateMany(
-        { related_requirement_id: id },
-        {
-          message: `You have an updated requirement: ${task_name}`,
-          subject_code,
-          course_section,
-          file_type,
-          due_date,
-          notes,
-        }
-      );
-    } else {
-      // Update notification for specific faculty
-      await Notification.findOneAndUpdate(
-        { related_requirement_id: id },
-        {
-          message: `You have an updated requirement: ${task_name}`,
-          subject_code,
-          course_section,
-          file_type,
-          due_date,
-          notes,
-        }
-      );
+    // Update notification message based on file type and TOS type
+    let notificationMessage = `You have an updated requirement: ${task_name}`;
+    
+    // Add TOS type to message if applicable
+    if (file_type === 'tos' && tos_type) {
+      notificationMessage += ` (${tos_type})`;
     }
+
+    // Update notifications
+    await Notification.updateMany(
+      { related_requirement_id: id },
+      {
+        message: notificationMessage,
+        file_type,
+        tos_type: file_type === "tos" ? tos_type : undefined,
+        due_date,
+        notes,
+      }
+    );
     
     res.status(200).json({ success: true, message: "Requirement updated successfully", data: updated });
   } catch (error) {

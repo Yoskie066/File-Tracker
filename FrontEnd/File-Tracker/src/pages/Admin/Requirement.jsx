@@ -30,7 +30,6 @@ Modal.setAppElement("#root");
 export default function RequirementManagement() {
   const [requirements, setRequirements] = useState([]);
   const [facultyList, setFacultyList] = useState([]);
-  const [systemVariables, setSystemVariables] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -52,8 +51,6 @@ export default function RequirementManagement() {
     requirement_id: "",
     task_name: "",
     prof_name: "",
-    subject_code: "",
-    course_section: "",
     file_type: "",
     tos_type: "",
     due_date: "",
@@ -127,31 +124,10 @@ export default function RequirementManagement() {
       setFacultyList([]);
     }
   };
-
-  // Fetch system variables for dropdowns
-  const fetchSystemVariables = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables`); 
-      if (!res.ok) throw new Error("Server responded with " + res.status);
-      const result = await res.json();
-      console.log("Fetched system variables for dropdowns:", result);
-      
-      if (result.success && Array.isArray(result.data)) {
-        setSystemVariables(result.data);
-      } else {
-        console.error("Unexpected API response format for system variables:", result);
-        setSystemVariables([]);
-      }
-    } catch (err) {
-      console.error("Error fetching system variables:", err);
-      setSystemVariables([]); 
-    }
-  };
   
   useEffect(() => {
     fetchRequirements();
     fetchFacultyList();
-    fetchSystemVariables();
   }, []);
 
   // Close dropdown when clicking outside
@@ -193,8 +169,6 @@ export default function RequirementManagement() {
       requirement_id: "",
       task_name: "",
       prof_name: "",
-      subject_code: "",
-      course_section: "",
       file_type: "",
       tos_type: "",
       due_date: "",
@@ -215,20 +189,9 @@ export default function RequirementManagement() {
       
       const method = isEditMode ? "PUT" : "POST";
   
-      const requestData = isEditMode ? {
+      const requestData = {
         task_name: formData.task_name,
         prof_name: formData.prof_name,
-        subject_code: formData.subject_code,
-        course_section: formData.course_section,
-        file_type: formData.file_type,
-        tos_type: formData.tos_type,
-        due_date: formData.due_date,
-        notes: formData.notes
-      } : {
-        task_name: formData.task_name,
-        prof_name: formData.prof_name,
-        subject_code: formData.subject_code,
-        course_section: formData.course_section,
         file_type: formData.file_type,
         tos_type: formData.tos_type,
         due_date: formData.due_date,
@@ -284,8 +247,6 @@ export default function RequirementManagement() {
           requirement_id: requirement.requirement_id,
           task_name: requirement.task_name,
           prof_name: requirement.prof_name,
-          subject_code: requirement.subject_code,
-          course_section: requirement.course_section,
           file_type: requirement.file_type,
           tos_type: requirement.tos_type || "",
           due_date: requirement.due_date ? requirement.due_date.split('T')[0] : "",
@@ -333,24 +294,6 @@ export default function RequirementManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Get unique subject codes from system variables
-  const getSubjectCodes = () => {
-    const subjectCodes = systemVariables
-      .filter(variable => variable.variable_type === 'subject_code')
-      .map(variable => variable.variable_name);
-    
-    return [...new Set(subjectCodes)]; // Remove duplicates
-  };
-
-  // Get unique course sections from system variables
-  const getCourseSections = () => {
-    const courseSections = systemVariables
-      .filter(variable => variable.variable_type === 'course_section')
-      .map(variable => variable.variable_name);
-    
-    return [...new Set(courseSections)]; // Remove duplicates
-  };
-
   // Calculate stats for charts
   const requirementStats = {
     total: Array.isArray(requirements) ? requirements.length : 0,
@@ -365,7 +308,7 @@ export default function RequirementManagement() {
   // Search filter
   const filteredRequirements = (Array.isArray(requirements) ? requirements : [])
     .filter((req) =>
-      [req.requirement_id, req.task_name, req.prof_name, req.subject_code, req.course_section, req.file_type, req.tos_type]
+      [req.requirement_id, req.task_name, req.prof_name, req.file_type, req.tos_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -525,8 +468,6 @@ export default function RequirementManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Req ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Task Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
@@ -540,8 +481,6 @@ export default function RequirementManagement() {
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{requirement.requirement_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{requirement.task_name}</td>
                     <td className="px-4 py-3 text-gray-700">{requirement.prof_name}</td>
-                    <td className="px-4 py-3 text-gray-700 font-mono">{requirement.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">{requirement.course_section}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getFileTypeBadgeColor(requirement.file_type)}`}>
                         {getFileTypeDisplay(requirement)}
@@ -603,7 +542,7 @@ export default function RequirementManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No requirements found.
                   </td>
                 </tr>
@@ -664,14 +603,6 @@ export default function RequirementManagement() {
                   <div>
                     <span className="text-gray-500">Professor:</span>
                     <p className="font-medium">{requirement.prof_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Subject:</span>
-                    <p className="font-medium font-mono">{requirement.subject_code}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Section:</span>
-                    <p className="font-medium">{requirement.course_section}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Due Date:</span>
@@ -830,58 +761,6 @@ export default function RequirementManagement() {
                 )}
               </div>
 
-              {/* Subject Code - DROPDOWN FROM SYSTEM VARIABLES */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject Code *
-                </label>
-                <select
-                  name="subject_code"
-                  value={formData.subject_code}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select subject code</option>
-                  {getSubjectCodes().map((subjectCode, index) => (
-                    <option key={index} value={subjectCode}>
-                      {subjectCode}
-                    </option>
-                  ))}
-                </select>
-                {getSubjectCodes().length === 0 && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    No subject codes found. Please add subject codes in System Variables first.
-                  </p>
-                )}
-              </div>
-
-              {/* Course Section - DROPDOWN FROM SYSTEM VARIABLES */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Section *
-                </label>
-                <select
-                  name="course_section"
-                  value={formData.course_section}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select course section</option>
-                  {getCourseSections().map((courseSection, index) => (
-                    <option key={index} value={courseSection}>
-                      {courseSection}
-                    </option>
-                  ))}
-                </select>
-                {getCourseSections().length === 0 && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    No course sections found. Please add course sections in System Variables first.
-                  </p>
-                )}
-              </div>
-
               {/* File Type - Combo Box */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -903,7 +782,7 @@ export default function RequirementManagement() {
                 </select>
                 {formData.file_type === "all-files" && (
                   <p className="text-xs text-blue-600 mt-1">
-                    This requirement includes ALL file types for the selected subject and section.
+                    This requirement includes ALL file types.
                   </p>
                 )}
               </div>
@@ -918,7 +797,7 @@ export default function RequirementManagement() {
                     name="tos_type"
                     value={formData.tos_type}
                     onChange={handleInputChange}
-                    required
+                    required={formData.file_type === "tos"}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                   >
                     <option value="">Select TOS type</option>
@@ -929,7 +808,7 @@ export default function RequirementManagement() {
                     ))}
                   </select>
                   <p className="text-xs text-blue-600 mt-1">
-                    The status will still be recorded as "TOS" in the system.
+                    The TOS type will be included in the notification sent to faculty.
                   </p>
                 </div>
               )}
