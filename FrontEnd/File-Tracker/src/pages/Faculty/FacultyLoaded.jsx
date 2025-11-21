@@ -1,30 +1,8 @@
 import { useState, useEffect } from "react";
-import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
 import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService"
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -129,6 +107,16 @@ export default function FacultyLoadedManagement() {
       v.variable_type === 'subject_code' && v.variable_name === subjectCode
     );
     return subject ? subject.subject_title : '';
+  };
+
+  // Check for duplicate faculty loaded
+  const checkDuplicateFacultyLoaded = (subjectCode, courseSection, semester, schoolYear) => {
+    return facultyLoadeds.some(loaded => 
+      loaded.subject_code === subjectCode &&
+      loaded.course_section === courseSection &&
+      loaded.semester === semester &&
+      loaded.school_year === schoolYear
+    );
   };
 
   // Add authentication check on component mount
@@ -262,6 +250,16 @@ export default function FacultyLoadedManagement() {
         showFeedback("error", "Please login again. No authentication token found.");
         setLoading(false);
         return;
+      }
+
+      // Check for duplicates (only when adding new, not when editing)
+      if (!isEditMode && checkDuplicateFacultyLoaded(
+        formData.subject_code, 
+        formData.course_section, 
+        formData.semester, 
+        formData.school_year
+      )) {
+        throw new Error("A faculty load with the same Subject Code, Course Section, Semester, and School Year already exists");
       }
 
       const url = isEditMode 
@@ -424,7 +422,7 @@ export default function FacultyLoadedManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Calculate stats for charts
+  // Calculate stats for cards
   const facultyLoadedStats = {
     total: Array.isArray(facultyLoadeds) ? facultyLoadeds.length : 0,
     subjectCode: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.subject_code))].length : 0,
@@ -438,41 +436,6 @@ export default function FacultyLoadedManagement() {
       [fl.faculty_loaded_id, fl.subject_code, fl.course_section, fl.semester, fl.school_year, fl.subject_title]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
-
-  // Chart data for distribution
-  const distributionChartData = {
-    labels: ['Subject Codes', 'Course Sections', 'School Years'],
-    datasets: [
-      {
-        data: [
-          facultyLoadedStats.subjectCode,
-          facultyLoadedStats.courseSection,
-          facultyLoadedStats.schoolYear
-        ],
-        backgroundColor: [
-          '#4F46E5',
-          '#10B981',
-          '#F59E0B'
-        ],
-        borderColor: [
-          '#4F46E5',
-          '#10B981',
-          '#F59E0B'
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-    },
-  };
 
   // Pagination
   const totalPages = Math.ceil(filteredFacultyLoadeds.length / facultyLoadedsPerPage);
@@ -519,7 +482,7 @@ export default function FacultyLoadedManagement() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Loads</div>
             <div className="text-2xl font-bold text-blue-800">{facultyLoadedStats.total}</div>
@@ -535,16 +498,6 @@ export default function FacultyLoadedManagement() {
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
             <div className="text-yellow-600 text-sm font-medium">School Year</div>
             <div className="text-2xl font-bold text-yellow-800">{facultyLoadedStats.schoolYear}</div>
-          </div>
-        </div>
-
-        {/* Chart Section */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Distribution Overview</h3>
-            <div className="h-64">
-              <Doughnut data={distributionChartData} options={chartOptions} />
-            </div>
           </div>
         </div>
 

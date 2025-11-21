@@ -13,15 +13,16 @@ export const createFacultyLoaded = async (req, res) => {
     console.log("Received request body:", req.body);
     console.log("Authenticated faculty:", req.faculty);
     
-    const { subject_code, course_section, semester, school_year } = req.body;
+    const { subject_code, subject_title, course_section, semester, school_year } = req.body;
 
     // Validation
-    if (!subject_code || !course_section || !semester || !school_year ) {
+    if (!subject_code || !subject_title || !course_section || !semester || !school_year) {
       return res.status(400).json({ 
         success: false, 
         message: "All fields must be filled.",
         missing_fields: {
           subject_code: !subject_code,
+          subject_title: !subject_title,
           course_section: !course_section,
           semester: !semester,
           school_year: !school_year,
@@ -45,6 +46,7 @@ export const createFacultyLoaded = async (req, res) => {
       faculty_loaded_id,
       faculty_id: req.faculty.facultyId, 
       subject_code,
+      subject_title,
       course_section,
       semester,
       school_year,
@@ -162,7 +164,7 @@ export const getFacultyLoadedById = async (req, res) => {
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject_code,  course_section, semester, school_year } = req.body;
+    const { subject_code, subject_title, course_section, semester, school_year } = req.body;
 
     // Check if faculty is authenticated
     if (!req.faculty || !req.faculty.facultyId) {
@@ -194,7 +196,14 @@ export const updateFacultyLoaded = async (req, res) => {
         faculty_loaded_id: id,
         faculty_id: req.faculty.facultyId 
       },
-      { subject_code, course_section, semester, school_year, updated_at: new Date() },
+      { 
+        subject_code, 
+        subject_title, 
+        course_section, 
+        semester, 
+        school_year, 
+        updated_at: new Date() 
+      },
       { new: true, runValidators: true }
     );
 

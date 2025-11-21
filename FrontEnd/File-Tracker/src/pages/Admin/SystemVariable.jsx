@@ -1,28 +1,6 @@
 import { useState, useEffect } from "react";
-import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
 import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -34,6 +12,7 @@ export default function SystemVariableManagement() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
+  const [activeFilter, setActiveFilter] = useState("all");
   const variablesPerPage = 10;
 
   // Feedback modal states
@@ -64,6 +43,15 @@ export default function SystemVariableManagement() {
     "course_section", 
     "academic_year",
     "semester"
+  ];
+
+  // Filter buttons data
+  const filterButtons = [
+    { key: "all", label: "All Variables" },
+    { key: "subject_code", label: "Subject Code" },
+    { key: "course_section", label: "Course Section" },
+    { key: "academic_year", label: "Academic Year" },
+    { key: "semester", label: "Semester" }
   ];
 
   // Fetch variables from backend 
@@ -135,12 +123,32 @@ export default function SystemVariableManagement() {
     setIsEditMode(false);
   };
 
+  // Check for duplicate variable
+  const checkDuplicateVariable = (variableName, variableType, subjectTitle = "") => {
+    return variables.some(variable => 
+      variable.variable_name.toLowerCase() === variableName.toLowerCase() &&
+      variable.variable_type === variableType &&
+      (variableType !== 'subject_code' || variable.subject_title === subjectTitle)
+    );
+  };
+
+  // Handle filter button click
+  const handleFilterClick = (filterType) => {
+    setActiveFilter(filterType);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   // Handle form submission 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Check for duplicates (only when adding new, not when editing)
+      if (!isEditMode && checkDuplicateVariable(formData.variable_name, formData.variable_type, formData.subject_title)) {
+        throw new Error("A variable with this name and type already exists");
+      }
+
       const url = isEditMode 
         ? `${API_BASE_URL}/api/admin/system-variables/${formData.variable_id}`
         : `${API_BASE_URL}/api/admin/system-variables`;
@@ -263,7 +271,7 @@ export default function SystemVariableManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Calculate stats for charts
+  // Calculate stats for cards
   const variableStats = {
     total: Array.isArray(variables) ? variables.length : 0,
     subject_code: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'subject_code').length : 0,
@@ -272,50 +280,18 @@ export default function SystemVariableManagement() {
     semester: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'semester').length : 0
   };
 
-  // Search filter
+  // Search and type filter
   const filteredVariables = (Array.isArray(variables) ? variables : [])
-    .filter((v) =>
-      [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
-    );
-
-  // Chart data for variable type distribution
-  const variableTypeChartData = {
-    labels: ['Subject Code', 'Course Section', 'Academic Year', 'Semester'],
-    datasets: [
-      {
-        data: [
-          variableStats.subject_code,
-          variableStats.course_section,
-          variableStats.academic_year,
-          variableStats.semester
-        ],
-        backgroundColor: [
-          '#4F46E5',
-          '#10B981',
-          '#F59E0B',
-          '#EF4444'
-        ],
-        borderColor: [
-          '#4F46E5',
-          '#10B981',
-          '#F59E0B',
-          '#EF4444'
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-    },
-  };
+    .filter((v) => {
+      // First apply search filter
+      const searchMatch = [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()));
+      
+      // Then apply type filter if not "all"
+      const typeMatch = activeFilter === "all" || v.variable_type === activeFilter;
+      
+      return searchMatch && typeMatch;
+    });
 
   // Pagination
   const totalPages = Math.ceil(filteredVariables.length / variablesPerPage);
@@ -360,8 +336,25 @@ export default function SystemVariableManagement() {
           </div>
         </div>
 
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {filterButtons.map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => handleFilterClick(filter.key)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeFilter === filter.key
+                  ? 'bg-black text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Variables</div>
             <div className="text-2xl font-bold text-blue-800">{variableStats.total}</div>
@@ -381,16 +374,6 @@ export default function SystemVariableManagement() {
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
             <div className="text-red-600 text-sm font-medium">Semester</div>
             <div className="text-2xl font-bold text-red-800">{variableStats.semester}</div>
-          </div>
-        </div>
-
-        {/* Chart Section */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Variable Type Distribution</h3>
-            <div className="h-64">
-              <Doughnut data={variableTypeChartData} options={chartOptions} />
-            </div>
           </div>
         </div>
 
@@ -472,7 +455,7 @@ export default function SystemVariableManagement() {
               ) : (
                 <tr>
                   <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
-                    No system variables found.
+                    No system variables found {activeFilter !== "all" ? `for ${activeFilter.replace('_', ' ')}` : ""}.
                   </td>
                 </tr>
               )}
@@ -553,7 +536,7 @@ export default function SystemVariableManagement() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              No system variables found.
+              No system variables found {activeFilter !== "all" ? `for ${activeFilter.replace('_', ' ')}` : ""}.
             </div>
           )}
         </div>
@@ -562,6 +545,7 @@ export default function SystemVariableManagement() {
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentVariables.length} of {filteredVariables.length} variables
+            {activeFilter !== "all" && ` (filtered by ${activeFilter.replace('_', ' ')})`}
           </div>
           
           <div className="flex items-center gap-3">
