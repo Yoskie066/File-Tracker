@@ -26,7 +26,7 @@ export default function FacultyLoadedManagement() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [facultyLoadedToDelete, setFacultyLoadedToDelete] = useState(null);
 
-  // Form state - added subject_title
+  // Form state
   const [formData, setFormData] = useState({
     faculty_loaded_id: "",
     subject_code: "",
@@ -166,12 +166,8 @@ export default function FacultyLoadedManagement() {
       console.log("Fetched faculty loadeds for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        // Enhance faculty loadeds with subject titles
-        const enhancedLoadeds = result.data.map(loaded => ({
-          ...loaded,
-          subject_title: getSubjectTitle(loaded.subject_code)
-        }));
-        setFacultyLoadeds(enhancedLoadeds);
+        // The backend now includes subject_title, so we don't need to enhance it
+        setFacultyLoadeds(result.data);
       } else {
         console.error("Unexpected API response format:", result);
         setFacultyLoadeds([]);
@@ -181,17 +177,6 @@ export default function FacultyLoadedManagement() {
       setFacultyLoadeds([]); 
     }
   };
-
-  // Update faculty loadeds when system variables change
-  useEffect(() => {
-    if (systemVariables.length > 0 && facultyLoadeds.length > 0) {
-      const enhancedLoadeds = facultyLoadeds.map(loaded => ({
-        ...loaded,
-        subject_title: getSubjectTitle(loaded.subject_code)
-      }));
-      setFacultyLoadeds(enhancedLoadeds);
-    }
-  }, [systemVariables]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -352,12 +337,11 @@ export default function FacultyLoadedManagement() {
   
       if (result.success && result.data) {
         const facultyLoaded = result.data;
-        const subjectTitle = getSubjectTitle(facultyLoaded.subject_code);
         
         setFormData({
           faculty_loaded_id: facultyLoaded.faculty_loaded_id,
           subject_code: facultyLoaded.subject_code,
-          subject_title: subjectTitle,
+          subject_title: facultyLoaded.subject_title, // Use the subject_title from backend
           course_section: facultyLoaded.course_section,
           semester: facultyLoaded.semester,
           school_year: facultyLoaded.school_year
@@ -521,7 +505,7 @@ export default function FacultyLoadedManagement() {
                   <tr key={facultyLoaded._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoaded.faculty_loaded_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoaded.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.subject_title || '-'}</td>
+                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.subject_title || 'Loading...'}</td>
                     <td className="px-4 py-3 text-gray-700">{facultyLoaded.course_section}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -630,12 +614,10 @@ export default function FacultyLoadedManagement() {
                 </div>
                 
                 <div className="grid grid-cols-1 gap-3 text-sm mb-3">
-                  {facultyLoaded.subject_title && (
-                    <div>
-                      <span className="text-gray-500">Subject Title:</span>
-                      <p className="font-medium">{facultyLoaded.subject_title}</p>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-gray-500">Subject Title:</span>
+                    <p className="font-medium">{facultyLoaded.subject_title || 'Loading...'}</p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <span className="text-gray-500">Course Section:</span>
