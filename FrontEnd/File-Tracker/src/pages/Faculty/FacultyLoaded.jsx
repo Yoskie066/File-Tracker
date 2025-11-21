@@ -48,10 +48,11 @@ export default function FacultyLoadedManagement() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [facultyLoadedToDelete, setFacultyLoadedToDelete] = useState(null);
 
-  // Form state - removed subject_title field
+  // Form state - added subject_title
   const [formData, setFormData] = useState({
     faculty_loaded_id: "",
     subject_code: "",
+    subject_title: "",
     course_section: "",
     semester: "",
     school_year: ""
@@ -98,31 +99,36 @@ export default function FacultyLoadedManagement() {
 
   // Filter system variables by type
   const getVariablesByType = (type) => {
-    return systemVariables
-      .filter(variable => variable.variable_type === type)
-      .map(variable => variable.variable_name)
-      .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+    return systemVariables.filter(variable => variable.variable_type === type);
   };
 
   // Get available semesters from system variables
   const getSemesterOptions = () => {
-    const semesters = getVariablesByType('semester');
+    const semesters = getVariablesByType('semester').map(v => v.variable_name);
     return semesters.length > 0 ? semesters : ["1st Semester", "2nd Semester", "Summer"];
   };
 
   // Get available school years from system variables
   const getSchoolYearOptions = () => {
-    return getVariablesByType('academic_year');
+    return getVariablesByType('academic_year').map(v => v.variable_name);
   };
 
-  // Get available subject codes from system variables
+  // Get available subject codes from system variables with titles
   const getSubjectCodeOptions = () => {
     return getVariablesByType('subject_code');
   };
 
   // Get available course sections from system variables
   const getCourseSectionOptions = () => {
-    return getVariablesByType('course_section');
+    return getVariablesByType('course_section').map(v => v.variable_name);
+  };
+
+  // Get subject title for a selected subject code
+  const getSubjectTitle = (subjectCode) => {
+    const subject = systemVariables.find(v => 
+      v.variable_type === 'subject_code' && v.variable_name === subjectCode
+    );
+    return subject ? subject.subject_title : '';
   };
 
   // Add authentication check on component mount
@@ -172,7 +178,12 @@ export default function FacultyLoadedManagement() {
       console.log("Fetched faculty loadeds for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setFacultyLoadeds(result.data);
+        // Enhance faculty loadeds with subject titles
+        const enhancedLoadeds = result.data.map(loaded => ({
+          ...loaded,
+          subject_title: getSubjectTitle(loaded.subject_code)
+        }));
+        setFacultyLoadeds(enhancedLoadeds);
       } else {
         console.error("Unexpected API response format:", result);
         setFacultyLoadeds([]);
@@ -182,6 +193,17 @@ export default function FacultyLoadedManagement() {
       setFacultyLoadeds([]); 
     }
   };
+
+  // Update faculty loadeds when system variables change
+  useEffect(() => {
+    if (systemVariables.length > 0 && facultyLoadeds.length > 0) {
+      const enhancedLoadeds = facultyLoadeds.map(loaded => ({
+        ...loaded,
+        subject_title: getSubjectTitle(loaded.subject_code)
+      }));
+      setFacultyLoadeds(enhancedLoadeds);
+    }
+  }, [systemVariables]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -193,10 +215,20 @@ export default function FacultyLoadedManagement() {
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name === 'subject_code') {
+      const subjectTitle = getSubjectTitle(value);
+      setFormData(prev => ({
+        ...prev,
+        subject_code: value,
+        subject_title: subjectTitle
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Show feedback modal
@@ -211,6 +243,7 @@ export default function FacultyLoadedManagement() {
     setFormData({
       faculty_loaded_id: "",
       subject_code: "",
+      subject_title: "",
       course_section: "",
       semester: "",
       school_year: ""
@@ -321,9 +354,12 @@ export default function FacultyLoadedManagement() {
   
       if (result.success && result.data) {
         const facultyLoaded = result.data;
+        const subjectTitle = getSubjectTitle(facultyLoaded.subject_code);
+        
         setFormData({
           faculty_loaded_id: facultyLoaded.faculty_loaded_id,
           subject_code: facultyLoaded.subject_code,
+          subject_title: subjectTitle,
           course_section: facultyLoaded.course_section,
           semester: facultyLoaded.semester,
           school_year: facultyLoaded.school_year
@@ -399,7 +435,7 @@ export default function FacultyLoadedManagement() {
   // Search filter
   const filteredFacultyLoadeds = (Array.isArray(facultyLoadeds) ? facultyLoadeds : [])
     .filter((fl) =>
-      [fl.faculty_loaded_id, fl.subject_code, fl.course_section, fl.semester, fl.school_year]
+      [fl.faculty_loaded_id, fl.subject_code, fl.course_section, fl.semester, fl.school_year, fl.subject_title]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -519,6 +555,7 @@ export default function FacultyLoadedManagement() {
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Load ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">School Year</th>
@@ -531,6 +568,7 @@ export default function FacultyLoadedManagement() {
                   <tr key={facultyLoaded._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoaded.faculty_loaded_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoaded.subject_code}</td>
+                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.subject_title || '-'}</td>
                     <td className="px-4 py-3 text-gray-700">{facultyLoaded.course_section}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -576,7 +614,7 @@ export default function FacultyLoadedManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No faculty loadeds found.
                   </td>
                 </tr>
@@ -638,14 +676,22 @@ export default function FacultyLoadedManagement() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                  <div>
-                    <span className="text-gray-500">Course Section:</span>
-                    <p className="font-medium">{facultyLoaded.course_section}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">School Year:</span>
-                    <p className="font-medium">{facultyLoaded.school_year}</p>
+                <div className="grid grid-cols-1 gap-3 text-sm mb-3">
+                  {facultyLoaded.subject_title && (
+                    <div>
+                      <span className="text-gray-500">Subject Title:</span>
+                      <p className="font-medium">{facultyLoaded.subject_title}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-gray-500">Course Section:</span>
+                      <p className="font-medium">{facultyLoaded.course_section}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">School Year:</span>
+                      <p className="font-medium">{facultyLoaded.school_year}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -754,12 +800,27 @@ export default function FacultyLoadedManagement() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
                   <option value="">Select subject code</option>
-                  {getSubjectCodeOptions().map((code) => (
-                    <option key={code} value={code}>
-                      {code}
+                  {getSubjectCodeOptions().map((subject) => (
+                    <option key={subject.variable_name} value={subject.variable_name}>
+                      {subject.variable_name}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Subject Title - Auto-filled and read-only */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject Title
+                </label>
+                <input
+                  type="text"
+                  name="subject_title"
+                  value={formData.subject_title}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Subject title will auto-fill when subject code is selected"
+                />
               </div>
 
               {/* Course Section - Dropdown from System Variables */}

@@ -10,13 +10,21 @@ export const createSystemVariable = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { variable_name, variable_type, created_by } = req.body;
+    const { variable_name, variable_type, subject_title, created_by } = req.body;
 
     // Validation 
     if (!variable_name || !variable_type || !created_by) {
       return res.status(400).json({ 
         success: false, 
         message: "All required fields must be filled.",
+      });
+    }
+
+    // Additional validation for subject_code type
+    if (variable_type === 'subject_code' && !subject_title) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Subject Title is required for Subject Code type.",
       });
     }
 
@@ -27,6 +35,7 @@ export const createSystemVariable = async (req, res) => {
       variable_id,
       variable_name,
       variable_type,
+      subject_title: variable_type === 'subject_code' ? subject_title : undefined,
       created_by,
     });
 
@@ -99,15 +108,33 @@ export const getSystemVariableById = async (req, res) => {
 export const updateSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { variable_name, variable_type } = req.body;
+    const { variable_name, variable_type, subject_title } = req.body;
+
+    // Additional validation for subject_code type
+    if (variable_type === 'subject_code' && !subject_title) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Subject Title is required for Subject Code type.",
+      });
+    }
+
+    const updateData = {
+      variable_name, 
+      variable_type, 
+      updated_at: new Date()
+    };
+
+    // Only include subject_title if variable_type is subject_code
+    if (variable_type === 'subject_code') {
+      updateData.subject_title = subject_title;
+    } else {
+      // Remove subject_title if changing from subject_code to another type
+      updateData.$unset = { subject_title: "" };
+    }
 
     const updated = await SystemVariable.findOneAndUpdate(
       { variable_id: id },
-      { 
-        variable_name, 
-        variable_type, 
-        updated_at: new Date() 
-      },
+      updateData,
       { new: true, runValidators: true }
     );
 

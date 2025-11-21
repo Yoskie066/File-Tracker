@@ -9,6 +9,12 @@ const systemVariableSchema = new mongoose.Schema(
       required: true,
       enum: ['subject_code', 'course_section', 'academic_year', 'semester']
     },
+    subject_title: { 
+      type: String,
+      required: function() {
+        return this.variable_type === 'subject_code';
+      }
+    },
     created_by: { type: String, required: true },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },

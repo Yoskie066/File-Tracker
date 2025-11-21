@@ -45,11 +45,12 @@ export default function SystemVariableManagement() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [variableToDelete, setVariableToDelete] = useState(null);
 
-  // Form state - removed variable_value
+  // Form state - added subject_title
   const [formData, setFormData] = useState({
     variable_id: "",
     variable_name: "",
     variable_type: "",
+    subject_title: "",
     created_by: ""
   });
 
@@ -105,6 +106,16 @@ export default function SystemVariableManagement() {
     }));
   };
 
+  // Handle variable type change - reset subject_title if not subject_code
+  const handleVariableTypeChange = (e) => {
+    const { value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      variable_type: value,
+      subject_title: value === 'subject_code' ? prev.subject_title : ""
+    }));
+  };
+
   // Show feedback modal
   const showFeedback = (type, message) => {
     setFeedbackType(type);
@@ -118,6 +129,7 @@ export default function SystemVariableManagement() {
       variable_id: "",
       variable_name: "",
       variable_type: "",
+      subject_title: "",
       created_by: "admin" 
     });
     setIsEditMode(false);
@@ -125,93 +137,101 @@ export default function SystemVariableManagement() {
 
   // Handle form submission 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    const url = isEditMode 
-      ? `${API_BASE_URL}/api/admin/system-variables/${formData.variable_id}`
-      : `${API_BASE_URL}/api/admin/system-variables`;
-    
-    const method = isEditMode ? "PUT" : "POST";
+    try {
+      const url = isEditMode 
+        ? `${API_BASE_URL}/api/admin/system-variables/${formData.variable_id}`
+        : `${API_BASE_URL}/api/admin/system-variables`;
+      
+      const method = isEditMode ? "PUT" : "POST";
 
-    const requestData = isEditMode ? {
-      variable_name: formData.variable_name,
-      variable_type: formData.variable_type,
-    } : {
-      variable_name: formData.variable_name,
-      variable_type: formData.variable_type,
-      created_by: formData.created_by
-    };
+      const requestData = isEditMode ? {
+        variable_name: formData.variable_name,
+        variable_type: formData.variable_type,
+        subject_title: formData.variable_type === 'subject_code' ? formData.subject_title : undefined
+      } : {
+        variable_name: formData.variable_name,
+        variable_type: formData.variable_type,
+        subject_title: formData.variable_type === 'subject_code' ? formData.subject_title : undefined,
+        created_by: formData.created_by
+      };
 
-    console.log("Sending request to:", url);
-    console.log("Request method:", method);
-    console.log("Request data:", requestData);
-    console.log("Form data state:", formData);
+      console.log("Sending request to:", url);
+      console.log("Request method:", method);
+      console.log("Request data:", requestData);
+      console.log("Form data state:", formData);
 
-    // Check if any required field is empty
-    if (!requestData.variable_name || !requestData.variable_type || (!isEditMode && !requestData.created_by)) {
-      throw new Error("Please fill in all required fields");
+      // Check if any required field is empty
+      if (!requestData.variable_name || !requestData.variable_type || (!isEditMode && !requestData.created_by)) {
+        throw new Error("Please fill in all required fields");
+      }
+
+      // Additional validation for subject_code
+      if (requestData.variable_type === 'subject_code' && !requestData.subject_title) {
+        throw new Error("Subject Title is required for Subject Code type");
+      }
+
+      const response = await fetch(url, { 
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      const result = await response.json();
+      console.log("Server response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (result.success) {
+        resetForm();
+        setShowModal(false);
+        fetchVariables();
+        showFeedback("success", 
+          isEditMode ? "System variable updated successfully!" : "System variable added successfully!"
+        );
+      } else {
+        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} system variable`);
+      }
+    } catch (error) {
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} system variable:`, error);
+      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} system variable`);
+    } finally {
+      setLoading(false);
     }
-
-    const response = await fetch(url, { 
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestData),
-    });
-
-    const result = await response.json();
-    console.log("Server response:", result);
-
-    if (!response.ok) {
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
-    }
-
-    if (result.success) {
-      resetForm();
-      setShowModal(false);
-      fetchVariables();
-      showFeedback("success", 
-        isEditMode ? "System variable updated successfully!" : "System variable added successfully!"
-      );
-    } else {
-      showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} system variable`);
-    }
-  } catch (error) {
-    console.error(`Error ${isEditMode ? 'updating' : 'creating'} system variable:`, error);
-    showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} system variable`);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Handle edit variable
   const handleEdit = async (variableId) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/admin/system-variables/${variableId}`);
-    const result = await response.json();
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/system-variables/${variableId}`);
+      const result = await response.json();
 
-    if (result.success && result.data) {
-      const variable = result.data;
-      setFormData({
-        variable_id: variable.variable_id,
-        variable_name: variable.variable_name,
-        variable_type: variable.variable_type,
-        created_by: variable.created_by
-      });
-      setIsEditMode(true);
-      setShowModal(true);
-    } else {
+      if (result.success && result.data) {
+        const variable = result.data;
+        setFormData({
+          variable_id: variable.variable_id,
+          variable_name: variable.variable_name,
+          variable_type: variable.variable_type,
+          subject_title: variable.subject_title || "",
+          created_by: variable.created_by
+        });
+        setIsEditMode(true);
+        setShowModal(true);
+      } else {
+        showFeedback("error", "Error loading system variable data");
+      }
+    } catch (error) {
+      console.error("Error fetching system variable:", error);
       showFeedback("error", "Error loading system variable data");
     }
-  } catch (error) {
-    console.error("Error fetching system variable:", error);
-    showFeedback("error", "Error loading system variable data");
+    setActionDropdown(null);
   }
-  setActionDropdown(null);
-}
 
   // Handle delete variable
   const handleDelete = async (variableId) => {
@@ -255,7 +275,7 @@ export default function SystemVariableManagement() {
   // Search filter
   const filteredVariables = (Array.isArray(variables) ? variables : [])
     .filter((v) =>
-      [v.variable_id, v.variable_name, v.variable_type, v.created_by]
+      [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -382,6 +402,7 @@ export default function SystemVariableManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Variable ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Variable Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created By</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
@@ -402,6 +423,9 @@ export default function SystemVariableManagement() {
                       }`}>
                         {variable.variable_type}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">
+                      {variable.variable_type === 'subject_code' ? variable.subject_title : '-'}
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-sm">{variable.created_by}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">
@@ -447,7 +471,7 @@ export default function SystemVariableManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No system variables found.
                   </td>
                 </tr>
@@ -510,6 +534,12 @@ export default function SystemVariableManagement() {
                 </div>
                 
                 <div className="grid grid-cols-1 gap-3 text-sm mb-3">
+                  {variable.variable_type === 'subject_code' && (
+                    <div>
+                      <span className="text-gray-500">Subject Title:</span>
+                      <p className="font-medium">{variable.subject_title}</p>
+                    </div>
+                  )}
                   <div>
                     <span className="text-gray-500">Created By:</span>
                     <p className="font-medium">{variable.created_by}</p>
@@ -632,7 +662,7 @@ export default function SystemVariableManagement() {
                 <select
                   name="variable_type"
                   value={formData.variable_type}
-                  onChange={handleInputChange}
+                  onChange={handleVariableTypeChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
@@ -644,6 +674,24 @@ export default function SystemVariableManagement() {
                   ))}
                 </select>
               </div>
+
+              {/* Subject Title (only for subject_code type) */}
+              {formData.variable_type === 'subject_code' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subject Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="subject_title"
+                    value={formData.subject_title}
+                    onChange={handleInputChange}
+                    required={formData.variable_type === 'subject_code'}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                    placeholder="Enter subject title"
+                  />
+                </div>
+              )}
 
               {/* Created By (hidden in edit mode) */}
               {!isEditMode && (
