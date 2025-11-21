@@ -1,10 +1,26 @@
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
+import SystemVariable from "../../models/AdminModel/SystemVariableModel.js"; 
 
 // Generate 10-digit unique faculty_loaded_id
 const generateFacultyLoadedId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+};
+
+// Helper function to get subject title from system variables
+const getSubjectTitleFromSystemVariables = async (subjectCode) => {
+  try {
+    const systemVariable = await SystemVariable.findOne({
+      variable_type: 'subject_code',
+      variable_name: subjectCode
+    });
+    
+    return systemVariable ? systemVariable.subject_title : '';
+  } catch (error) {
+    console.error("Error fetching subject title:", error);
+    return '';
+  }
 };
 
 // Create faculty loaded - NOW PROTECTED BY FACULTY ID
@@ -13,16 +29,15 @@ export const createFacultyLoaded = async (req, res) => {
     console.log("Received request body:", req.body);
     console.log("Authenticated faculty:", req.faculty);
     
-    const { subject_code, subject_title, course_section, semester, school_year } = req.body;
+    const { subject_code, course_section, semester, school_year } = req.body;
 
     // Validation
-    if (!subject_code || !subject_title || !course_section || !semester || !school_year) {
+    if (!subject_code || !course_section || !semester || !school_year) {
       return res.status(400).json({ 
         success: false, 
         message: "All fields must be filled.",
         missing_fields: {
           subject_code: !subject_code,
-          subject_title: !subject_title,
           course_section: !course_section,
           semester: !semester,
           school_year: !school_year,
@@ -38,15 +53,42 @@ export const createFacultyLoaded = async (req, res) => {
       });
     }
 
+    // Get subject title from system variables
+    const subject_title = await getSubjectTitleFromSystemVariables(subject_code);
+    
+    if (!subject_title) {
+      return res.status(400).json({
+        success: false,
+        message: "Subject title not found for the selected subject code. Please check system variables."
+      });
+    }
+
+    // Check for duplicate faculty loaded
+    const existingFacultyLoaded = await FacultyLoaded.findOne({
+      faculty_id: req.faculty.facultyId,
+      subject_code,
+      course_section,
+      semester,
+      school_year
+    });
+
+    if (existingFacultyLoaded) {
+      return res.status(409).json({
+        success: false,
+        message: "A faculty load with the same Subject Code, Course Section, Semester, and School Year already exists."
+      });
+    }
+
     const faculty_loaded_id = generateFacultyLoadedId();
 
     console.log("Creating faculty loaded with ID:", faculty_loaded_id, "for faculty:", req.faculty.facultyId);
+    console.log("Subject details:", { subject_code, subject_title, course_section, semester, school_year });
 
     const newFacultyLoaded = new FacultyLoaded({
       faculty_loaded_id,
       faculty_id: req.faculty.facultyId, 
       subject_code,
-      subject_title,
+      subject_title, // NEW FIELD
       course_section,
       semester,
       school_year,
@@ -80,11 +122,18 @@ export const createFacultyLoaded = async (req, res) => {
     }
     
     if (error.code === 11000) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Duplicate faculty loaded ID", 
-        error: "Faculty loaded ID already exists" 
-      });
+      if (error.keyPattern && error.keyPattern.faculty_loaded_id) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Duplicate faculty loaded ID", 
+          error: "Faculty loaded ID already exists" 
+        });
+      } else {
+        return res.status(409).json({
+          success: false,
+          message: "A faculty load with the same combination already exists for this faculty member."
+        });
+      }
     }
 
     res.status(500).json({ 
@@ -164,7 +213,7 @@ export const getFacultyLoadedById = async (req, res) => {
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject_code, subject_title, course_section, semester, school_year } = req.body;
+    const { subject_code, course_section, semester, school_year } = req.body;
 
     // Check if faculty is authenticated
     if (!req.faculty || !req.faculty.facultyId) {
@@ -187,10 +236,37 @@ export const updateFacultyLoaded = async (req, res) => {
       });
     }
 
+    // Get subject title from system variables for the new subject code
+    const subject_title = await getSubjectTitleFromSystemVariables(subject_code);
+    
+    if (!subject_title) {
+      return res.status(400).json({
+        success: false,
+        message: "Subject title not found for the selected subject code. Please check system variables."
+      });
+    }
+
+    // Check for duplicate (excluding the current one)
+    const duplicateFacultyLoaded = await FacultyLoaded.findOne({
+      faculty_id: req.faculty.facultyId,
+      subject_code,
+      course_section,
+      semester,
+      school_year,
+      faculty_loaded_id: { $ne: id } // Exclude current record
+    });
+
+    if (duplicateFacultyLoaded) {
+      return res.status(409).json({
+        success: false,
+        message: "A faculty load with the same Subject Code, Course Section, Semester, and School Year already exists."
+      });
+    }
+
     const oldSubjectCode = existingFacultyLoaded.subject_code;
     const oldCourseSection = existingFacultyLoaded.course_section;
 
-    // Update faculty loaded
+    // Update faculty loaded with new subject_title
     const updated = await FacultyLoaded.findOneAndUpdate(
       { 
         faculty_loaded_id: id,
@@ -198,7 +274,7 @@ export const updateFacultyLoaded = async (req, res) => {
       },
       { 
         subject_code, 
-        subject_title, 
+        subject_title, // UPDATED FIELD
         course_section, 
         semester, 
         school_year, 
@@ -230,10 +306,26 @@ export const updateFacultyLoaded = async (req, res) => {
       }
     }
 
-    res.status(200).json({ success: true, message: "Faculty loaded updated successfully", data: updated });
+    res.status(200).json({ 
+      success: true, 
+      message: "Faculty loaded updated successfully", 
+      data: updated 
+    });
   } catch (error) {
     console.error("Error updating faculty loaded:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "A faculty load with the same combination already exists for this faculty member."
+      });
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 
