@@ -2,92 +2,160 @@ import AdminDeliverables from "../../models/AdminModel/AdminDeliverablesModel.js
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 
-// Generate 10-digit unique deliverable_id
-const generateDeliverableId = () => {
+// Generate 10-digit unique admin_deliverables_id
+const generateAdminDeliverableId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Sync all file submissions to Admin Deliverables
-export const syncAdminDeliverables = async (req, res) => {
+// Helper function to map file_type to AdminDeliverables field
+const mapFileTypeToAdminField = (fileType, tosType = null) => {
+  const mapping = {
+    'syllabus': 'syllabus',
+    'tos': tosType === 'midterm' ? 'tos_midterm' : 'tos_final',
+    'tos-midterm': 'tos_midterm',
+    'tos-final': 'tos_final',
+    'midterm-exam': 'midterm_exam',
+    'final-exam': 'final_exam',
+    'instructional-materials': 'instructional_materials'
+  };
+  return mapping[fileType] || null;
+};
+
+// Auto-sync when new file is uploaded OR status is updated - UPDATED FUNCTION
+export const autoSyncDeliverable = async (fileData) => {
   try {
-    console.log("Starting Admin Deliverables sync...");
+    const { faculty_id, faculty_name, subject_code, course_section, file_type, tos_type, status } = fileData;
 
-    // Get all files from FileManagement
-    const files = await FileManagement.find().sort({ uploaded_at: -1 });
-    console.log(`Found ${files.length} files to sync`);
+    console.log(`Auto-syncing to AdminDeliverables: ${subject_code}-${course_section}`);
+    console.log(`File Type: ${file_type}, TOS Type: ${tos_type}, Status: ${status}`);
 
-    let syncedCount = 0;
-    let errorCount = 0;
-
-    for (const file of files) {
-      try {
-        // Check if this file already exists in AdminDeliverables
-        const existingDeliverable = await AdminDeliverables.findOne({
-          faculty_id: file.faculty_id,
-          subject_code: file.subject_code,
-          course_section: file.course_section,
-          file_type: file.file_type,
-          date_submitted: file.uploaded_at
-        });
-
-        if (existingDeliverable) {
-          console.log(`Deliverable already exists: ${file.file_name}`);
-          continue;
-        }
-
-        // Get faculty loaded details to get semester, school_year
-        const facultyLoaded = await FacultyLoaded.findOne({
-          subject_code: file.subject_code,
-          course_section: file.course_section
-        });
-
-        if (!facultyLoaded) {
-          console.warn(`No faculty loaded found for ${file.subject_code}-${file.course_section}`);
-          continue;
-        }
-
-        // Create new admin deliverable
-        const newDeliverable = new AdminDeliverables({
-          deliverable_id: generateDeliverableId(),
-          faculty_id: file.faculty_id,
-          faculty_name: file.faculty_name,
-          subject_code: file.subject_code,
-          semester: facultyLoaded.semester,
-          school_year: facultyLoaded.school_year,
-          file_name: file.file_name,
-          file_type: file.file_type,
-          date_submitted: file.uploaded_at,
-          status: file.status,
-          course_section: file.course_section
-        });
-
-        await newDeliverable.save();
-        console.log(`Synced: ${file.file_name}`);
-        syncedCount++;
-
-      } catch (error) {
-        console.error(`Error syncing file ${file.file_name}:`, error);
-        errorCount++;
-      }
+    // Map file_type to AdminDeliverables field name
+    const fieldName = mapFileTypeToAdminField(file_type, tos_type);
+    if (!fieldName) {
+      console.warn(`No mapping found for file type in AdminDeliverables: ${file_type}`);
+      return;
     }
 
-    res.status(200).json({
-      success: true,
-      message: `Admin Deliverables sync completed. ${syncedCount} new deliverables added, ${errorCount} errors.`,
-      data: {
-        synced: syncedCount,
-        errors: errorCount,
-        total: files.length
-      }
+    // Find existing AdminDeliverables record
+    let adminDeliverable = await AdminDeliverables.findOne({
+      faculty_id,
+      subject_code,
+      course_section
     });
 
+    if (adminDeliverable) {
+      // Update the specific field
+      const updateData = {
+        [fieldName]: status,
+        last_updated: new Date()
+      };
+
+      // Update TOS type if applicable
+      if (file_type.includes('tos')) {
+        updateData.tos_type = tos_type;
+      }
+
+      // Update the document
+      const updatedDeliverable = await AdminDeliverables.findOneAndUpdate(
+        { faculty_id, subject_code, course_section },
+        updateData,
+        { new: true, runValidators: true }
+      );
+
+      console.log(`Updated AdminDeliverables: ${subject_code}-${course_section}`);
+      console.log(`Field: ${fieldName} = ${status}`);
+      console.log('Updated AdminDeliverables document:', updatedDeliverable);
+    } else {
+      // Create new AdminDeliverables record
+      const facultyLoaded = await FacultyLoaded.findOne({
+        faculty_id,
+        subject_code,
+        course_section
+      });
+
+      if (!facultyLoaded) {
+        console.warn(`No faculty loaded found for auto-sync: ${subject_code}-${course_section} for faculty ${faculty_id}`);
+        return;
+      }
+
+      const admin_deliverables_id = generateAdminDeliverableId();
+
+      // Create base deliverable object
+      const newDeliverableData = {
+        admin_deliverables_id,
+        faculty_id,
+        faculty_name,
+        subject_code,
+        course_section,
+        [fieldName]: status,
+        tos_type: file_type.includes('tos') ? tos_type : null,
+        last_updated: new Date(),
+        status_overall: "pending" // Will be calculated separately
+      };
+
+      const newAdminDeliverable = new AdminDeliverables(newDeliverableData);
+      await newAdminDeliverable.save();
+
+      console.log(`Created new AdminDeliverables for ${subject_code}-${course_section}`);
+      console.log(`Field: ${fieldName} = ${status}`);
+      console.log('New AdminDeliverables document:', newAdminDeliverable);
+    }
+
+    // Update overall status after individual field update
+    await updateOverallStatus(faculty_id, subject_code, course_section);
+
   } catch (error) {
-    console.error("Error syncing admin deliverables:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error during sync",
-      error: error.message
+    console.error("Error in auto-sync deliverable:", error);
+    throw error;
+  }
+};
+
+// Helper function to update overall status
+const updateOverallStatus = async (faculty_id, subject_code, course_section) => {
+  try {
+    const adminDeliverable = await AdminDeliverables.findOne({
+      faculty_id,
+      subject_code,
+      course_section
     });
+
+    if (!adminDeliverable) return;
+
+    const fields = [
+      'syllabus', 
+      'tos_midterm', 
+      'tos_final', 
+      'midterm_exam', 
+      'final_exam', 
+      'instructional_materials'
+    ];
+
+    const statuses = fields.map(field => adminDeliverable[field]);
+    
+    let status_overall = "pending";
+    
+    // If any field is rejected, overall is rejected
+    if (statuses.includes('rejected')) {
+      status_overall = 'rejected';
+    } 
+    // If all fields are completed, overall is completed
+    else if (statuses.every(status => status === 'completed')) {
+      status_overall = 'completed';
+    }
+    // If some are completed but none rejected, it's still pending
+    else {
+      status_overall = 'pending';
+    }
+
+    await AdminDeliverables.findOneAndUpdate(
+      { faculty_id, subject_code, course_section },
+      { status_overall, last_updated: new Date() }
+    );
+
+    console.log(`Updated overall status for ${subject_code}-${course_section}: ${status_overall}`);
+
+  } catch (error) {
+    console.error("Error updating overall status:", error);
   }
 };
 
@@ -98,10 +166,7 @@ export const getAdminDeliverables = async (req, res) => {
       page = 1,
       limit = 10,
       search = "",
-      semester = "",
-      school_year = "",
-      file_type = "",
-      status = "",
+      status_overall = "",
       faculty_name = ""
     } = req.query;
 
@@ -116,14 +181,11 @@ export const getAdminDeliverables = async (req, res) => {
       filter.$or = [
         { faculty_name: { $regex: search, $options: 'i' } },
         { subject_code: { $regex: search, $options: 'i' } },
-        { file_name: { $regex: search, $options: 'i' } }
+        { course_section: { $regex: search, $options: 'i' } }
       ];
     }
 
-    if (semester) filter.semester = semester;
-    if (school_year) filter.school_year = school_year;
-    if (file_type) filter.file_type = file_type;
-    if (status) filter.status = status;
+    if (status_overall) filter.status_overall = status_overall;
     if (faculty_name) filter.faculty_name = { $regex: faculty_name, $options: 'i' };
 
     // Get total count for pagination
@@ -131,15 +193,12 @@ export const getAdminDeliverables = async (req, res) => {
     
     // Get deliverables with pagination
     const deliverables = await AdminDeliverables.find(filter)
-      .sort({ date_submitted: -1 })
+      .sort({ last_updated: -1 })
       .skip(skip)
       .limit(limitNum);
 
     // Get unique values for filters
-    const semesters = await AdminDeliverables.distinct('semester');
-    const schoolYears = await AdminDeliverables.distinct('school_year');
-    const fileTypes = await AdminDeliverables.distinct('file_type');
-    const statuses = await AdminDeliverables.distinct('status');
+    const statuses = await AdminDeliverables.distinct('status_overall');
     const facultyNames = await AdminDeliverables.distinct('faculty_name');
 
     res.status(200).json({
@@ -153,9 +212,6 @@ export const getAdminDeliverables = async (req, res) => {
         hasPrev: pageNum > 1
       },
       filters: {
-        semesters: semesters.filter(s => s),
-        schoolYears: schoolYears.filter(s => s),
-        fileTypes: fileTypes.filter(f => f),
         statuses: statuses.filter(s => s),
         facultyNames: facultyNames.filter(f => f)
       }
@@ -179,34 +235,20 @@ export const getDeliverablesStats = async (req, res) => {
     const statusStats = await AdminDeliverables.aggregate([
       {
         $group: {
-          _id: '$status',
+          _id: '$status_overall',
           count: { $sum: 1 }
         }
       }
     ]);
 
-    const fileTypeStats = await AdminDeliverables.aggregate([
+    const facultyStats = await AdminDeliverables.aggregate([
       {
         $group: {
-          _id: '$file_type',
+          _id: '$faculty_name',
           count: { $sum: 1 }
         }
       }
-    ]);
-
-    const semesterStats = await AdminDeliverables.aggregate([
-      {
-        $group: {
-          _id: '$semester',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const recentSubmissions = await AdminDeliverables.find()
-      .sort({ date_submitted: -1 })
-      .limit(5)
-      .select('faculty_name subject_code file_type date_submitted status');
+    ]).sort({ count: -1 }).limit(10);
 
     // Convert aggregation results to object format
     const statusCounts = {};
@@ -214,24 +256,12 @@ export const getDeliverablesStats = async (req, res) => {
       statusCounts[stat._id] = stat.count;
     });
 
-    const fileTypeCounts = {};
-    fileTypeStats.forEach(stat => {
-      fileTypeCounts[stat._id] = stat.count;
-    });
-
-    const semesterCounts = {};
-    semesterStats.forEach(stat => {
-      semesterCounts[stat._id] = stat.count;
-    });
-
     res.status(200).json({
       success: true,
       data: {
         total: totalDeliverables,
         status: statusCounts,
-        fileType: fileTypeCounts,
-        semester: semesterCounts,
-        recentSubmissions
+        topFaculty: facultyStats
       }
     });
 
@@ -249,7 +279,7 @@ export const getDeliverablesStats = async (req, res) => {
 export const getDeliverableById = async (req, res) => {
   try {
     const { id } = req.params;
-    const deliverable = await AdminDeliverables.findOne({ deliverable_id: id });
+    const deliverable = await AdminDeliverables.findOne({ admin_deliverables_id: id });
 
     if (!deliverable) {
       return res.status(404).json({
@@ -273,12 +303,66 @@ export const getDeliverableById = async (req, res) => {
   }
 };
 
+// Update deliverable status
+export const updateDeliverableStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { field, status } = req.body;
+
+    const validFields = ['syllabus', 'tos_midterm', 'tos_final', 'midterm_exam', 'final_exam', 'instructional_materials'];
+    
+    if (!validFields.includes(field)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid field name"
+      });
+    }
+
+    const updatedDeliverable = await AdminDeliverables.findOneAndUpdate(
+      { admin_deliverables_id: id },
+      { 
+        [field]: status,
+        last_updated: new Date()
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedDeliverable) {
+      return res.status(404).json({
+        success: false,
+        message: "Deliverable not found"
+      });
+    }
+
+    // Update overall status
+    await updateOverallStatus(
+      updatedDeliverable.faculty_id, 
+      updatedDeliverable.subject_code, 
+      updatedDeliverable.course_section
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Deliverable status updated successfully",
+      data: updatedDeliverable
+    });
+
+  } catch (error) {
+    console.error("Error updating deliverable status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating deliverable",
+      error: error.message
+    });
+  }
+};
+
 // Delete a deliverable
 export const deleteDeliverable = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const deleted = await AdminDeliverables.findOneAndDelete({ deliverable_id: id });
+    const deleted = await AdminDeliverables.findOneAndDelete({ admin_deliverables_id: id });
 
     if (!deleted) {
       return res.status(404).json({
@@ -303,59 +387,53 @@ export const deleteDeliverable = async (req, res) => {
   }
 };
 
-// Auto-sync when new file is uploaded OR status is updated
-export const autoSyncDeliverable = async (fileData) => {
+// Manual sync all files to Admin Deliverables
+export const syncAdminDeliverables = async (req, res) => {
   try {
-    const { faculty_id, faculty_name, subject_code, course_section, file_name, file_type, uploaded_at, status } = fileData;
+    console.log("Starting manual Admin Deliverables sync...");
 
-    // Check if deliverable already exists - UPDATED QUERY
-    const existingDeliverable = await AdminDeliverables.findOne({
-      faculty_id,
-      subject_code,
-      course_section,
-      file_type,
-      // Use file_name as additional identifier since uploaded_at might be the same for updates
-      file_name: file_name
-    });
+    // Get all files from FileManagement
+    const files = await FileManagement.find().sort({ uploaded_at: -1 });
+    console.log(`Found ${files.length} files to sync`);
 
-    if (existingDeliverable) {
-      // UPDATE EXISTING DELIVERABLE STATUS
-      existingDeliverable.status = status;
-      existingDeliverable.updated_at = new Date();
-      await existingDeliverable.save();
-      console.log(`Updated existing deliverable status: ${file_name} -> ${status}`);
-    } else {
-      // Get faculty loaded details
-      const facultyLoaded = await FacultyLoaded.findOne({
-        subject_code,
-        course_section
-      });
+    let syncedCount = 0;
+    let errorCount = 0;
 
-      if (!facultyLoaded) {
-        console.warn(`No faculty loaded found for auto-sync: ${subject_code}-${course_section}`);
-        return;
+    for (const file of files) {
+      try {
+        await autoSyncDeliverable({
+          faculty_id: file.faculty_id,
+          faculty_name: file.faculty_name,
+          subject_code: file.subject_code,
+          course_section: file.course_section,
+          file_type: file.file_type,
+          tos_type: file.tos_type,
+          status: file.status
+        });
+        
+        syncedCount++;
+      } catch (error) {
+        console.error(`Error syncing file ${file.file_name}:`, error);
+        errorCount++;
       }
-
-      // Create new deliverable - REMOVED SUBJECT_TITLE
-      const newDeliverable = new AdminDeliverables({
-        deliverable_id: generateDeliverableId(),
-        faculty_id,
-        faculty_name,
-        subject_code,
-        semester: facultyLoaded.semester,
-        school_year: facultyLoaded.school_year,
-        file_name,
-        file_type,
-        date_submitted: uploaded_at,
-        status,
-        course_section
-      });
-
-      await newDeliverable.save();
-      console.log(`Auto-synced new deliverable: ${file_name}`);
     }
 
+    res.status(200).json({
+      success: true,
+      message: `Admin Deliverables sync completed. ${syncedCount} deliverables processed, ${errorCount} errors.`,
+      data: {
+        synced: syncedCount,
+        errors: errorCount,
+        total: files.length
+      }
+    });
+
   } catch (error) {
-    console.error("Error in auto-sync deliverable:", error);
+    console.error("Error syncing admin deliverables:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during sync",
+      error: error.message
+    });
   }
 };

@@ -73,8 +73,8 @@ const adminDeliverablesSchema = new mongoose.Schema(
   }
 );
 
-// Index for better query performance
-adminDeliverablesSchema.index({ faculty_id: 1 });
+// Compound index for better query performance
+adminDeliverablesSchema.index({ faculty_id: 1, subject_code: 1, course_section: 1 });
 adminDeliverablesSchema.index({ subject_code: 1, course_section: 1 });
 adminDeliverablesSchema.index({ status_overall: 1 });
 
