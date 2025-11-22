@@ -17,6 +17,7 @@ export default function FileUpload() {
   const [formData, setFormData] = useState({
     file_name: "",
     file_type: "syllabus",
+    tos_type: "", // New field for TOS category
     subject_code: "",
     course_section: ""
   });
@@ -65,13 +66,29 @@ export default function FileUpload() {
     { value: "instructional-materials", label: "Instructional Materials" }
   ];
 
+  // TOS type options
+  const tosTypeOptions = [
+    { value: "midterm", label: "TOS-Midterm" },
+    { value: "final", label: "TOS-Final" }
+  ];
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Reset tos_type when file_type changes from 'tos'
+    if (name === 'file_type' && value !== 'tos') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        tos_type: ""
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Handle faculty loaded selection
@@ -121,6 +138,7 @@ export default function FileUpload() {
     setFormData({
       file_name: "",
       file_type: "syllabus",
+      tos_type: "",
       subject_code: "",
       course_section: ""
     });
@@ -158,6 +176,12 @@ export default function FileUpload() {
       return;
     }
 
+    // Validate TOS type for TOS files
+    if (formData.file_type === 'tos' && !formData.tos_type) {
+      showFeedback("error", "Please select TOS type (Midterm or Final)");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -169,6 +193,7 @@ export default function FileUpload() {
       const formDataToSend = new FormData();
       formDataToSend.append('file_name', formData.file_name);
       formDataToSend.append('file_type', formData.file_type);
+      formDataToSend.append('tos_type', formData.tos_type); // Add TOS type
       formDataToSend.append('subject_code', formData.subject_code);
       formDataToSend.append('course_section', formData.course_section);
       formDataToSend.append('file', selectedFile);
@@ -239,6 +264,7 @@ export default function FileUpload() {
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
             <li>• Required fields: File Name, File Type, Subject & Section, and the File itself</li>
+            <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
           </ul>
@@ -342,6 +368,29 @@ export default function FileUpload() {
                 </select>
               </div>
 
+              {/* TOS Type (only show when file type is TOS) */}
+              {formData.file_type === 'tos' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    TOS Type *
+                  </label>
+                  <select
+                    name="tos_type"
+                    value={formData.tos_type}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                  >
+                    <option value="">Select TOS type</option>
+                    {tosTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* File Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -394,7 +443,7 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !selectedFile || !formData.subject_code || !formData.course_section}
+                  disabled={loading || !selectedFile || !formData.subject_code || !formData.course_section || (formData.file_type === 'tos' && !formData.tos_type)}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Uploading..." : "Upload File"}

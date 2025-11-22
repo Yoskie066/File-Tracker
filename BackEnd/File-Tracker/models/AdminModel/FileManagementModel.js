@@ -11,6 +11,11 @@ const fileManagementSchema = new mongoose.Schema(
       required: true,
       enum: ['syllabus', 'tos', 'midterm-exam', 'final-exam', 'instructional-materials']
     },
+    tos_type: {  
+      type: String,
+      enum: ['midterm', 'final', null],
+      default: null
+    },
     status: { 
       type: String, 
       default: "completed", 

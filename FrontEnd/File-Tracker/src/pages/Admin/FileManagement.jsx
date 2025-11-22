@@ -193,7 +193,15 @@ export default function FileManagement() {
   };
 
   // Get file type label
-  const getFileTypeLabel = (fileType) => {
+  const getFileTypeLabel = (fileType, tosType = null) => {
+    // Handle TOS files with specific types
+    if (fileType === 'tos-midterm' || (fileType === 'tos' && tosType === 'midterm')) {
+      return 'TOS (TOS-Midterm)';
+    }
+    if (fileType === 'tos-final' || (fileType === 'tos' && tosType === 'final')) {
+      return 'TOS (TOS-Final)';
+    }
+
     const typeMap = {
       'syllabus': 'Syllabus',
       'tos': 'TOS',
@@ -216,7 +224,7 @@ export default function FileManagement() {
   // Search filter
   const filteredFiles = (Array.isArray(files) ? files : [])
     .filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.file_type, file.status]
+      [file.file_id, file.faculty_name, file.file_name, file.file_type, file.status, file.tos_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -300,7 +308,7 @@ export default function FileManagement() {
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{file.file_id}</td>
                     <td className="px-4 py-3 text-gray-700">{file.faculty_name}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{file.file_name}</td>
-                    <td className="px-4 py-3 text-gray-700">{getFileTypeLabel(file.file_type)}</td>
+                    <td className="px-4 py-3 text-gray-700">{getFileTypeLabel(file.file_type, file.tos_type)}</td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {file.subject_code} - {file.course_section}
                     </td>
@@ -440,7 +448,7 @@ export default function FileManagement() {
                   </div>
                   <div>
                     <span className="text-gray-500">Type:</span>
-                    <p className="font-medium">{getFileTypeLabel(file.file_type)}</p>
+                    <p className="font-medium">{getFileTypeLabel(file.file_type, file.tos_type)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Subject:</span>
@@ -554,13 +562,21 @@ export default function FileManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">File Type</label>
-                    <p className="mt-1 text-sm text-gray-900">{getFileTypeLabel(fileToPreview.file_type)}</p>
+                    <p className="mt-1 text-sm text-gray-900">{getFileTypeLabel(fileToPreview.file_type, fileToPreview.tos_type)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">File Size</label>
                     <p className="mt-1 text-sm text-gray-900">{formatFileSize(fileToPreview.file_size)}</p>
                   </div>
                 </div>
+
+                {/* Show TOS Type if applicable */}
+                {fileToPreview.tos_type && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">TOS Type</label>
+                    <p className="mt-1 text-sm text-gray-900 capitalize">{fileToPreview.tos_type}</p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -627,6 +643,10 @@ export default function FileManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     File: <span className="font-semibold">{fileToUpdate.file_name}</span>
                   </label>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Type: {getFileTypeLabel(fileToUpdate.file_type, fileToUpdate.tos_type)}
+                    {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
+                  </p>
                   <p className="text-sm text-gray-600 mb-4">
                     This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
                   </p>

@@ -52,10 +52,12 @@ const generateFileId = () => {
 };
 
 // Helper function to map file_type to TaskDeliverables field
-const mapFileTypeToField = (fileType) => {
+const mapFileTypeToField = (fileType, tosType = null) => {
   const mapping = {
     'syllabus': 'syllabus',
-    'tos': 'tos',
+    'tos': tosType === 'midterm' ? 'tos_midterm' : 'tos_final',
+    'tos-midterm': 'tos_midterm',
+    'tos-final': 'tos_final',
     'midterm-exam': 'midterm_exam',
     'final-exam': 'final_exam',
     'instructional-materials': 'instructional_materials'
@@ -66,13 +68,13 @@ const mapFileTypeToField = (fileType) => {
 // Update Task Deliverables when file status changes 
 const updateTaskDeliverables = async (fileData) => {
   try {
-    const { subject_code, course_section, file_type, status } = fileData;
+    const { subject_code, course_section, file_type, tos_type, status } = fileData;
     
     console.log(`Syncing Task Deliverables for: ${subject_code}-${course_section}`);
-    console.log(`File Type: ${file_type}, Status: ${status}`);
+    console.log(`File Type: ${file_type}, TOS Type: ${tos_type}, Status: ${status}`);
 
     // Map file_type to TaskDeliverables field name
-    const fieldName = mapFileTypeToField(file_type);
+    const fieldName = mapFileTypeToField(file_type, tos_type);
     if (!fieldName) {
       console.warn(`No mapping found for file type: ${file_type}`);
       return;
@@ -140,7 +142,7 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    const { file_name, file_type, subject_code, course_section } = req.body;
+    const { file_name, file_type, subject_code, course_section, tos_type } = req.body;
 
     if (!file_type || !subject_code || !course_section) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -150,14 +152,33 @@ export const uploadFile = async (req, res) => {
       });
     }
 
+    // Validate TOS type if file type is TOS
+    if (file_type === 'tos' && !tos_type) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({
+        success: false,
+        message: "TOS type is required for TOS files",
+      });
+    }
+
     const file_id = generateFileId();
+
+    // Determine the final file type and tos_type
+    let finalFileType = file_type;
+    let finalTosType = tos_type;
+
+    // If file_type is 'tos', update to specific TOS type
+    if (file_type === 'tos' && tos_type) {
+      finalFileType = `tos-${tos_type}`;
+    }
 
     const newFile = new FileManagement({
       file_id,
       faculty_id: req.faculty.facultyId,
       faculty_name: req.faculty.facultyName,
       file_name: file_name || req.file.originalname,
-      file_type,
+      file_type: finalFileType,
+      tos_type: finalTosType,
       subject_code,
       course_section,
       status: "pending", 
@@ -172,6 +193,7 @@ export const uploadFile = async (req, res) => {
     await createFileHistory({
       file_name: savedFile.file_name,
       file_type: savedFile.file_type,
+      tos_type: savedFile.tos_type,
       faculty_id: savedFile.faculty_id,
       subject_code: savedFile.subject_code,
       course_section: savedFile.course_section,
@@ -186,6 +208,7 @@ export const uploadFile = async (req, res) => {
       course_section: savedFile.course_section,
       file_name: savedFile.file_name,
       file_type: savedFile.file_type,
+      tos_type: savedFile.tos_type,
       uploaded_at: savedFile.uploaded_at,
       status: savedFile.status
     });
@@ -347,6 +370,7 @@ export const updateFileStatus = async (req, res) => {
       course_section: updatedFile.course_section,
       file_name: updatedFile.file_name,
       file_type: updatedFile.file_type,
+      tos_type: updatedFile.tos_type,
       uploaded_at: updatedFile.uploaded_at,
       status: updatedFile.status
     });

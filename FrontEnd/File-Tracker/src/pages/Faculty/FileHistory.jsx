@@ -20,44 +20,44 @@ export default function FileHistory() {
 
   // Fetch file history
   const fetchFileHistory = async (page = 1) => {
-  try {
-    setLoading(true);
-    
-    // Use tokenService instead of direct localStorage
-    const token = tokenService.getFacultyAccessToken();
-    
-    if (!token) {
-      console.error("No faculty token found");
-      return;
-    }
-
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: itemsPerPage.toString(),
-      ...(search && { search })
-    });
-
-    const response = await fetch(`${API_BASE_URL}/api/faculty/file-history?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    try {
+      setLoading(true);
+      
+      // Use tokenService instead of direct localStorage
+      const token = tokenService.getFacultyAccessToken();
+      
+      if (!token) {
+        console.error("No faculty token found");
+        return;
       }
-    });
 
-    if (!response.ok) throw new Error('Failed to fetch file history');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: itemsPerPage.toString(),
+        ...(search && { search })
+      });
 
-    const result = await response.json();
-    
-    if (result.success) {
-      setFiles(result.data);
-      setPagination(result.pagination);
+      const response = await fetch(`${API_BASE_URL}/api/faculty/file-history?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch file history');
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setFiles(result.data);
+        setPagination(result.pagination);
+      }
+    } catch (error) {
+      console.error("Error fetching file history:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching file history:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchFileHistory(currentPage);
@@ -73,14 +73,30 @@ export default function FileHistory() {
     return () => clearTimeout(timeoutId);
   }, [search]);
 
-  // Get file type icon and color
-  const getFileTypeDetails = (fileType) => {
+  // Get file type icon and color with TOS type support
+  const getFileTypeDetails = (fileType, tosType = null) => {
+    // Handle TOS files with specific types
+    if (fileType === 'tos-midterm' || (fileType === 'tos' && tosType === 'midterm')) {
+      return { 
+        icon: File, 
+        color: 'bg-orange-100 text-orange-600 border-orange-200', 
+        label: 'TOS (TOS-Midterm)' 
+      };
+    }
+    if (fileType === 'tos-final' || (fileType === 'tos' && tosType === 'final')) {
+      return { 
+        icon: File, 
+        color: 'bg-purple-100 text-purple-600 border-purple-200', 
+        label: 'TOS (TOS-Final)' 
+      };
+    }
+
     const typeMap = {
       'syllabus': { icon: FileText, color: 'bg-blue-100 text-blue-600 border-blue-200', label: 'Syllabus' },
       'tos': { icon: File, color: 'bg-green-100 text-green-600 border-green-200', label: 'TOS' },
       'midterm-exam': { icon: FileText, color: 'bg-yellow-100 text-yellow-600 border-yellow-200', label: 'Midterm Exam' },
       'final-exam': { icon: FileText, color: 'bg-red-100 text-red-600 border-red-200', label: 'Final Exam' },
-      'instructional-materials': { icon: Download, color: 'bg-purple-100 text-purple-600 border-purple-200', label: 'Instructional Materials' }
+      'instructional-materials': { icon: Download, color: 'bg-indigo-100 text-indigo-600 border-indigo-200', label: 'Instructional Materials' }
     };
     return typeMap[fileType] || { icon: File, color: 'bg-gray-100 text-gray-600 border-gray-200', label: fileType };
   };
@@ -142,7 +158,7 @@ export default function FileHistory() {
               {/* Desktop Grid Layout */}
               <div className="hidden md:block">
                 {files.map((file) => {
-                  const fileTypeDetails = getFileTypeDetails(file.file_type);
+                  const fileTypeDetails = getFileTypeDetails(file.file_type, file.tos_type);
                   const FileTypeIcon = fileTypeDetails.icon;
                   
                   return (
@@ -160,6 +176,12 @@ export default function FileHistory() {
                             <h3 className="font-medium text-gray-900 text-sm">
                               {file.file_name}
                             </h3>
+                            {/* Show TOS type as subtitle if applicable */}
+                            {file.tos_type && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                TOS Type: {file.tos_type.charAt(0).toUpperCase() + file.tos_type.slice(1)}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -190,7 +212,7 @@ export default function FileHistory() {
               {/* Mobile Cards Layout */}
               <div className="md:hidden grid grid-cols-1 gap-4 p-4">
                 {files.map((file) => {
-                  const fileTypeDetails = getFileTypeDetails(file.file_type);
+                  const fileTypeDetails = getFileTypeDetails(file.file_type, file.tos_type);
                   const FileTypeIcon = fileTypeDetails.icon;
                   
                   return (
@@ -202,6 +224,12 @@ export default function FileHistory() {
                           </div>
                           <div>
                             <h2 className="font-semibold text-gray-800 text-sm">{file.file_name}</h2>
+                            {/* Show TOS type as subtitle if applicable */}
+                            {file.tos_type && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                TOS Type: {file.tos_type.charAt(0).toUpperCase() + file.tos_type.slice(1)}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${fileTypeDetails.color} border`}>

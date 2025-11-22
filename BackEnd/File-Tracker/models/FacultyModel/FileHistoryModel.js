@@ -11,6 +11,11 @@ const fileHistorySchema = new mongoose.Schema(
       required: true,
       enum: ['syllabus', 'tos', 'midterm-exam', 'final-exam', 'instructional-materials']
     },
+    tos_type: {  
+      type: String,
+      enum: ['midterm', 'final', null],
+      default: null
+    },
     date_submitted: { 
       type: Date, 
       default: Date.now 
