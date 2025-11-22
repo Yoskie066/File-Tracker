@@ -4,7 +4,16 @@ import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLo
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
 import { getFiles, getFileById, downloadFile, deleteFile, updateFileStatus } from "../../controllers/FacultyController/FileUploadController.js";
-import { syncAdminDeliverables, getAdminDeliverables, getDeliverableById, deleteDeliverable, getDeliverablesStats } from "../../controllers/AdminController/AdminDeliverablesController.js";
+import { 
+  syncAdminDeliverables, 
+  getAdminDeliverables, 
+  getDeliverableById, 
+  deleteDeliverable, 
+  getDeliverablesStats,
+  updateDeliverableStatus,
+  getFacultyDeliverables,
+  getDeliverablesBySubjectSection
+} from "../../controllers/AdminController/AdminDeliverablesController.js";
 import { createRequirement, getRequirements, getRequirementById, updateRequirement,  deleteRequirement } from "../../controllers/AdminController/RequirementController.js";
 import { getAnalyticsData, getAnalyticsTrends, getFacultyPerformance, storeAnalyticsSnapshot } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
@@ -34,7 +43,10 @@ router.post("/deliverables/sync", syncAdminDeliverables);
 router.get("/deliverables", getAdminDeliverables);
 router.get("/deliverables/stats", getDeliverablesStats);
 router.get("/deliverables/:id", getDeliverableById);
+router.put("/deliverables/:id/status", updateDeliverableStatus);
 router.delete("/deliverables/:id", deleteDeliverable);
+router.get("/deliverables/faculty/:facultyId", getFacultyDeliverables);
+router.get("/deliverables/subject/:subject_code/section/:course_section", getDeliverablesBySubjectSection);
 
 // Requirement Routes
 router.get("/requirement", getRequirements);

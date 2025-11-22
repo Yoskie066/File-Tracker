@@ -68,7 +68,7 @@ const mapFileTypeToField = (fileType, tosType = null) => {
 // Update Task Deliverables when file status changes 
 const updateTaskDeliverables = async (fileData) => {
   try {
-    const { subject_code, course_section, file_type, tos_type, status } = fileData;
+    const { faculty_id, faculty_name, subject_code, course_section, file_type, tos_type, status } = fileData;
     
     console.log(`Syncing Task Deliverables for: ${subject_code}-${course_section}`);
     console.log(`File Type: ${file_type}, TOS Type: ${tos_type}, Status: ${status}`);
@@ -90,6 +90,7 @@ const updateTaskDeliverables = async (fileData) => {
       // Update ONLY the specific field based on file type and status
       const updateData = { 
         [fieldName]: status,
+        tos_type: tos_type, // Update TOS type
         updated_at: new Date()
       };
       
@@ -100,7 +101,7 @@ const updateTaskDeliverables = async (fileData) => {
       );
       
       console.log(`Updated TaskDeliverables: ${subject_code}-${course_section}`);
-      console.log(`Field: ${fieldName} = ${status}`);
+      console.log(`Field: ${fieldName} = ${status}, TOS Type: ${tos_type}`);
       console.log(`Updated document:`, updatedTask);
     } else {
       console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
@@ -109,14 +110,17 @@ const updateTaskDeliverables = async (fileData) => {
       
       const newTaskDeliverables = new TaskDeliverables({
         task_deliverables_id,
+        faculty_id,
+        faculty_name,
         subject_code,
         course_section,
-        [fieldName]: status, 
+        [fieldName]: status,
+        tos_type: tos_type, // Set TOS type
       });
 
       const savedTask = await newTaskDeliverables.save();
       console.log(`Created new TaskDeliverables for ${subject_code}-${course_section}`);
-      console.log(`Field: ${fieldName} = ${status}`);
+      console.log(`Field: ${fieldName} = ${status}, TOS Type: ${tos_type}`);
       console.log(`New document:`, savedTask);
     }
   } catch (error) {
@@ -199,6 +203,17 @@ export const uploadFile = async (req, res) => {
       subject_code: savedFile.subject_code,
       course_section: savedFile.course_section,
       date_submitted: new Date()
+    });
+
+    // Update Task Deliverables
+    await updateTaskDeliverables({
+      faculty_id: savedFile.faculty_id,
+      faculty_name: savedFile.faculty_name,
+      subject_code: savedFile.subject_code,
+      course_section: savedFile.course_section,
+      file_type: savedFile.file_type,
+      tos_type: savedFile.tos_type,
+      status: savedFile.status
     });
 
     // AUTO-SYNC TO ADMIN DELIVERABLES 

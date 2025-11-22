@@ -1,391 +1,86 @@
 import { useState, useEffect } from "react";
-import { Doughnut } from 'react-chartjs-2';
-import Modal from "react-modal";
-import { CheckCircle, XCircle } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
-import { useNavigate } from "react-router-dom";
+import { CheckCircle, XCircle, Clock, FileText, Download, Upload } from "lucide-react";
 import tokenService from "../../services/tokenService";
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
-
-// Set app element for react-modal
-Modal.setAppElement("#root");
-
-export default function TaskDeliverablesManagement() {
-  const [taskDeliverables, setTaskDeliverables] = useState([]);
-  const [facultyLoadeds, setFacultyLoadeds] = useState([]);
+export default function TaskDeliverables() {
+  const [deliverables, setDeliverables] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const taskDeliverablesPerPage = 10;
-
-  // Feedback modal states
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
-  const [feedbackType, setFeedbackType] = useState("success");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-
-  // Form state
-  const [formData, setFormData] = useState({
-    subject_code: "",
-    course_section: ""
-  });
-
-  const navigate = useNavigate(); 
+  const itemsPerPage = 10;
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Add authentication check on component mount
-  useEffect(() => {
-    // Check if user is authenticated
-    const token = tokenService.getFacultyAccessToken();
-    const facultyData = localStorage.getItem('faculty');
-    
-    if (!token || !facultyData) {
-      showFeedback("error", "Please login to access this page");
-      navigate('/auth/login');
-      return;
-    }
-    
-    fetchTaskDeliverables();
-    fetchFacultyLoadeds();
-  }, [navigate]);
-
-  // Fetch task deliverables from backend 
+  // Fetch task deliverables
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
       const token = tokenService.getFacultyAccessToken();
+      
       if (!token) {
-        showFeedback("error", "Please login again");
-        navigate('/auth/login');
+        console.error("No faculty token found");
         return;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables`, {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      }); 
-      
-      if (!res.ok) {
-        if (res.status === 401) {
-          tokenService.clearFacultyTokens();
-          showFeedback("error", "Session expired. Please login again.");
-          navigate('/auth/login');
-          return;
-        }
-        throw new Error("Server responded with " + res.status);
-      }
-      
-      const result = await res.json();
-      console.log("Fetched task deliverables for current user:", result);
-      
-      if (result.success && Array.isArray(result.data)) {
-        setTaskDeliverables(result.data);
-      } else {
-        console.error("Unexpected API response format:", result);
-        setTaskDeliverables([]);
-      }
-    } catch (err) {
-      console.error("Error fetching task deliverables:", err);
-      setTaskDeliverables([]); 
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch faculty loadeds for dropdown 
-  const fetchFacultyLoadeds = async () => {
-    try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
-        return;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables/faculty-loaded`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }); 
-      
-      if (!res.ok) {
-        if (res.status === 401) {
-          tokenService.clearFacultyTokens();
-          return;
-        }
-        throw new Error("Server responded with " + res.status);
-      }
-      
-      const result = await res.json();
-      console.log("Fetched faculty loadeds for dropdown:", result);
-      
-      if (result.success && Array.isArray(result.data)) {
-        setFacultyLoadeds(result.data);
-      } else {
-        console.error("Unexpected API response format:", result);
-        setFacultyLoadeds([]);
-      }
-    } catch (err) {
-      console.error("Error fetching faculty loadeds:", err);
-      setFacultyLoadeds([]); 
-    }
-  };
-
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Handle faculty loaded selection
-  const handleFacultyLoadedChange = (e) => {
-    const selectedId = e.target.value;
-    if (selectedId) {
-      const [subjectCode, courseSection] = selectedId.split('|');
-      setFormData(prev => ({
-        ...prev,
-        subject_code: subjectCode,
-        course_section: courseSection
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        subject_code: "",
-        course_section: ""
-      }));
-    }
-  };
-
-  // Show feedback modal
-  const showFeedback = (type, message) => {
-    setFeedbackType(type);
-    setFeedbackMessage(message);
-    setFeedbackModalOpen(true);
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      subject_code: "",
-      course_section: ""
-    });
-  };
-
-  // Handle form submission (ADD ONLY) 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
-        showFeedback("error", "Please login again. No authentication token found.");
-        setLoading(false);
-        return;
-      }
-
-      const url = `${API_BASE_URL}/api/faculty/task-deliverables`;
-      
-      const requestData = {
-        subject_code: formData.subject_code,
-        course_section: formData.course_section
-      };
-
-      console.log("Sending request to:", url);
-      console.log("Request data:", requestData);
-
-      const response = await fetch(url, { 
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
-        body: JSON.stringify(requestData),
       });
+
+      if (!response.ok) throw new Error('Failed to fetch task deliverables');
 
       const result = await response.json();
-      console.log("Server response:", result);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          tokenService.clearFacultyTokens();
-          showFeedback("error", "Session expired. Please login again.");
-          setTimeout(() => navigate('/auth/login'), 2000);
-          return;
-        }
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
-      }
-
+      
       if (result.success) {
-        resetForm();
-        setShowModal(false);
-        fetchTaskDeliverables();
-        showFeedback("success", "Task deliverables added successfully!");
-      } else {
-        showFeedback("error", result.message || "Error adding task deliverables");
+        setDeliverables(result.data);
       }
     } catch (error) {
-      console.error("Error creating task deliverables:", error);
-      showFeedback("error", error.message || "Error creating task deliverables");
+      console.error("Error fetching task deliverables:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // FIXED: Calculate stats for charts - SIMPLE AND ACCURATE COUNTING
-  const calculateStats = () => {
-    if (!Array.isArray(taskDeliverables) || taskDeliverables.length === 0) {
-      return { total: 0, pending: 0, completed: 0, rejected: 0 };
+  useEffect(() => {
+    fetchTaskDeliverables();
+  }, []);
+
+  // Get status badge color and icon
+  const getStatusDetails = (status) => {
+    switch (status) {
+      case 'completed':
+        return { color: 'bg-green-100 text-green-800', icon: CheckCircle };
+      case 'rejected':
+        return { color: 'bg-red-100 text-red-800', icon: XCircle };
+      default:
+        return { color: 'bg-yellow-100 text-yellow-800', icon: Clock };
     }
-
-    let pendingCount = 0;
-    let completedCount = 0;
-    let rejectedCount = 0;
-
-    taskDeliverables.forEach(task => {
-      // Count individual field statuses
-      const fields = [
-        task.syllabus, 
-        task.tos, 
-        task.midterm_exam, 
-        task.final_exam, 
-        task.instructional_materials
-      ];
-
-      fields.forEach(field => {
-        if (field === 'pending') pendingCount++;
-        else if (field === 'completed') completedCount++;
-        else if (field === 'rejected') rejectedCount++;
-      });
-    });
-
-    const totalDeliverables = pendingCount + completedCount + rejectedCount;
-
-    return {
-      total: taskDeliverables.length, 
-      pending: pendingCount, 
-      completed: completedCount, 
-      rejected: rejectedCount,
-      totalDeliverables: totalDeliverables 
-    };
   };
 
-  const taskDeliverablesStats = calculateStats();
+  // Format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   // Search filter
-  const filteredTaskDeliverables = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
-    .filter((td) => {
-      if (!td) return false;
-      
-      const searchableFields = [
-        td.task_deliverables_id, 
-        td.subject_code, 
-        td.course_section, 
-        td.syllabus, 
-        td.tos, 
-        td.midterm_exam, 
-        td.final_exam, 
-        td.instructional_materials
-      ].filter(field => field !== undefined && field !== null);
-      
-      return searchableFields.some((field) => 
-        field.toString().toLowerCase().includes(search.toLowerCase())
-      );
-    });
-
-  // Chart data for status distribution - BASED ON DELIVERABLES COUNT
-  const statusChartData = {
-    labels: ['Pending Deliverables', 'Completed Deliverables', 'Rejected Deliverables'],
-    datasets: [
-      {
-        data: [
-          taskDeliverablesStats.pending,
-          taskDeliverablesStats.completed,
-          taskDeliverablesStats.rejected
-        ],
-        backgroundColor: [
-          '#F59E0B', 
-          '#10B981', 
-          '#EF4444'  
-        ],
-        borderColor: [
-          '#F59E0B',
-          '#10B981',
-          '#EF4444'
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            const label = context.label || '';
-            const value = context.raw || 0;
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-            return `${label}: ${value} (${percentage}%)`;
-          }
-        }
-      }
-    },
-  };
+  const filteredDeliverables = deliverables.filter(deliverable =>
+    [deliverable.subject_code, deliverable.course_section, deliverable.faculty_name]
+      .some(field => field?.toLowerCase().includes(search.toLowerCase()))
+  );
 
   // Pagination
-  const totalPages = Math.ceil(filteredTaskDeliverables.length / taskDeliverablesPerPage);
-  const startIndex = (currentPage - 1) * taskDeliverablesPerPage;
-  const currentTaskDeliverables = filteredTaskDeliverables.slice(startIndex, startIndex + taskDeliverablesPerPage);
+  const totalPages = Math.ceil(filteredDeliverables.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentDeliverables = filteredDeliverables.slice(startIndex, startIndex + itemsPerPage);
 
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-
-  // Get status badge color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
-      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200'; 
-    }
-  };
-
-  // Refresh data periodically to get latest sync status
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchTaskDeliverables();
-    }, 10000); 
-
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -396,72 +91,40 @@ export default function TaskDeliverablesManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Task Deliverables</h1>
             <p className="text-sm text-gray-500">
-              Monitor the status of your submitted deliverables with ease
+              Track and monitor all your teaching deliverables and their status
             </p>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
-            <input
-              type="text"
-              placeholder="Search task deliverables..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
-            />
-            {/* Plus Sign Button */}
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="bg-black text-white p-2 rounded-md hover:bg-yellow-400 hover:text-black transition-colors duration-200 flex items-center justify-center w-10 h-10"
-              title="Add New Task Deliverables"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
+          <input
+            type="text"
+            placeholder="Search deliverables..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
+          />
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
-            <div className="text-2xl font-bold text-blue-800">{taskDeliverablesStats.total}</div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Pending Deliverables</div>
-            <div className="text-2xl font-bold text-yellow-800">{taskDeliverablesStats.pending}</div>
+            <div className="text-blue-600 text-sm font-medium">Total Courses</div>
+            <div className="text-2xl font-bold text-blue-800">{deliverables.length}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Completed Deliverables</div>
-            <div className="text-2xl font-bold text-green-800">{taskDeliverablesStats.completed}</div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
-            <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Completion Rate</div>
-            <div className="text-2xl font-bold text-purple-800">
-              {taskDeliverablesStats.totalDeliverables > 0 ? 
-                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
+            <div className="text-green-600 text-sm font-medium">Completed</div>
+            <div className="text-2xl font-bold text-green-800">
+              {deliverables.filter(d => d.status === 'completed').length}
             </div>
           </div>
-        </div>
-
-        {/* Chart Section */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status Distribution</h3>
-            <div className="h-64">
-              {taskDeliverablesStats.totalDeliverables > 0 ? (
-                <Doughnut data={statusChartData} options={chartOptions} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No data available for chart
-                </div>
-              )}
+          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <div className="text-yellow-600 text-sm font-medium">Pending</div>
+            <div className="text-2xl font-bold text-yellow-800">
+              {deliverables.filter(d => d.status === 'pending').length}
+            </div>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+            <div className="text-red-600 text-sm font-medium">Rejected</div>
+            <div className="text-2xl font-bold text-red-800">
+              {deliverables.filter(d => d.status === 'rejected').length}
             </div>
           </div>
         </div>
@@ -471,78 +134,77 @@ export default function TaskDeliverablesManagement() {
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Task ID</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Syllabus</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">TOS</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Midterm</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Final</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Midterm Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Final Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Instructional Materials</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Overall Status</th>
-                <th className="px-4 py-3 text-left border-gray-600">Last Updated</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Last Updated</th>
+                <th className="px-4 py-3 text-left border-gray-600">Overall Status</th>
               </tr>
             </thead>
             <tbody>
-              {currentTaskDeliverables.length > 0 ? (
-                currentTaskDeliverables.map((task) => {
-                  // Calculate overall status for this task
-                  const fields = [task.syllabus, task.tos, task.midterm_exam, task.final_exam, task.instructional_materials];
-                  const completedCount = fields.filter(field => field === 'completed').length;
-                  const rejectedCount = fields.filter(field => field === 'rejected').length;
-                  const pendingCount = fields.filter(field => field === 'pending').length;
+              {currentDeliverables.length > 0 ? (
+                currentDeliverables.map((deliverable) => {
+                  const statusDetails = getStatusDetails(deliverable.status);
+                  const StatusIcon = statusDetails.icon;
                   
-                  let overallStatus = 'pending';
-                  let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-                  
-                  if (rejectedCount > 0) {
-                    overallStatus = 'rejected';
-                    overallColor = 'bg-red-100 text-red-800 border border-red-200';
-                  } else if (completedCount === 5) {
-                    overallStatus = 'completed';
-                    overallColor = 'bg-green-100 text-green-800 border border-green-200';
-                  } else if (completedCount > 0) {
-                    overallStatus = 'in-progress';
-                    overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-                  }
-
                   return (
-                    <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{task.task_deliverables_id}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900 font-mono">{task.subject_code}</td>
-                      <td className="px-4 py-3 text-gray-700">{task.course_section}</td>
+                    <tr key={deliverable._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
-                          {task.syllabus}
+                        <div className="font-medium text-gray-900">{deliverable.subject_code}</div>
+                        <div className="text-xs text-gray-500">{deliverable.course_section}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusDetails(deliverable.syllabus).color}`}>
+                          {deliverable.syllabus}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos)}`}>
-                          {task.tos}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusDetails(deliverable.tos_midterm).color}`}>
+                          {deliverable.tos_midterm}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
-                          {task.midterm_exam}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusDetails(deliverable.tos_final).color}`}>
+                          {deliverable.tos_final}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
-                          {task.final_exam}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusDetails(deliverable.midterm_exam).color}`}>
+                          {deliverable.midterm_exam}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
-                          {task.instructional_materials}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusDetails(deliverable.final_exam).color}`}>
+                          {deliverable.final_exam}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
-                          {overallStatus} ({completedCount}/5)
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusDetails(deliverable.instructional_materials).color}`}>
+                          {deliverable.instructional_materials}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {deliverable.tos_type ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
+                            {deliverable.tos_type}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">N/A</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-700 text-xs">
-                        {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
+                        {formatDate(deliverable.updated_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDetails.color}`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {deliverable.status}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -550,7 +212,7 @@ export default function TaskDeliverablesManagement() {
               ) : (
                 <tr>
                   <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
-                    {loading ? "Loading task deliverables..." : "No task deliverables found."}
+                    {loading ? "Loading deliverables..." : "No deliverables found."}
                   </td>
                 </tr>
               )}
@@ -560,81 +222,78 @@ export default function TaskDeliverablesManagement() {
 
         {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
-          {currentTaskDeliverables.length > 0 ? (
-            currentTaskDeliverables.map((task) => {
-              // Calculate overall status for mobile view
-              const fields = [task.syllabus, task.tos, task.midterm_exam, task.final_exam, task.instructional_materials];
-              const completedCount = fields.filter(field => field === 'completed').length;
-              const rejectedCount = fields.filter(field => field === 'rejected').length;
+          {currentDeliverables.length > 0 ? (
+            currentDeliverables.map((deliverable) => {
+              const statusDetails = getStatusDetails(deliverable.status);
+              const StatusIcon = statusDetails.icon;
               
-              let overallStatus = 'pending';
-              let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-              
-              if (rejectedCount > 0) {
-                overallStatus = 'rejected';
-                overallColor = 'bg-red-100 text-red-800 border border-red-200';
-              } else if (completedCount === 5) {
-                overallStatus = 'completed';
-                overallColor = 'bg-green-100 text-green-800 border border-green-200';
-              } else if (completedCount > 0) {
-                overallStatus = 'in-progress';
-                overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-              }
-
               return (
-                <div key={task._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+                <div key={deliverable._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h2 className="font-semibold text-gray-800">{task.subject_code} - {task.course_section}</h2>
-                      <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
+                      <h2 className="font-semibold text-gray-800">{deliverable.subject_code}</h2>
+                      <p className="text-sm text-gray-600">{deliverable.course_section}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
-                      {overallStatus} ({completedCount}/5)
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDetails.color}`}>
+                      <StatusIcon className="w-3 h-3" />
+                      {deliverable.status}
                     </span>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                     <div>
                       <span className="text-gray-500">Syllabus:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
-                        {task.syllabus}
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusDetails(deliverable.syllabus).color}`}>
+                        {deliverable.syllabus}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">TOS:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos)}`}>
-                        {task.tos}
+                      <span className="text-gray-500">TOS Midterm:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusDetails(deliverable.tos_midterm).color}`}>
+                        {deliverable.tos_midterm}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Midterm:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
-                        {task.midterm_exam}
+                      <span className="text-gray-500">TOS Final:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusDetails(deliverable.tos_final).color}`}>
+                        {deliverable.tos_final}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">TOS Type:</span>
+                      <span className="ml-2 text-xs font-medium capitalize">
+                        {deliverable.tos_type || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Midterm Exam:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusDetails(deliverable.midterm_exam).color}`}>
+                        {deliverable.midterm_exam}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Final Exam:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
-                        {task.final_exam}
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusDetails(deliverable.final_exam).color}`}>
+                        {deliverable.final_exam}
                       </span>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-gray-500">Materials:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
-                        {task.instructional_materials}
+                      <span className="text-gray-500">Instructional Materials:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusDetails(deliverable.instructional_materials).color}`}>
+                        {deliverable.instructional_materials}
                       </span>
                     </div>
                   </div>
-
-                  <p className="text-xs text-gray-500 mt-3">
-                    Updated: {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
-                  </p>
+                  
+                  <div className="text-xs text-gray-500">
+                    Updated: {formatDate(deliverable.updated_at)}
+                  </div>
                 </div>
               );
             })
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              {loading ? "Loading task deliverables..." : "No task deliverables found."}
+              {loading ? "Loading deliverables..." : "No deliverables found."}
             </div>
           )}
         </div>
@@ -642,7 +301,7 @@ export default function TaskDeliverablesManagement() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentTaskDeliverables.length} of {filteredTaskDeliverables.length} tasks
+            Showing {currentDeliverables.length} of {filteredDeliverables.length} deliverables
           </div>
           
           <div className="flex items-center gap-3">
@@ -673,133 +332,6 @@ export default function TaskDeliverablesManagement() {
             </button>
           </div>
         </div>
-
-        {/* Add Task Deliverables Modal */}
-        <Modal
-          isOpen={showModal}
-          onRequestClose={() => {
-            setShowModal(false);
-            resetForm();
-          }}
-          className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        >
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Add New Task Deliverables
-              </h3>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Faculty Loaded Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Subject & Section *
-                </label>
-                <select
-                  onChange={handleFacultyLoadedChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select subject and section</option>
-                  {facultyLoadeds.map((facultyLoaded) => (
-                    <option 
-                      key={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
-                      value={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
-                    >
-                      {facultyLoaded.subject_code} - {facultyLoaded.course_section} 
-                      {facultyLoaded.subject_title && ` (${facultyLoaded.subject_title})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Subject Code (auto-filled, readonly) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject Code (auto-filled)
-                </label>
-                <input
-                  type="text"
-                  name="subject_code"
-                  value={formData.subject_code}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-
-              {/* Course Section (auto-filled, readonly) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Section (auto-filled)
-                </label>
-                <input
-                  type="text"
-                  name="course_section"
-                  value={formData.course_section}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Adding..." : "Add Task Deliverables"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-
-        {/* Feedback Modal */}
-        <Modal
-          isOpen={feedbackModalOpen}
-          onRequestClose={() => setFeedbackModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        >
-          <div className="flex flex-col items-center text-center">
-            {feedbackType === "success" ? (
-              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
-            ) : (
-              <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            )}
-            <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
-            <button
-              onClick={() => setFeedbackModalOpen(false)}
-              className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
       </div>
     </div>
   );
