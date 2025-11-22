@@ -192,7 +192,7 @@ export default function FileManagement() {
     });
   };
 
-  // Get file type label
+  // Get file type label with TOS type support
   const getFileTypeLabel = (fileType, tosType = null) => {
     // Handle TOS files with specific types
     if (fileType === 'tos-midterm' || (fileType === 'tos' && tosType === 'midterm')) {
@@ -294,6 +294,7 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
@@ -309,6 +310,15 @@ export default function FileManagement() {
                     <td className="px-4 py-3 text-gray-700">{file.faculty_name}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{file.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getFileTypeLabel(file.file_type, file.tos_type)}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {file.tos_type ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
+                          {file.tos_type}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">N/A</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {file.subject_code} - {file.course_section}
                     </td>
@@ -369,7 +379,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : "No files found."}
                   </td>
                 </tr>
@@ -449,6 +459,10 @@ export default function FileManagement() {
                   <div>
                     <span className="text-gray-500">Type:</span>
                     <p className="font-medium">{getFileTypeLabel(file.file_type, file.tos_type)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">TOS Type:</span>
+                    <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Subject:</span>

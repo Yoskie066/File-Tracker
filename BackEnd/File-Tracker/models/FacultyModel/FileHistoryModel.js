@@ -9,7 +9,7 @@ const fileHistorySchema = new mongoose.Schema(
     file_type: { 
       type: String, 
       required: true,
-      enum: ['syllabus', 'tos', 'midterm-exam', 'final-exam', 'instructional-materials']
+      enum: ['syllabus', 'tos', 'tos-midterm', 'tos-final', 'midterm-exam', 'final-exam', 'instructional-materials'] 
     },
     tos_type: {  
       type: String,
@@ -21,6 +21,14 @@ const fileHistorySchema = new mongoose.Schema(
       default: Date.now 
     },
     faculty_id: { 
+      type: String, 
+      required: true 
+    },
+    subject_code: { 
+      type: String, 
+      required: true 
+    },
+    course_section: { 
       type: String, 
       required: true 
     }

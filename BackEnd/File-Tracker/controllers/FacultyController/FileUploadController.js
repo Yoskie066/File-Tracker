@@ -170,6 +170,7 @@ export const uploadFile = async (req, res) => {
     // If file_type is 'tos', update to specific TOS type
     if (file_type === 'tos' && tos_type) {
       finalFileType = `tos-${tos_type}`;
+      finalTosType = tos_type;
     }
 
     const newFile = new FileManagement({

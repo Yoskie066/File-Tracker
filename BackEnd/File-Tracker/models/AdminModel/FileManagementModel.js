@@ -9,7 +9,7 @@ const fileManagementSchema = new mongoose.Schema(
     file_type: { 
       type: String, 
       required: true,
-      enum: ['syllabus', 'tos', 'midterm-exam', 'final-exam', 'instructional-materials']
+      enum: ['syllabus', 'tos', 'tos-midterm', 'tos-final', 'midterm-exam', 'final-exam', 'instructional-materials'] 
     },
     tos_type: {  
       type: String,
@@ -18,7 +18,7 @@ const fileManagementSchema = new mongoose.Schema(
     },
     status: { 
       type: String, 
-      default: "completed", 
+      default: "pending", 
       enum: ["pending", "completed", "rejected"]
     },
     subject_code: { type: String, required: true }, 
