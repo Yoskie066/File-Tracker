@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const adminDeliverablesSchema = new mongoose.Schema(
   {
-    deliverable_id: { 
+    admin_deliverables_id: { 
       type: String, 
       required: true, 
       unique: true 
@@ -23,32 +23,49 @@ const adminDeliverablesSchema = new mongoose.Schema(
       type: String, 
       required: true 
     },
-    file_name: { 
+    syllabus: { 
       type: String, 
-      required: true 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
-    file_type: { 
+    tos_midterm: { 
       type: String, 
-      required: true,
-      enum: ['syllabus', 'tos', 'tos-midterm', 'tos-final', 'midterm-exam', 'final-exam', 'instructional-materials'] 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
+    },
+    tos_final: { 
+      type: String, 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
+    },
+    midterm_exam: { 
+      type: String, 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
+    },
+    final_exam: { 
+      type: String, 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
+    },
+    instructional_materials: { 
+      type: String, 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     tos_type: {  
       type: String,
-      enum: ['midterm', 'final', null],
+      enum: ['midterm', 'final', 'both', null],
       default: null
     },
-    status: { 
+    last_updated: { 
+      type: Date, 
+      default: Date.now 
+    },
+    status_overall: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
-    },
-    uploaded_at: { 
-      type: Date, 
-      default: Date.now 
-    },
-    synced_at: { 
-      type: Date, 
-      default: Date.now 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     }
   },
   { 
@@ -57,9 +74,9 @@ const adminDeliverablesSchema = new mongoose.Schema(
 );
 
 // Index for better query performance
-adminDeliverablesSchema.index({ faculty_id: 1, uploaded_at: -1 });
+adminDeliverablesSchema.index({ faculty_id: 1 });
 adminDeliverablesSchema.index({ subject_code: 1, course_section: 1 });
-adminDeliverablesSchema.index({ status: 1 });
+adminDeliverablesSchema.index({ status_overall: 1 });
 
 const AdminDeliverables = mongoose.model("AdminDeliverables", adminDeliverablesSchema);
 export default AdminDeliverables;

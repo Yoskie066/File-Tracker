@@ -25,47 +25,38 @@ const taskDeliverablesSchema = new mongoose.Schema(
     },
     syllabus: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     tos_midterm: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     tos_final: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     midterm_exam: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     final_exam: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     instructional_materials: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
+      default: "pending", 
+      enum: ["pending", "completed", "rejected"] 
     },
     tos_type: {  
       type: String,
-      enum: ['midterm', 'final', null],
+      enum: ['midterm', 'final', 'both', null],
       default: null
-    },
-    status: { 
-      type: String, 
-      enum: ["pending", "completed", "rejected"], 
-      default: "pending" 
-    },
-    created_at: { 
-      type: Date, 
-      default: Date.now 
     },
     updated_at: { 
       type: Date, 
