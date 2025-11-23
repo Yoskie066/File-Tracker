@@ -1,28 +1,6 @@
 import { useEffect, useState } from "react";
-import { Doughnut } from 'react-chartjs-2';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
-import { MoreVertical, Trash2, XCircle, CheckCircle } from "lucide-react";
 import Modal from 'react-modal';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+import { MoreVertical, Trash2, XCircle, CheckCircle } from "lucide-react";
 
 // Set the app element for accessibility
 Modal.setAppElement("#root");
@@ -81,48 +59,13 @@ export default function UserManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // Calculate stats for charts
+  // Calculate stats
   const userStats = {
     total: users.length,
     online: users.filter(user => user.status === 'online').length,
     offline: users.filter(user => user.status === 'offline').length,
     admin: users.filter(user => user.role === 'admin').length,
     faculty: users.filter(user => user.role === 'faculty').length
-  };
-
-  // Chart data for user distribution
-  const roleChartData = {
-    labels: ['Admin', 'Faculty'],
-    datasets: [
-      {
-        data: [userStats.admin, userStats.faculty],
-        backgroundColor: ['#4F46E5', '#10B981'],
-        borderColor: ['#4F46E5', '#10B981'],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const statusChartData = {
-    labels: ['Online', 'Offline'],
-    datasets: [
-      {
-        data: [userStats.online, userStats.offline],
-        backgroundColor: ['#10B981', '#6B7280'],
-        borderColor: ['#10B981', '#6B7280'],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-    },
   };
 
   // Search filter (case-insensitive)
@@ -223,22 +166,6 @@ export default function UserManagement() {
             <div className="text-purple-600 text-sm font-medium">Active Rate</div>
             <div className="text-2xl font-bold text-purple-800">
               {userStats.total > 0 ? Math.round((userStats.online / userStats.total) * 100) : 0}%
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">User Distribution by Role</h3>
-            <div className="h-64">
-              <Doughnut data={roleChartData} options={chartOptions} />
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">User Status Overview</h3>
-            <div className="h-64">
-              <Doughnut data={statusChartData} options={chartOptions} />
             </div>
           </div>
         </div>

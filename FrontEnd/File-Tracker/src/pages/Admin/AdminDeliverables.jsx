@@ -1,28 +1,6 @@
 import { useState, useEffect } from "react";
-import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Archive, Download, Calendar, History, Edit, Save, X } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Download, Calendar, History } from "lucide-react";
 
 Modal.setAppElement("#root");
 
@@ -32,8 +10,6 @@ export default function AdminDeliverables() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
-  const [editingTosType, setEditingTosType] = useState(null);
-  const [newTosType, setNewTosType] = useState("");
   const deliverablesPerPage = 10;
 
   // History of Records states
@@ -55,9 +31,6 @@ export default function AdminDeliverables() {
   // Preview modal
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [deliverableToPreview, setDeliverableToPreview] = useState(null);
-
-  // History of Records management modal
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -116,45 +89,6 @@ export default function AdminDeliverables() {
     setFeedbackModalOpen(true);
   };
 
-  // Handle TOS type update
-  const handleTosTypeUpdate = async (deliverableId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/deliverables/${deliverableId}/tos-type`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ tos_type: newTosType }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchDeliverables();
-        setEditingTosType(null);
-        setNewTosType("");
-        showFeedback("success", "TOS type updated successfully!");
-      } else {
-        showFeedback("error", result.message || "Error updating TOS type");
-      }
-    } catch (error) {
-      console.error("Error updating TOS type:", error);
-      showFeedback("error", "Error updating TOS type");
-    }
-  };
-
-  // Start editing TOS type
-  const startEditingTosType = (deliverable) => {
-    setEditingTosType(deliverable.admin_deliverables_id);
-    setNewTosType(deliverable.tos_type || "");
-  };
-
-  // Cancel editing TOS type
-  const cancelEditingTosType = () => {
-    setEditingTosType(null);
-    setNewTosType("");
-  };
-
   // Handle preview deliverable
   const handlePreview = (deliverable) => {
     setDeliverableToPreview(deliverable);
@@ -202,27 +136,6 @@ export default function AdminDeliverables() {
     });
   };
 
-  // Get TOS type display text
-  const getTosTypeDisplay = (tosType) => {
-    switch (tosType) {
-      case 'midterm': return 'Midterm Only';
-      case 'final': return 'Final Only';
-      case 'both': return 'Both Midterm & Final';
-      case null: return 'Not Set';
-      default: return 'Not Set';
-    }
-  };
-
-  // Get TOS type badge color
-  const getTosTypeColor = (tosType) => {
-    switch (tosType) {
-      case 'midterm': return 'bg-blue-100 text-blue-800 border border-blue-200';
-      case 'final': return 'bg-purple-100 text-purple-800 border border-purple-200';
-      case 'both': return 'bg-indigo-100 text-indigo-800 border border-indigo-200';
-      default: return 'bg-gray-100 text-gray-800 border border-gray-200';
-    }
-  };
-
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
@@ -249,7 +162,7 @@ export default function AdminDeliverables() {
 
     // Apply search filter
     filtered = filtered.filter((deliverable) =>
-      [deliverable.admin_deliverables_id, deliverable.faculty_name, deliverable.subject_code, deliverable.tos_type ? getTosTypeDisplay(deliverable.tos_type) : '']
+      [deliverable.admin_deliverables_id, deliverable.faculty_name, deliverable.subject_code]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -289,50 +202,6 @@ export default function AdminDeliverables() {
 
   const deliverableStats = calculateStats(filteredDeliverables);
 
-  // Calculate TOS type distribution
-  const tosTypeDistribution = {
-    midterm: filteredDeliverables.filter(d => d.tos_type === 'midterm').length,
-    final: filteredDeliverables.filter(d => d.tos_type === 'final').length,
-    both: filteredDeliverables.filter(d => d.tos_type === 'both').length,
-    not_set: filteredDeliverables.filter(d => !d.tos_type).length
-  };
-
-  // Chart data for status distribution
-  const statusChartData = {
-    labels: ['Pending', 'Completed', 'Rejected'],
-    datasets: [
-      {
-        data: [deliverableStats.pending, deliverableStats.completed, deliverableStats.rejected],
-        backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  // Chart data for TOS type distribution
-  const tosTypeChartData = {
-    labels: ['Midterm Only', 'Final Only', 'Both', 'Not Set'],
-    datasets: [
-      {
-        data: [tosTypeDistribution.midterm, tosTypeDistribution.final, tosTypeDistribution.both, tosTypeDistribution.not_set],
-        backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#6B7280'],
-        borderColor: ['#4F46E5', '#10B981', '#F59E0B', '#6B7280'],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-    },
-  };
-
   // Pagination
   const totalPages = Math.ceil(filteredDeliverables.length / deliverablesPerPage);
   const startIndex = (currentPage - 1) * deliverablesPerPage;
@@ -349,14 +218,13 @@ export default function AdminDeliverables() {
       );
       
       // Create CSV content
-      const headers = ['Deliverable ID', 'Faculty Name', 'Subject Code', 'TOS Type', 'Overall Status', 'Last Updated', 'Semester', 'School Year'];
+      const headers = ['Deliverable ID', 'Faculty Name', 'Subject Code', 'Overall Status', 'Last Updated', 'Semester', 'School Year'];
       const csvContent = [
         headers.join(','),
         ...deliverablesForYear.map(d => [
           d.admin_deliverables_id,
           `"${d.faculty_name}"`,
           d.subject_code,
-          d.tos_type || 'Not Set',
           d.status_overall,
           new Date(d.last_updated).toISOString(),
           d.semester,
@@ -535,37 +403,6 @@ export default function AdminDeliverables() {
           </div>
         </div>
 
-        {/* Charts Section - Hide in history view */}
-        {!historyView && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status Distribution</h3>
-              <div className="h-64">
-                {deliverableStats.total > 0 ? (
-                  <Doughnut data={statusChartData} options={chartOptions} />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    No data available
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">TOS Type Distribution</h3>
-              <div className="h-64">
-                {deliverableStats.total > 0 ? (
-                  <Doughnut data={tosTypeChartData} options={chartOptions} />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    No data available
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
@@ -575,7 +412,6 @@ export default function AdminDeliverables() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code & Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Deliverables Status</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Overall Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Last Updated</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
@@ -600,49 +436,6 @@ export default function AdminDeliverables() {
                         <div>Final: <span className={`px-1 rounded ${getStatusColor(deliverable.final_exam)}`}>{deliverable.final_exam}</span></div>
                         <div>Materials: <span className={`px-1 rounded ${getStatusColor(deliverable.instructional_materials)}`}>{deliverable.instructional_materials}</span></div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {editingTosType === deliverable.admin_deliverables_id ? (
-                        <div className="flex items-center gap-1">
-                          <select
-                            value={newTosType}
-                            onChange={(e) => setNewTosType(e.target.value)}
-                            className="border border-gray-300 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-black w-24"
-                          >
-                            <option value="">Not Set</option>
-                            <option value="midterm">Midterm Only</option>
-                            <option value="final">Final Only</option>
-                            <option value="both">Both</option>
-                          </select>
-                          <button
-                            onClick={() => handleTosTypeUpdate(deliverable.admin_deliverables_id)}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <Save className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={cancelEditingTosType}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTosTypeColor(deliverable.tos_type)}`}>
-                            {getTosTypeDisplay(deliverable.tos_type)}
-                          </span>
-                          {!historyView && (
-                            <button
-                              onClick={() => startEditingTosType(deliverable)}
-                              className="text-gray-400 hover:text-gray-600"
-                              title="Edit TOS Type"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(deliverable.status_overall)}`}>
@@ -673,22 +466,13 @@ export default function AdminDeliverables() {
                             Preview Details
                           </button>
                           {!historyView && (
-                            <>
-                              <button
-                                onClick={() => startEditingTosType(deliverable)}
-                                className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
-                              >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Edit TOS Type
-                              </button>
-                              <button
-                                onClick={() => confirmDelete(deliverable.admin_deliverables_id)}
-                                className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </button>
-                            </>
+                            <button
+                              onClick={() => confirmDelete(deliverable.admin_deliverables_id)}
+                              className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </button>
                           )}
                         </div>
                       )}
@@ -697,7 +481,7 @@ export default function AdminDeliverables() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading deliverables..." : `No ${historyView ? 'historical records' : 'deliverables'} found.`}
                   </td>
                 </tr>
@@ -743,22 +527,13 @@ export default function AdminDeliverables() {
                             Preview Details
                           </button>
                           {!historyView && (
-                            <>
-                              <button
-                                onClick={() => startEditingTosType(deliverable)}
-                                className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
-                              >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Edit TOS Type
-                              </button>
-                              <button
-                                onClick={() => confirmDelete(deliverable.admin_deliverables_id)}
-                                className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </button>
-                            </>
+                            <button
+                              onClick={() => confirmDelete(deliverable.admin_deliverables_id)}
+                              className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </button>
                           )}
                         </div>
                       )}
@@ -770,23 +545,6 @@ export default function AdminDeliverables() {
                   <div>
                     <span className="text-gray-500">Faculty:</span>
                     <p className="font-medium">{deliverable.faculty_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">TOS Type:</span>
-                    <div className="flex items-center gap-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTosTypeColor(deliverable.tos_type)}`}>
-                        {getTosTypeDisplay(deliverable.tos_type)}
-                      </span>
-                      {!historyView && (
-                        <button
-                          onClick={() => startEditingTosType(deliverable)}
-                          className="text-gray-400 hover:text-gray-600"
-                          title="Edit TOS Type"
-                        >
-                          <Edit className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
                   </div>
                   <div className="col-span-2">
                     <span className="text-gray-500">Deliverables Status:</span>
@@ -800,39 +558,6 @@ export default function AdminDeliverables() {
                     </div>
                   </div>
                 </div>
-
-                {editingTosType === deliverable.admin_deliverables_id && (
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <select
-                        value={newTosType}
-                        onChange={(e) => setNewTosType(e.target.value)}
-                        className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-black"
-                      >
-                        <option value="">Not Set</option>
-                        <option value="midterm">Midterm Only</option>
-                        <option value="final">Final Only</option>
-                        <option value="both">Both Midterm & Final</option>
-                      </select>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleTosTypeUpdate(deliverable.admin_deliverables_id)}
-                        className="flex-1 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 flex items-center justify-center gap-1"
-                      >
-                        <Save className="w-3 h-3" />
-                        Save
-                      </button>
-                      <button
-                        onClick={cancelEditingTosType}
-                        className="flex-1 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1"
-                      >
-                        <X className="w-3 h-3" />
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 <p className="text-xs text-gray-500 mt-3">
                   Updated: {formatDate(deliverable.last_updated)}
@@ -938,27 +663,6 @@ export default function AdminDeliverables() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Course Section</label>
                     <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.course_section}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">TOS Type</label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium ${getTosTypeColor(deliverableToPreview.tos_type)}`}>
-                      {getTosTypeDisplay(deliverableToPreview.tos_type)}
-                    </span>
-                    {!historyView && (
-                      <button
-                        onClick={() => {
-                          startEditingTosType(deliverableToPreview);
-                          setPreviewModalOpen(false);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        <Edit className="w-4 h-4 inline mr-1" />
-                        Edit
-                      </button>
-                    )}
                   </div>
                 </div>
 

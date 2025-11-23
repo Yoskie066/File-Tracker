@@ -1,30 +1,8 @@
 import { useState, useEffect } from "react";
-import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
-import { CheckCircle, XCircle, Edit, Save, X } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
+import { CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -36,8 +14,6 @@ export default function TaskDeliverablesManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editingTosType, setEditingTosType] = useState(null);
-  const [newTosType, setNewTosType] = useState("");
   const taskDeliverablesPerPage = 10;
 
   // Feedback modal states
@@ -48,8 +24,7 @@ export default function TaskDeliverablesManagement() {
   // Form state
   const [formData, setFormData] = useState({
     subject_code: "",
-    course_section: "",
-    tos_type: ""
+    course_section: ""
   });
 
   const navigate = useNavigate(); 
@@ -192,55 +167,8 @@ export default function TaskDeliverablesManagement() {
   const resetForm = () => {
     setFormData({
       subject_code: "",
-      course_section: "",
-      tos_type: ""
+      course_section: ""
     });
-  };
-
-  // Handle TOS type update
-  const handleTosTypeUpdate = async (taskId) => {
-    try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
-        showFeedback("error", "Please login again");
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ tos_type: newTosType }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchTaskDeliverables();
-        setEditingTosType(null);
-        setNewTosType("");
-        showFeedback("success", "TOS type updated successfully!");
-      } else {
-        showFeedback("error", result.message || "Error updating TOS type");
-      }
-    } catch (error) {
-      console.error("Error updating TOS type:", error);
-      showFeedback("error", "Error updating TOS type");
-    }
-  };
-
-  // Start editing TOS type
-  const startEditingTosType = (task) => {
-    setEditingTosType(task.task_deliverables_id);
-    setNewTosType(task.tos_type || "");
-  };
-
-  // Cancel editing TOS type
-  const cancelEditingTosType = () => {
-    setEditingTosType(null);
-    setNewTosType("");
   };
 
   // Handle form submission (ADD ONLY) 
@@ -260,8 +188,7 @@ export default function TaskDeliverablesManagement() {
       
       const requestData = {
         subject_code: formData.subject_code,
-        course_section: formData.course_section,
-        tos_type: formData.tos_type || null
+        course_section: formData.course_section
       };
 
       console.log("Sending request to:", url);
@@ -346,27 +273,6 @@ export default function TaskDeliverablesManagement() {
 
   const taskDeliverablesStats = calculateStats();
 
-  // Get TOS type display text
-  const getTosTypeDisplay = (tosType) => {
-    switch (tosType) {
-      case 'midterm': return 'Midterm Only';
-      case 'final': return 'Final Only';
-      case 'both': return 'Both Midterm & Final';
-      case null: return 'Not Set';
-      default: return 'Not Set';
-    }
-  };
-
-  // Get TOS type badge color
-  const getTosTypeColor = (tosType) => {
-    switch (tosType) {
-      case 'midterm': return 'bg-blue-100 text-blue-800 border border-blue-200';
-      case 'final': return 'bg-purple-100 text-purple-800 border border-purple-200';
-      case 'both': return 'bg-indigo-100 text-indigo-800 border border-indigo-200';
-      default: return 'bg-gray-100 text-gray-800 border border-gray-200';
-    }
-  };
-
   // Search filter
   const filteredTaskDeliverables = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
     .filter((td) => {
@@ -381,60 +287,13 @@ export default function TaskDeliverablesManagement() {
         td.tos_final,
         td.midterm_exam, 
         td.final_exam, 
-        td.instructional_materials,
-        td.tos_type ? getTosTypeDisplay(td.tos_type) : ''
+        td.instructional_materials
       ].filter(field => field !== undefined && field !== null);
       
       return searchableFields.some((field) => 
         field.toString().toLowerCase().includes(search.toLowerCase())
       );
     });
-
-  // Chart data for status distribution - BASED ON DELIVERABLES COUNT
-  const statusChartData = {
-    labels: ['Pending Deliverables', 'Completed Deliverables', 'Rejected Deliverables'],
-    datasets: [
-      {
-        data: [
-          taskDeliverablesStats.pending,
-          taskDeliverablesStats.completed,
-          taskDeliverablesStats.rejected
-        ],
-        backgroundColor: [
-          '#F59E0B', 
-          '#10B981', 
-          '#EF4444'  
-        ],
-        borderColor: [
-          '#F59E0B',
-          '#10B981',
-          '#EF4444'
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            const label = context.label || '';
-            const value = context.raw || 0;
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-            return `${label}: ${value} (${percentage}%)`;
-          }
-        }
-      }
-    },
-  };
 
   // Pagination
   const totalPages = Math.ceil(filteredTaskDeliverables.length / taskDeliverablesPerPage);
@@ -525,22 +384,6 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Chart Section */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status Distribution</h3>
-            <div className="h-64">
-              {taskDeliverablesStats.totalDeliverables > 0 ? (
-                <Doughnut data={statusChartData} options={chartOptions} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No data available for chart
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
@@ -555,7 +398,6 @@ export default function TaskDeliverablesManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Midterm Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Final Exam</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Instructional Materials</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Overall Status</th>
                 <th className="px-4 py-3 text-left border-gray-600">Last Updated</th>
               </tr>
@@ -619,47 +461,6 @@ export default function TaskDeliverablesManagement() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {editingTosType === task.task_deliverables_id ? (
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={newTosType}
-                              onChange={(e) => setNewTosType(e.target.value)}
-                              className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-black"
-                            >
-                              <option value="">Not Set</option>
-                              <option value="midterm">Midterm Only</option>
-                              <option value="final">Final Only</option>
-                              <option value="both">Both Midterm & Final</option>
-                            </select>
-                            <button
-                              onClick={() => handleTosTypeUpdate(task.task_deliverables_id)}
-                              className="text-green-600 hover:text-green-800"
-                            >
-                              <Save className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={cancelEditingTosType}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTosTypeColor(task.tos_type)}`}>
-                              {getTosTypeDisplay(task.tos_type)}
-                            </span>
-                            <button
-                              onClick={() => startEditingTosType(task)}
-                              className="text-gray-400 hover:text-gray-600"
-                              title="Edit TOS Type"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
                           {overallStatus} ({completedCount}/6)
                         </span>
@@ -672,7 +473,7 @@ export default function TaskDeliverablesManagement() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="12" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading task deliverables..." : "No task deliverables found."}
                   </td>
                 </tr>
@@ -754,55 +555,6 @@ export default function TaskDeliverablesManagement() {
                       </span>
                     </div>
                   </div>
-
-                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
-                    <div>
-                      <span className="text-gray-500 text-xs">TOS Type:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getTosTypeColor(task.tos_type)}`}>
-                        {getTosTypeDisplay(task.tos_type)}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => startEditingTosType(task)}
-                      className="text-gray-400 hover:text-gray-600"
-                      title="Edit TOS Type"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {editingTosType === task.task_deliverables_id && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <select
-                          value={newTosType}
-                          onChange={(e) => setNewTosType(e.target.value)}
-                          className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-black"
-                        >
-                          <option value="">Not Set</option>
-                          <option value="midterm">Midterm Only</option>
-                          <option value="final">Final Only</option>
-                          <option value="both">Both Midterm & Final</option>
-                        </select>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleTosTypeUpdate(task.task_deliverables_id)}
-                          className="flex-1 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 flex items-center justify-center gap-1"
-                        >
-                          <Save className="w-3 h-3" />
-                          Save
-                        </button>
-                        <button
-                          onClick={cancelEditingTosType}
-                          className="flex-1 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1"
-                        >
-                          <X className="w-3 h-3" />
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   <p className="text-xs text-gray-500 mt-3">
                     Updated: {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
@@ -930,27 +682,6 @@ export default function TaskDeliverablesManagement() {
                   readOnly
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
                 />
-              </div>
-
-              {/* TOS Type Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  TOS Type (Optional)
-                </label>
-                <select
-                  name="tos_type"
-                  value={formData.tos_type}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select TOS Type (Optional)</option>
-                  <option value="midterm">Midterm Only</option>
-                  <option value="final">Final Only</option>
-                  <option value="both">Both Midterm & Final</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Specify the type of TOS required for this subject. You can update this later.
-                </p>
               </div>
 
               {/* Form Actions */}

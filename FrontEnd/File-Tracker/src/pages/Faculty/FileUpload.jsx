@@ -17,7 +17,7 @@ export default function FileUpload() {
   const [formData, setFormData] = useState({
     file_name: "",
     file_type: "syllabus",
-    tos_type: "", // New field for TOS category
+    tos_type: "", // Only used for TOS files
     subject_code: "",
     course_section: ""
   });
@@ -81,7 +81,7 @@ export default function FileUpload() {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        tos_type: ""
+        tos_type: "" // Clear TOS type for non-TOS files
       }));
     } else {
       setFormData(prev => ({
@@ -176,7 +176,7 @@ export default function FileUpload() {
       return;
     }
 
-    // Validate TOS type for TOS files
+    // Validate TOS type only for TOS files
     if (formData.file_type === 'tos' && !formData.tos_type) {
       showFeedback("error", "Please select TOS type (Midterm or Final)");
       return;
@@ -193,10 +193,17 @@ export default function FileUpload() {
       const formDataToSend = new FormData();
       formDataToSend.append('file_name', formData.file_name);
       formDataToSend.append('file_type', formData.file_type);
-      formDataToSend.append('tos_type', formData.tos_type); // Add TOS type
       formDataToSend.append('subject_code', formData.subject_code);
       formDataToSend.append('course_section', formData.course_section);
       formDataToSend.append('file', selectedFile);
+
+      // Only append tos_type for TOS files
+      if (formData.file_type === 'tos') {
+        formDataToSend.append('tos_type', formData.tos_type);
+      } else {
+        // For non-TOS files, explicitly set tos_type to empty string
+        formDataToSend.append('tos_type', '');
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",

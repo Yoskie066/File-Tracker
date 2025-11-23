@@ -1,28 +1,6 @@
 import { useState, useEffect } from "react";
-import { Doughnut } from 'react-chartjs-2';
 import Modal from "react-modal";
 import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement 
-} from 'chart.js';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -294,7 +272,7 @@ export default function RequirementManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Calculate stats for charts
+  // Calculate stats
   const requirementStats = {
     total: Array.isArray(requirements) ? requirements.length : 0,
     syllabus: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'syllabus').length : 0,
@@ -311,50 +289,6 @@ export default function RequirementManagement() {
       [req.requirement_id, req.task_name, req.prof_name, req.file_type, req.tos_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
-
-  // Chart data for file type distribution
-  const fileTypeChartData = {
-    labels: ['Syllabus', 'TOS', 'Midterm', 'Final Exam', 'Instrumental', 'All Files'],
-    datasets: [
-      {
-        data: [
-          requirementStats.syllabus,
-          requirementStats.tos,
-          requirementStats.midterm,
-          requirementStats.final,
-          requirementStats.instrumental,
-          requirementStats.allFiles
-        ],
-        backgroundColor: [
-          '#4F46E5',
-          '#10B981',
-          '#F59E0B',
-          '#EF4444',
-          '#8B5CF6',
-          '#06B6D4'
-        ],
-        borderColor: [
-          '#4F46E5',
-          '#10B981',
-          '#F59E0B',
-          '#EF4444',
-          '#8B5CF6',
-          '#06B6D4'
-        ],
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-    },
-  };
 
   // Get display text for file type with TOS type
   const getFileTypeDisplay = (requirement) => {
@@ -447,16 +381,6 @@ export default function RequirementManagement() {
           <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
             <div className="text-cyan-600 text-sm font-medium">All Files</div>
             <div className="text-2xl font-bold text-cyan-800">{requirementStats.allFiles}</div>
-          </div>
-        </div>
-
-        {/* Chart Section */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">File Type Distribution</h3>
-            <div className="h-64">
-              <Doughnut data={fileTypeChartData} options={chartOptions} />
-            </div>
           </div>
         </div>
 
