@@ -198,17 +198,19 @@ export default function FileUpload() {
       formDataToSend.append('file', selectedFile);
 
       // Only append tos_type for TOS files
-      if (formData.file_type === 'tos') {
+      if (formData.file_type === 'tos' && formData.tos_type) {
         formDataToSend.append('tos_type', formData.tos_type);
-      } else {
-        // For non-TOS files, explicitly set tos_type to empty string
-        formDataToSend.append('tos_type', '');
       }
+      // For non-TOS files, don't send tos_type at all
+
+      console.log("Sending form data with file type:", formData.file_type);
+      console.log("TOS type:", formData.file_type === 'tos' ? formData.tos_type : 'Not applicable');
 
       const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`
+          // Don't set Content-Type for FormData - let browser set it with boundary
         },
         body: formDataToSend,
       });

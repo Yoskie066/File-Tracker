@@ -16,8 +16,6 @@ export default function AdminDeliverables() {
   const [historyView, setHistoryView] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState([]);
-  const [selectedSemester, setSelectedSemester] = useState("all");
-  const [selectedSchoolYear, setSelectedSchoolYear] = useState("all");
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -145,17 +143,6 @@ export default function AdminDeliverables() {
     }
   };
 
-  // Get unique school years and semesters for filtering
-  const getUniqueSchoolYears = () => {
-    const schoolYears = [...new Set(deliverables.map(d => d.school_year))].filter(Boolean).sort().reverse();
-    return schoolYears;
-  };
-
-  const getUniqueSemesters = () => {
-    const semesters = [...new Set(deliverables.map(d => d.semester))].filter(Boolean).sort();
-    return semesters;
-  };
-
   // Filter deliverables based on current view (history or current)
   const getFilteredDeliverables = () => {
     let filtered = Array.isArray(deliverables) ? deliverables : [];
@@ -173,16 +160,6 @@ export default function AdminDeliverables() {
         const deliverableYear = new Date(deliverable.last_updated).getFullYear();
         return deliverableYear === selectedYear;
       });
-
-      // Semester filter
-      if (selectedSemester !== "all") {
-        filtered = filtered.filter(deliverable => deliverable.semester === selectedSemester);
-      }
-
-      // School Year filter
-      if (selectedSchoolYear !== "all") {
-        filtered = filtered.filter(deliverable => deliverable.school_year === selectedSchoolYear);
-      }
     }
 
     return filtered;
@@ -284,34 +261,6 @@ export default function AdminDeliverables() {
                     <option key={year} value={year}>{year}</option>
                   ))}
                 </select>
-
-                <select
-                  value={selectedSemester}
-                  onChange={(e) => {
-                    setSelectedSemester(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
-                >
-                  <option value="all">All Semesters</option>
-                  {getUniqueSemesters().map(semester => (
-                    <option key={semester} value={semester}>{semester}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedSchoolYear}
-                  onChange={(e) => {
-                    setSelectedSchoolYear(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
-                >
-                  <option value="all">All School Years</option>
-                  {getUniqueSchoolYears().map(schoolYear => (
-                    <option key={schoolYear} value={schoolYear}>{schoolYear}</option>
-                  ))}
-                </select>
               </div>
             )}
             
@@ -366,8 +315,6 @@ export default function AdminDeliverables() {
                 <Calendar className="w-5 h-5 text-gray-600" />
                 <span className="text-sm text-gray-800">
                   Viewing {filteredDeliverables.length} historical records from {selectedYear}
-                  {selectedSemester !== "all" && ` • ${selectedSemester}`}
-                  {selectedSchoolYear !== "all" && ` • ${selectedSchoolYear}`}
                 </span>
               </div>
               <div className="flex gap-2">
@@ -721,8 +668,8 @@ export default function AdminDeliverables() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Last Updated</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(deliverableToPreview.last_updated)}</p>
-                </div>
+                    <p className="mt-1 text-sm text-gray-900">{formatDate(deliverableToPreview.last_updated)}</p>
+                  </div>
 
                 <div className="flex gap-3 pt-4">
                   {!historyView && (
