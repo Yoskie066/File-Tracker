@@ -191,30 +191,42 @@ export default function AdminDeliverables() {
 
   const filteredDeliverables = getFilteredDeliverables();
 
-  // Calculate stats based on current view - UPDATED WITH ACCURATE COUNTING
+  // FIXED: Calculate stats for Admin Deliverables
   const calculateStats = (deliverablesList) => {
-    const stats = {
-      total: deliverablesList.length,
-      pending: 0,
-      completed: 0,
-      rejected: 0
-    };
-
-    deliverablesList.forEach(d => {
-      const status = d.status_overall?.toLowerCase().trim();
+    if (!Array.isArray(deliverablesList) || deliverablesList.length === 0) {
+      return { total: 0, pending: 0, completed: 0, rejected: 0 };
+    }
+  
+    let pendingCount = 0;
+    let completedCount = 0;
+    let rejectedCount = 0;
+  
+    deliverablesList.forEach(deliverable => {
+      const status = deliverable.status_overall?.toLowerCase().trim();
       
       if (status === 'completed') {
-        stats.completed++;
+        completedCount++;
       } else if (status === 'rejected') {
-        stats.rejected++;
+        rejectedCount++;
       } else {
-        // Default to pending for any other status including 'pending', null, undefined, or any unrecognized status
-        stats.pending++;
+        // Default to pending for any other status including 'pending', null, undefined
+        pendingCount++;
       }
     });
-
-    console.log('Calculated Admin Deliverables Stats:', stats);
-    return stats;
+  
+    console.log('Admin Deliverables Stats Calculation:', {
+      total: deliverablesList.length,
+      completed: completedCount,
+      rejected: rejectedCount,
+      pending: pendingCount
+    });
+  
+    return {
+      total: deliverablesList.length,
+      pending: pendingCount,
+      completed: completedCount,
+      rejected: rejectedCount
+    };
   };
 
   const deliverableStats = calculateStats(filteredDeliverables);
