@@ -64,17 +64,18 @@ export const autoSyncDeliverable = async (fileData) => {
 
       console.log(`Updated AdminDeliverables: ${subject_code}-${course_section}`);
       console.log(`Field: ${fieldName} = ${status}`);
-      console.log('Updated AdminDeliverables document:', updatedDeliverable);
+
+      // Update overall status after individual field update
+      await updateOverallStatus(updatedDeliverable);
     } else {
       // Create new AdminDeliverables record
       const facultyLoaded = await FacultyLoaded.findOne({
-        faculty_id,
         subject_code,
         course_section
       });
 
       if (!facultyLoaded) {
-        console.warn(`No faculty loaded found for auto-sync: ${subject_code}-${course_section} for faculty ${faculty_id}`);
+        console.warn(`No faculty loaded found for auto-sync: ${subject_code}-${course_section}`);
         return;
       }
 
@@ -94,31 +95,23 @@ export const autoSyncDeliverable = async (fileData) => {
       };
 
       const newAdminDeliverable = new AdminDeliverables(newDeliverableData);
-      await newAdminDeliverable.save();
+      const savedDeliverable = await newAdminDeliverable.save();
 
       console.log(`Created new AdminDeliverables for ${subject_code}-${course_section}`);
       console.log(`Field: ${fieldName} = ${status}`);
-      console.log('New AdminDeliverables document:', newAdminDeliverable);
-    }
 
-    // Update overall status after individual field update
-    await updateOverallStatus(faculty_id, subject_code, course_section);
+      // Update overall status for the new deliverable
+      await updateOverallStatus(savedDeliverable);
+    }
 
   } catch (error) {
     console.error("Error in auto-sync deliverable:", error);
-    throw error;
   }
 };
 
-// Helper function to update overall status
-const updateOverallStatus = async (faculty_id, subject_code, course_section) => {
+// Helper function to update overall status - FIXED LOGIC
+const updateOverallStatus = async (adminDeliverable) => {
   try {
-    const adminDeliverable = await AdminDeliverables.findOne({
-      faculty_id,
-      subject_code,
-      course_section
-    });
-
     if (!adminDeliverable) return;
 
     const fields = [
@@ -132,34 +125,47 @@ const updateOverallStatus = async (faculty_id, subject_code, course_section) => 
 
     const statuses = fields.map(field => adminDeliverable[field]);
     
+    // Count statuses
+    const completedCount = statuses.filter(status => status === 'completed').length;
+    const rejectedCount = statuses.filter(status => status === 'rejected').length;
+    const pendingCount = statuses.filter(status => status === 'pending').length;
+    
     let status_overall = "pending";
     
     // If any field is rejected, overall is rejected
-    if (statuses.includes('rejected')) {
+    if (rejectedCount > 0) {
       status_overall = 'rejected';
     } 
     // If all fields are completed, overall is completed
-    else if (statuses.every(status => status === 'completed')) {
+    else if (completedCount === 6) {
       status_overall = 'completed';
     }
-    // If some are completed but none rejected, it's still pending
+    // If some are completed but none rejected, check if all required are completed
+    else if (completedCount > 0 && rejectedCount === 0) {
+      // For now, we'll set as pending until all are completed
+      // You can adjust this logic based on your business rules
+      status_overall = 'pending';
+    }
+    // Otherwise, it's pending
     else {
       status_overall = 'pending';
     }
 
-    await AdminDeliverables.findOneAndUpdate(
-      { faculty_id, subject_code, course_section },
+    // Update the overall status
+    await AdminDeliverables.findByIdAndUpdate(
+      adminDeliverable._id,
       { status_overall, last_updated: new Date() }
     );
 
-    console.log(`Updated overall status for ${subject_code}-${course_section}: ${status_overall}`);
+    console.log(`Updated overall status for ${adminDeliverable.subject_code}-${adminDeliverable.course_section}: ${status_overall}`);
+    console.log(`Status breakdown - Completed: ${completedCount}, Rejected: ${rejectedCount}, Pending: ${pendingCount}`);
 
   } catch (error) {
     console.error("Error updating overall status:", error);
   }
 };
 
-// Get all admin deliverables with pagination and filters
+// Get all admin deliverables with pagination and filters - UPDATED
 export const getAdminDeliverables = async (req, res) => {
   try {
     const {
@@ -185,7 +191,11 @@ export const getAdminDeliverables = async (req, res) => {
       ];
     }
 
-    if (status_overall) filter.status_overall = status_overall;
+    if (status_overall) {
+      // Handle case-insensitive status filtering
+      filter.status_overall = { $regex: new RegExp(`^${status_overall}$`, 'i') };
+    }
+    
     if (faculty_name) filter.faculty_name = { $regex: faculty_name, $options: 'i' };
 
     // Get total count for pagination
@@ -227,19 +237,23 @@ export const getAdminDeliverables = async (req, res) => {
   }
 };
 
-// Get deliverables statistics
+// Get deliverables statistics - UPDATED COUNTING LOGIC
 export const getDeliverablesStats = async (req, res) => {
   try {
     const totalDeliverables = await AdminDeliverables.countDocuments();
     
-    const statusStats = await AdminDeliverables.aggregate([
-      {
-        $group: {
-          _id: '$status_overall',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    // Get accurate counts for each status
+    const completedCount = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^completed$/i } 
+    });
+    
+    const rejectedCount = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^rejected$/i } 
+    });
+    
+    const pendingCount = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^pending$/i } 
+    });
 
     const facultyStats = await AdminDeliverables.aggregate([
       {
@@ -250,17 +264,15 @@ export const getDeliverablesStats = async (req, res) => {
       }
     ]).sort({ count: -1 }).limit(10);
 
-    // Convert aggregation results to object format
-    const statusCounts = {};
-    statusStats.forEach(stat => {
-      statusCounts[stat._id] = stat.count;
-    });
-
     res.status(200).json({
       success: true,
       data: {
         total: totalDeliverables,
-        status: statusCounts,
+        status: {
+          completed: completedCount,
+          rejected: rejectedCount,
+          pending: pendingCount
+        },
         topFaculty: facultyStats
       }
     });
@@ -303,7 +315,7 @@ export const getDeliverableById = async (req, res) => {
   }
 };
 
-// Update deliverable status
+// Update deliverable status - UPDATED
 export const updateDeliverableStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -334,17 +346,16 @@ export const updateDeliverableStatus = async (req, res) => {
       });
     }
 
-    // Update overall status
-    await updateOverallStatus(
-      updatedDeliverable.faculty_id, 
-      updatedDeliverable.subject_code, 
-      updatedDeliverable.course_section
-    );
+    // Update overall status with the updated document
+    await updateOverallStatus(updatedDeliverable);
+
+    // Get the final updated deliverable to return
+    const finalDeliverable = await AdminDeliverables.findOne({ admin_deliverables_id: id });
 
     res.status(200).json({
       success: true,
       message: "Deliverable status updated successfully",
-      data: updatedDeliverable
+      data: finalDeliverable
     });
 
   } catch (error) {

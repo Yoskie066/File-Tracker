@@ -436,7 +436,7 @@ export default function FacultyLoadedManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Faculty Loaded</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Faculty Load</h1>
             <p className="text-sm text-gray-500">
               Manage faculty teaching loads and course assignments
             </p>
@@ -480,7 +480,7 @@ export default function FacultyLoadedManagement() {
             <div className="text-2xl font-bold text-green-800">{facultyLoadedStats.courseSection}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">School Year</div>
+            <div className="text-yellow-600 text-sm font-medium">Academic Year</div>
             <div className="text-2xl font-bold text-yellow-800">{facultyLoadedStats.schoolYear}</div>
           </div>
         </div>
@@ -495,7 +495,7 @@ export default function FacultyLoadedManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">School Year</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
@@ -624,7 +624,7 @@ export default function FacultyLoadedManagement() {
                       <p className="font-medium">{facultyLoaded.course_section}</p>
                     </div>
                     <div>
-                      <span className="text-gray-500">School Year:</span>
+                      <span className="text-gray-500">Academic Year:</span>
                       <p className="font-medium">{facultyLoaded.school_year}</p>
                     </div>
                   </div>
@@ -803,7 +803,7 @@ export default function FacultyLoadedManagement() {
               {/* School Year - Dropdown from System Variables */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  School Year *
+                  Academic Year *
                 </label>
                 <select
                   name="school_year"
@@ -812,7 +812,7 @@ export default function FacultyLoadedManagement() {
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select school year</option>
+                  <option value="">Select academic year</option>
                   {getSchoolYearOptions().map((year) => (
                     <option key={year} value={year}>
                       {year}

@@ -77,7 +77,7 @@ export default function Header() {
           to="/faculty/faculty-loaded"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
-          <Users className="w-4 h-4" /> Faculty Loaded
+          <Users className="w-4 h-4" /> Faculty Load
         </Link>
         <Link
           to="/faculty/file-upload"
@@ -153,7 +153,7 @@ export default function Header() {
               "/faculty/faculty-loaded"
             )}`}
           >
-            <Users className="w-5 h-5" /> Faculty Loaded
+            <Users className="w-5 h-5" /> Faculty Load
           </Link>
           <Link
             to="/faculty/file-upload"

@@ -69,6 +69,23 @@ export default function AdminDeliverables() {
     }
   };
 
+  // Fetch statistics separately to ensure accurate counts
+  const fetchDeliverablesStats = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/deliverables/stats`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success) {
+          console.log("Fetched accurate stats:", result.data);
+          return result.data;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+    return null;
+  };
+
   useEffect(() => {
     fetchDeliverables();
   }, []);
@@ -134,12 +151,19 @@ export default function AdminDeliverables() {
     });
   };
 
-  // Get status badge color
+  // Get status badge color - IMPROVED to handle case-insensitive and variations
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+    if (!status) return 'bg-yellow-100 text-yellow-800';
+    
+    const statusLower = status.toLowerCase().trim();
+    switch (statusLower) {
+      case 'completed': 
+        return 'bg-green-100 text-green-800 border border-green-200';
+      case 'rejected': 
+        return 'bg-red-100 text-red-800 border border-red-200';
+      case 'pending': 
+      default: 
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
     }
   };
 
@@ -149,7 +173,7 @@ export default function AdminDeliverables() {
 
     // Apply search filter
     filtered = filtered.filter((deliverable) =>
-      [deliverable.admin_deliverables_id, deliverable.faculty_name, deliverable.subject_code]
+      [deliverable.admin_deliverables_id, deliverable.faculty_name, deliverable.subject_code, deliverable.course_section]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -167,14 +191,30 @@ export default function AdminDeliverables() {
 
   const filteredDeliverables = getFilteredDeliverables();
 
-  // Calculate stats based on current view
+  // Calculate stats based on current view - UPDATED WITH ACCURATE COUNTING
   const calculateStats = (deliverablesList) => {
-    return {
+    const stats = {
       total: deliverablesList.length,
-      pending: deliverablesList.filter(d => d.status_overall === 'pending').length,
-      completed: deliverablesList.filter(d => d.status_overall === 'completed').length,
-      rejected: deliverablesList.filter(d => d.status_overall === 'rejected').length
+      pending: 0,
+      completed: 0,
+      rejected: 0
     };
+
+    deliverablesList.forEach(d => {
+      const status = d.status_overall?.toLowerCase().trim();
+      
+      if (status === 'completed') {
+        stats.completed++;
+      } else if (status === 'rejected') {
+        stats.rejected++;
+      } else {
+        // Default to pending for any other status including 'pending', null, undefined, or any unrecognized status
+        stats.pending++;
+      }
+    });
+
+    console.log('Calculated Admin Deliverables Stats:', stats);
+    return stats;
   };
 
   const deliverableStats = calculateStats(filteredDeliverables);
@@ -195,17 +235,16 @@ export default function AdminDeliverables() {
       );
       
       // Create CSV content
-      const headers = ['Deliverable ID', 'Faculty Name', 'Subject Code', 'Overall Status', 'Last Updated', 'Semester', 'School Year'];
+      const headers = ['Deliverable ID', 'Faculty Name', 'Subject Code', 'Course Section', 'Overall Status', 'Last Updated'];
       const csvContent = [
         headers.join(','),
         ...deliverablesForYear.map(d => [
           d.admin_deliverables_id,
           `"${d.faculty_name}"`,
           d.subject_code,
+          d.course_section,
           d.status_overall,
-          new Date(d.last_updated).toISOString(),
-          d.semester,
-          d.school_year
+          new Date(d.last_updated).toISOString()
         ].join(','))
       ].join('\n');
       
@@ -226,6 +265,15 @@ export default function AdminDeliverables() {
       showFeedback("error", "Error exporting history");
     }
   };
+
+  // Add auto-refresh to get latest data
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDeliverables();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -652,17 +700,6 @@ export default function AdminDeliverables() {
                         {deliverableToPreview.instructional_materials}
                       </span>
                     </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Semester</label>
-                    <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.semester}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">School Year</label>
-                    <p className="mt-1 text-sm text-gray-900">{deliverableToPreview.school_year}</p>
                   </div>
                 </div>
 
