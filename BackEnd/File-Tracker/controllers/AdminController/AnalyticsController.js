@@ -7,7 +7,7 @@ import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
 
-// Get comprehensive analytics data
+// Get comprehensive analytics data - UPDATED TO USE status_overall
 export const getAnalyticsData = async (req, res) => {
   try {
     console.log("Analytics endpoint hit");
@@ -28,11 +28,24 @@ export const getAnalyticsData = async (req, res) => {
     const completedFiles = await FileManagement.countDocuments({ status: 'completed' });
     const rejectedFiles = await FileManagement.countDocuments({ status: 'rejected' });
 
-    // Get deliverable statistics
+    // UPDATED: Get admin deliverables counts from status_overall field
     const totalDeliverables = await AdminDeliverables.countDocuments();
-    const pendingDeliverables = await AdminDeliverables.countDocuments({ status: 'pending' });
-    const completedDeliverables = await AdminDeliverables.countDocuments({ status: 'completed' });
-    const rejectedDeliverables = await AdminDeliverables.countDocuments({ status: 'rejected' });
+    const pendingDeliverables = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^pending$/i } 
+    });
+    const completedDeliverables = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^completed$/i } 
+    });
+    const rejectedDeliverables = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^rejected$/i } 
+    });
+
+    console.log('Admin Deliverables Counts - FROM status_overall:', {
+      total: totalDeliverables,
+      pending: pendingDeliverables,
+      completed: completedDeliverables,
+      rejected: rejectedDeliverables
+    });
 
     // Get requirement statistics
     const totalRequirements = await Requirement.countDocuments();
@@ -61,11 +74,29 @@ export const getAnalyticsData = async (req, res) => {
       }
     ]);
 
+    // UPDATED: Get deliverable type distribution by counting non-pending fields
     const deliverableTypeDistribution = await AdminDeliverables.aggregate([
       {
+        $project: {
+          types: {
+            $objectToArray: {
+              syllabus: { $cond: [{ $ne: ["$syllabus", "pending"] }, 1, 0] },
+              tos_midterm: { $cond: [{ $ne: ["$tos_midterm", "pending"] }, 1, 0] },
+              tos_final: { $cond: [{ $ne: ["$tos_final", "pending"] }, 1, 0] },
+              midterm_exam: { $cond: [{ $ne: ["$midterm_exam", "pending"] }, 1, 0] },
+              final_exam: { $cond: [{ $ne: ["$final_exam", "pending"] }, 1, 0] },
+              instructional_materials: { $cond: [{ $ne: ["$instructional_materials", "pending"] }, 1, 0] }
+            }
+          }
+        }
+      },
+      {
+        $unwind: "$types"
+      },
+      {
         $group: {
-          _id: '$file_type',
-          count: { $sum: 1 }
+          _id: "$types.k",
+          count: { $sum: "$types.v" }
         }
       }
     ]);
@@ -85,9 +116,27 @@ export const getAnalyticsData = async (req, res) => {
       fileTypeDist[item._id] = item.count;
     });
 
-    const deliverableTypeDist = {};
+    // UPDATED: Convert deliverable type distribution with proper mapping
+    const deliverableTypeDist = {
+      syllabus: 0,
+      tos: 0,
+      'midterm-exam': 0,
+      'final-exam': 0,
+      'instructional-materials': 0
+    };
+
     deliverableTypeDistribution.forEach(item => {
-      deliverableTypeDist[item._id] = item.count;
+      if (item._id === 'syllabus') {
+        deliverableTypeDist.syllabus = item.count;
+      } else if (item._id === 'tos_midterm' || item._id === 'tos_final') {
+        deliverableTypeDist.tos += item.count;
+      } else if (item._id === 'midterm_exam') {
+        deliverableTypeDist['midterm-exam'] = item.count;
+      } else if (item._id === 'final_exam') {
+        deliverableTypeDist['final-exam'] = item.count;
+      } else if (item._id === 'instructional_materials') {
+        deliverableTypeDist['instructional-materials'] = item.count;
+      }
     });
 
     const requirementTypeDist = {};
@@ -183,13 +232,18 @@ export const getAnalyticsData = async (req, res) => {
     };
 
     // Log analytics data for debugging
-    console.log("Analytics Data Summary:", {
+    console.log("Analytics Data Summary - UPDATED status_overall counts:", {
       totalUsers,
       onlineUsers,
       admins,
       faculties,
       totalFiles,
       completedFiles,
+      totalDeliverables,
+      pendingDeliverables,
+      completedDeliverables,
+      rejectedDeliverables,
+      deliverableTypeDist,
       totalVariables,
       systemHealth
     });
@@ -210,7 +264,7 @@ export const getAnalyticsData = async (req, res) => {
   }
 };
 
-// Get analytics trends
+// Get analytics trends - UPDATED TO USE status_overall
 export const getAnalyticsTrends = async (req, res) => {
   try {
     const { days = 30 } = req.query;
@@ -309,19 +363,28 @@ export const getAnalyticsTrends = async (req, res) => {
       }
     ]);
 
-    // Get deliverable trends
+    // UPDATED: Get deliverable trends by status_overall
     const deliverableTrends = await AdminDeliverables.aggregate([
       {
         $match: {
-          date_submitted: { $gte: startDate }
+          last_updated: { $gte: startDate }
         }
       },
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$date_submitted" }
+            $dateToString: { format: "%Y-%m-%d", date: "$last_updated" }
           },
-          count: { $sum: 1 }
+          total: { $sum: 1 },
+          completed: {
+            $sum: { $cond: [{ $regexMatch: { input: "$status_overall", regex: /^completed$/i } }, 1, 0] }
+          },
+          pending: {
+            $sum: { $cond: [{ $regexMatch: { input: "$status_overall", regex: /^pending$/i } }, 1, 0] }
+          },
+          rejected: {
+            $sum: { $cond: [{ $regexMatch: { input: "$status_overall", regex: /^rejected$/i } }, 1, 0] }
+          }
         }
       },
       {
@@ -427,9 +490,9 @@ export const getSystemOverview = async (req, res) => {
       .select('file_name faculty_name status uploaded_at');
 
     const recentDeliverables = await AdminDeliverables.find()
-      .sort({ date_submitted: -1 })
+      .sort({ last_updated: -1 })
       .limit(5)
-      .select('file_name faculty_name status date_submitted');
+      .select('faculty_name subject_code course_section status_overall last_updated');
 
     const recentVariables = await SystemVariable.find()
       .sort({ created_at: -1 })
@@ -464,6 +527,16 @@ export const getSystemOverview = async (req, res) => {
       }
     ]);
 
+    // UPDATED: Get admin deliverables status distribution from status_overall
+    const deliverableStatusDistribution = await AdminDeliverables.aggregate([
+      {
+        $group: {
+          _id: '$status_overall',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
     const systemOverview = {
       online_users: totalOnline,
       recent_activities: {
@@ -473,6 +546,10 @@ export const getSystemOverview = async (req, res) => {
       },
       storage_usage: totalStorage[0]?.total || 0,
       file_status: fileStatusDistribution.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, {}),
+      deliverable_status: deliverableStatusDistribution.reduce((acc, curr) => {
         acc[curr._id] = curr.count;
         return acc;
       }, {}),
@@ -497,7 +574,7 @@ export const getSystemOverview = async (req, res) => {
   }
 };
 
-// Store analytics snapshot
+// Store analytics snapshot - UPDATED TO USE status_overall
 export const storeAnalyticsSnapshot = async (req, res) => {
   try {
     const { period = 'daily' } = req.body;
@@ -516,7 +593,18 @@ export const storeAnalyticsSnapshot = async (req, res) => {
     const completedFiles = await FileManagement.countDocuments({ status: 'completed' });
     const rejectedFiles = await FileManagement.countDocuments({ status: 'rejected' });
 
+    // UPDATED: Get admin deliverables counts from status_overall field
     const totalDeliverables = await AdminDeliverables.countDocuments();
+    const pendingDeliverables = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^pending$/i } 
+    });
+    const completedDeliverables = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^completed$/i } 
+    });
+    const rejectedDeliverables = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^rejected$/i } 
+    });
+
     const totalRequirements = await Requirement.countDocuments();
     const totalVariables = await SystemVariable.countDocuments();
 
@@ -575,7 +663,10 @@ export const storeAnalyticsSnapshot = async (req, res) => {
         rejected_files: rejectedFiles
       },
       deliverable_stats: {
-        total_deliverables: totalDeliverables
+        total_deliverables: totalDeliverables,
+        pending_deliverables: pendingDeliverables,
+        completed_deliverables: completedDeliverables,
+        rejected_deliverables: rejectedDeliverables
       },
       requirement_stats: {
         total_requirements: totalRequirements
@@ -608,7 +699,7 @@ export const storeAnalyticsSnapshot = async (req, res) => {
   }
 };
 
-// Get analytics by date range
+// Get analytics by date range - UPDATED TO USE status_overall
 export const getAnalyticsByDateRange = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -634,8 +725,14 @@ export const getAnalyticsByDateRange = async (req, res) => {
       status: 'completed'
     });
 
+    // UPDATED: Get deliverables in range by status_overall
     const deliverablesInRange = await AdminDeliverables.countDocuments({
-      date_submitted: { $gte: start, $lte: end }
+      last_updated: { $gte: start, $lte: end }
+    });
+
+    const completedDeliverablesInRange = await AdminDeliverables.countDocuments({
+      last_updated: { $gte: start, $lte: end },
+      status_overall: { $regex: /^completed$/i }
     });
 
     const variablesInRange = await SystemVariable.countDocuments({
@@ -662,7 +759,9 @@ export const getAnalyticsByDateRange = async (req, res) => {
         completion_rate: filesInRange > 0 ? Math.round((completedFilesInRange / filesInRange) * 100) : 0
       },
       deliverables: {
-        total: deliverablesInRange
+        total: deliverablesInRange,
+        completed: completedDeliverablesInRange,
+        completion_rate: deliverablesInRange > 0 ? Math.round((completedDeliverablesInRange / deliverablesInRange) * 100) : 0
       },
       system_variables: {
         total: variablesInRange

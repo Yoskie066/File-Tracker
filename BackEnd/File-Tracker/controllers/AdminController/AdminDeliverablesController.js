@@ -66,7 +66,7 @@ export const autoSyncDeliverable = async (fileData) => {
       console.log(`Field: ${fieldName} = ${status}`);
 
       // Update overall status after individual field update
-      await updateOverallStatus(updatedDeliverable._id);
+      await updateOverallStatus(updatedDeliverable);
     } else {
       // Create new AdminDeliverables record
       const facultyLoaded = await FacultyLoaded.findOne({
@@ -101,7 +101,7 @@ export const autoSyncDeliverable = async (fileData) => {
       console.log(`Field: ${fieldName} = ${status}`);
 
       // Update overall status for the new deliverable
-      await updateOverallStatus(savedDeliverable._id);
+      await updateOverallStatus(savedDeliverable);
     }
 
   } catch (error) {
@@ -110,12 +110,8 @@ export const autoSyncDeliverable = async (fileData) => {
 };
 
 // Helper function to update overall status - FIXED LOGIC
-const updateOverallStatus = async (deliverableId) => {
+const updateOverallStatus = async (adminDeliverable) => {
   try {
-    if (!deliverableId) return;
-
-    // Get the latest deliverable data from database
-    const adminDeliverable = await AdminDeliverables.findById(deliverableId);
     if (!adminDeliverable) return;
 
     const fields = [
@@ -129,14 +125,14 @@ const updateOverallStatus = async (deliverableId) => {
 
     const statuses = fields.map(field => adminDeliverable[field]);
     
-    // Count statuses - FIXED: Ensure we're counting properly
+    // Count statuses
     const completedCount = statuses.filter(status => status === 'completed').length;
     const rejectedCount = statuses.filter(status => status === 'rejected').length;
     const pendingCount = statuses.filter(status => status === 'pending').length;
     
     let status_overall = "pending";
     
-    // FIXED LOGIC: If any field is rejected, overall is rejected
+    // If any field is rejected, overall is rejected
     if (rejectedCount > 0) {
       status_overall = 'rejected';
     } 
@@ -144,8 +140,10 @@ const updateOverallStatus = async (deliverableId) => {
     else if (completedCount === 6) {
       status_overall = 'completed';
     }
-    // If some fields are completed and none are rejected, it's still pending until all are completed
+    // If some are completed but none rejected, check if all required are completed
     else if (completedCount > 0 && rejectedCount === 0) {
+      // For now, we'll set as pending until all are completed
+      // You can adjust this logic based on your business rules
       status_overall = 'pending';
     }
     // Otherwise, it's pending
@@ -155,7 +153,7 @@ const updateOverallStatus = async (deliverableId) => {
 
     // Update the overall status
     await AdminDeliverables.findByIdAndUpdate(
-      deliverableId,
+      adminDeliverable._id,
       { status_overall, last_updated: new Date() }
     );
 
@@ -194,7 +192,8 @@ export const getAdminDeliverables = async (req, res) => {
     }
 
     if (status_overall) {
-      filter.status_overall = status_overall.toLowerCase();
+      // Handle case-insensitive status filtering
+      filter.status_overall = { $regex: new RegExp(`^${status_overall}$`, 'i') };
     }
     
     if (faculty_name) filter.faculty_name = { $regex: faculty_name, $options: 'i' };
@@ -238,32 +237,23 @@ export const getAdminDeliverables = async (req, res) => {
   }
 };
 
-// Get deliverables statistics - FIXED COUNTING LOGIC
+// Get deliverables statistics - UPDATED COUNTING LOGIC
 export const getDeliverablesStats = async (req, res) => {
   try {
-    // Get accurate counts using aggregation for better performance
-    const stats = await AdminDeliverables.aggregate([
-      {
-        $group: {
-          _id: '$status_overall',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Initialize counts
-    let completedCount = 0;
-    let rejectedCount = 0;
-    let pendingCount = 0;
-
-    // Map the results
-    stats.forEach(stat => {
-      if (stat._id === 'completed') completedCount = stat.count;
-      else if (stat._id === 'rejected') rejectedCount = stat.count;
-      else if (stat._id === 'pending') pendingCount = stat.count;
+    const totalDeliverables = await AdminDeliverables.countDocuments();
+    
+    // Get accurate counts for each status
+    const completedCount = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^completed$/i } 
     });
-
-    const totalDeliverables = completedCount + rejectedCount + pendingCount;
+    
+    const rejectedCount = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^rejected$/i } 
+    });
+    
+    const pendingCount = await AdminDeliverables.countDocuments({ 
+      status_overall: { $regex: /^pending$/i } 
+    });
 
     const facultyStats = await AdminDeliverables.aggregate([
       {
@@ -325,7 +315,7 @@ export const getDeliverableById = async (req, res) => {
   }
 };
 
-// Update deliverable status - UPDATED to use ObjectId for updateOverallStatus
+// Update deliverable status - UPDATED
 export const updateDeliverableStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -356,8 +346,8 @@ export const updateDeliverableStatus = async (req, res) => {
       });
     }
 
-    // Update overall status with the updated document's ObjectId
-    await updateOverallStatus(updatedDeliverable._id);
+    // Update overall status with the updated document
+    await updateOverallStatus(updatedDeliverable);
 
     // Get the final updated deliverable to return
     const finalDeliverable = await AdminDeliverables.findOne({ admin_deliverables_id: id });

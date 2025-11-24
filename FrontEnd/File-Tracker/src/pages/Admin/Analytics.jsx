@@ -160,6 +160,65 @@ export default function Analytics() {
     ],
   });
 
+  // NEW: Admin Deliverables Status Distribution
+  const getAdminDeliverablesStatusData = () => ({
+    labels: ['Pending', 'Completed', 'Rejected'],
+    datasets: [
+      {
+        data: [
+          analyticsData?.admin_deliverables.pending_deliverables || 0,
+          analyticsData?.admin_deliverables.completed_deliverables || 0,
+          analyticsData?.admin_deliverables.rejected_deliverables || 0
+        ],
+        backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
+        borderColor: ['#F59E0B', '#10B981', '#EF4444'],
+        borderWidth: 2,
+      },
+    ],
+  });
+
+  // NEW: Requirement Type Distribution
+  const getRequirementTypeData = () => {
+    const requirementTypes = analyticsData?.requirement_management.requirement_type_distribution || {};
+    
+    const labels = Object.keys(requirementTypes).map(type => {
+      const typeMap = {
+        'syllabus': 'Syllabus',
+        'tos': 'TOS',
+        'midterm-exam': 'Midterm Exam',
+        'final-exam': 'Final Exam',
+        'instructional-materials': 'Instructional Materials',
+        'all-files': 'All Files'
+      };
+      return typeMap[type] || type;
+    });
+
+    const data = Object.values(requirementTypes);
+    
+    // Color palette for requirement types
+    const backgroundColors = [
+      '#4F46E5', // Indigo
+      '#10B981', // Emerald
+      '#F59E0B', // Amber
+      '#EF4444', // Red
+      '#8B5CF6', // Violet
+      '#06B6D4', // Cyan
+      '#84CC16', // Lime
+    ];
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors.slice(0, data.length),
+          borderColor: backgroundColors.slice(0, data.length),
+          borderWidth: 2,
+        }
+      ],
+    };
+  };
+
   // File Type Comparison 
   const getFileTypeComparisonData = () => {
     const fileTypes = analyticsData?.file_management.file_type_distribution || {};
@@ -391,7 +450,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Deliverables Card */}
+              {/* Deliverables Card - FIXED COUNTS */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Deliverables</h3>
                 <div className="space-y-3">
@@ -426,6 +485,15 @@ export default function Analytics() {
                     <span className="text-gray-600">Overdue:</span>
                     <span className="font-semibold text-red-600">{analyticsData.requirement_management.overdue_requirements}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Completion Rate:</span>
+                    <span className="font-semibold text-green-600">
+                      {analyticsData.requirement_management.total_requirements > 0 
+                        ? Math.round(((analyticsData.requirement_management.total_requirements - analyticsData.requirement_management.overdue_requirements) / analyticsData.requirement_management.total_requirements) * 100)
+                        : 0
+                      }%
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -457,8 +525,8 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* Charts Section*/}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Charts Section - UPDATED WITH NEW CHARTS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">User Distribution</h3>
@@ -475,11 +543,38 @@ export default function Analytics() {
                 </div>
               </div>
 
+              {/* NEW: Admin Deliverables Status */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status</h3>
+                <div className="h-64">
+                  <Doughnut data={getAdminDeliverablesStatusData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* NEW: Requirement Types */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirement Types</h3>
+                <div className="h-64">
+                  <Doughnut data={getRequirementTypeData()} options={chartOptions} />
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Charts Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* System Variables Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables Distribution</h3>
                 <div className="h-64">
                   <Doughnut data={getSystemVariablesData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* File Type Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">File Type Distribution</h3>
+                <div className="h-64">
+                  <Doughnut data={getFileTypeComparisonData()} options={chartOptions} />
                 </div>
               </div>
             </div>
