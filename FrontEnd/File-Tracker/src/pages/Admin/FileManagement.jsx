@@ -76,63 +76,88 @@ export default function FileManagement() {
   // Handle download file
   const handleDownload = async (fileId, fileName) => {
     try {
+      console.log(`Downloading file: ${fileId} - ${fileName}`);
+      
       const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}/download`);
       
       if (!response.ok) {
-        throw new Error('Download failed');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || `Download failed with status: ${response.status}`);
       }
-
+  
+      // Check if response is valid
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      console.log('Download response:', {
+        status: response.status,
+        contentType,
+        contentLength,
+        ok: response.ok
+      });
+  
       const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+  
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = fileName || 'download';
+      link.style.display = 'none';
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up URL
       window.URL.revokeObjectURL(url);
+      
+      showFeedback("success", "File downloaded successfully!");
       
     } catch (error) {
       console.error("Error downloading file:", error);
-      showFeedback("error", "Error downloading file");
+      showFeedback("error", error.message || "Error downloading file");
     }
   };
-
-  // Handle preview file
-  const handlePreview = (file) => {
-    setFileToPreview(file);
-    setPreviewModalOpen(true);
-  };
-
-  // Handle update status
-  const handleUpdateStatus = async () => {
-    if (!fileToUpdate || !newStatus) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileToUpdate.file_id}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchFiles(); 
-        setStatusModalOpen(false);
-        setFileToUpdate(null);
-        setNewStatus("");
-        showFeedback("success", "File status updated successfully!");
-      } else {
-        showFeedback("error", result.message || "Error updating file status");
+  
+    // Handle preview file
+    const handlePreview = (file) => {
+      setFileToPreview(file);
+      setPreviewModalOpen(true);
+    };
+  
+    // Handle update status
+    const handleUpdateStatus = async () => {
+      if (!fileToUpdate || !newStatus) return;
+  
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileToUpdate.file_id}/status`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
+  
+        const result = await response.json();
+  
+        if (result.success) {
+          fetchFiles(); 
+          setStatusModalOpen(false);
+          setFileToUpdate(null);
+          setNewStatus("");
+          showFeedback("success", "File status updated successfully!");
+        } else {
+          showFeedback("error", result.message || "Error updating file status");
+        }
+      } catch (error) {
+        console.error("Error updating file status:", error);
+        showFeedback("error", "Error updating file status");
       }
-    } catch (error) {
-      console.error("Error updating file status:", error);
-      showFeedback("error", "Error updating file status");
-    }
-  };
+    };
 
   // Open status update modal
   const openStatusModal = (file) => {

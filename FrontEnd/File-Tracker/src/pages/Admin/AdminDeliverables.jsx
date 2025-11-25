@@ -437,11 +437,11 @@ export default function AdminDeliverables() {
                     <td className="px-4 py-3 text-xs">
                       <div className="grid grid-cols-2 gap-1">
                         <div>Syllabus: <span className={`px-1 rounded ${getStatusColor(deliverable.syllabus)}`}>{deliverable.syllabus}</span></div>
-                        <div>TOS Mid: <span className={`px-1 rounded ${getStatusColor(deliverable.tos_midterm)}`}>{deliverable.tos_midterm}</span></div>
+                        <div>TOS Midterm: <span className={`px-1 rounded ${getStatusColor(deliverable.tos_midterm)}`}>{deliverable.tos_midterm}</span></div>
                         <div>TOS Final: <span className={`px-1 rounded ${getStatusColor(deliverable.tos_final)}`}>{deliverable.tos_final}</span></div>
-                        <div>Midterm: <span className={`px-1 rounded ${getStatusColor(deliverable.midterm_exam)}`}>{deliverable.midterm_exam}</span></div>
-                        <div>Final: <span className={`px-1 rounded ${getStatusColor(deliverable.final_exam)}`}>{deliverable.final_exam}</span></div>
-                        <div>Materials: <span className={`px-1 rounded ${getStatusColor(deliverable.instructional_materials)}`}>{deliverable.instructional_materials}</span></div>
+                        <div>Midterm Exam: <span className={`px-1 rounded ${getStatusColor(deliverable.midterm_exam)}`}>{deliverable.midterm_exam}</span></div>
+                        <div>Final Exam: <span className={`px-1 rounded ${getStatusColor(deliverable.final_exam)}`}>{deliverable.final_exam}</span></div>
+                        <div>Instructional Materials: <span className={`px-1 rounded ${getStatusColor(deliverable.instructional_materials)}`}>{deliverable.instructional_materials}</span></div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -557,11 +557,11 @@ export default function AdminDeliverables() {
                     <span className="text-gray-500">Deliverables Status:</span>
                     <div className="grid grid-cols-2 gap-1 mt-1 text-xs">
                       <div>Syllabus: <span className={`px-1 rounded ${getStatusColor(deliverable.syllabus)}`}>{deliverable.syllabus}</span></div>
-                      <div>TOS Mid: <span className={`px-1 rounded ${getStatusColor(deliverable.tos_midterm)}`}>{deliverable.tos_midterm}</span></div>
+                      <div>TOS Midterm: <span className={`px-1 rounded ${getStatusColor(deliverable.tos_midterm)}`}>{deliverable.tos_midterm}</span></div>
                       <div>TOS Final: <span className={`px-1 rounded ${getStatusColor(deliverable.tos_final)}`}>{deliverable.tos_final}</span></div>
-                      <div>Midterm: <span className={`px-1 rounded ${getStatusColor(deliverable.midterm_exam)}`}>{deliverable.midterm_exam}</span></div>
-                      <div>Final: <span className={`px-1 rounded ${getStatusColor(deliverable.final_exam)}`}>{deliverable.final_exam}</span></div>
-                      <div>Materials: <span className={`px-1 rounded ${getStatusColor(deliverable.instructional_materials)}`}>{deliverable.instructional_materials}</span></div>
+                      <div>Midterm Exam: <span className={`px-1 rounded ${getStatusColor(deliverable.midterm_exam)}`}>{deliverable.midterm_exam}</span></div>
+                      <div>Final Exam: <span className={`px-1 rounded ${getStatusColor(deliverable.final_exam)}`}>{deliverable.final_exam}</span></div>
+                      <div>Instructional Materials: <span className={`px-1 rounded ${getStatusColor(deliverable.instructional_materials)}`}>{deliverable.instructional_materials}</span></div>
                     </div>
                   </div>
                 </div>

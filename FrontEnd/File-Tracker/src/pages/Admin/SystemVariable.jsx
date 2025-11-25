@@ -408,7 +408,7 @@ export default function SystemVariableManagement() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-sm">
-                      {variable.variable_type === 'subject_code' ? variable.subject_title : '-'}
+                      {variable.variable_type === 'subject_code' ? (variable.subject_title || 'N/A') : 'N/A'}
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-sm">{variable.created_by}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">
@@ -517,12 +517,12 @@ export default function SystemVariableManagement() {
                 </div>
                 
                 <div className="grid grid-cols-1 gap-3 text-sm mb-3">
-                  {variable.variable_type === 'subject_code' && (
-                    <div>
-                      <span className="text-gray-500">Subject Title:</span>
-                      <p className="font-medium">{variable.subject_title}</p>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-gray-500">Subject Title:</span>
+                    <p className="font-medium">
+                      {variable.variable_type === 'subject_code' ? (variable.subject_title || 'N/A') : 'N/A'}
+                    </p>
+                  </div>
                   <div>
                     <span className="text-gray-500">Created By:</span>
                     <p className="font-medium">{variable.created_by}</p>

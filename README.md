@@ -1,7 +1,7 @@
-# 🗂️ Web-Based MIS for File Tracking
+# 🗂️ File Tracker – Web-Based MIS
 
 ## 📘 Overview
-The **Web-Based MIS for File Tracking** is a centralized web-based platform designed to enhance the efficiency and organization of academic file management and class schedules within the **Department of Information Technology at Cavite State University – Cavite City Campus**.
+**File Tracker** is a centralized web-based platform designed to enhance the efficiency and organization of academic file management and class schedules within the **Department of Information Technology at Cavite State University – Cavite City Campus**.
 
 The system ensures secure access for both **Faculty (Teacher)** and **Admin (IT Secretary)** users, offering real-time monitoring and submission tracking of academic requirements.
 
@@ -64,6 +64,10 @@ Used to monitor the overall academic submission progress of all faculty members.
 
 ### 5. Requirement 
 Establishes, updates, and issues reminders for pending academic requirements and upcoming deadlines.
+
+### 6.System Variables
+
+Manages global configurations and system-wide variables used by the application.
 
 ---
 

@@ -9,7 +9,9 @@ import { autoSyncDeliverable } from "../AdminController/AdminDeliverablesControl
 // Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = "uploads/";
+    const facultyId = req.faculty?.facultyId || 'unknown';
+    const uploadDir = `uploads/${facultyId}/`;
+    
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -17,7 +19,8 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "file-" + uniqueSuffix + path.extname(file.originalname));
+    const originalName = file.originalname.replace(/\s+/g, '_');
+    cb(null, "file-" + uniqueSuffix + path.extname(originalName));
   },
 });
 
@@ -339,16 +342,36 @@ export const downloadFile = async (req, res) => {
     const { id } = req.params;
     const file = await FileManagement.findOne({ file_id: id });
 
-    if (!file)
+    if (!file) {
       return res.status(404).json({ success: false, message: "File not found" });
+    }
 
-    if (!fs.existsSync(file.file_path))
+    // Check if file exists
+    if (!fs.existsSync(file.file_path)) {
+      console.error(`File not found at path: ${file.file_path}`);
       return res.status(404).json({
         success: false,
         message: "File not found on server",
       });
+    }
 
-    res.download(file.file_path, file.original_name);
+    // Set appropriate headers
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    res.setHeader('Content-Length', file.file_size);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(file.file_path);
+    fileStream.pipe(res);
+
+    fileStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      res.status(500).json({
+        success: false,
+        message: "Error downloading file",
+      });
+    });
+
   } catch (error) {
     console.error("Error downloading file:", error);
     res.status(500).json({

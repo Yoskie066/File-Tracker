@@ -537,7 +537,7 @@ export default function TaskDeliverablesManagement() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Midterm:</span>
+                      <span className="text-gray-500">Midterm Exam:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
                         {task.midterm_exam}
                       </span>
@@ -549,7 +549,7 @@ export default function TaskDeliverablesManagement() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Materials:</span>
+                      <span className="text-gray-500">Instructional Materials:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
                         {task.instructional_materials}
                       </span>
