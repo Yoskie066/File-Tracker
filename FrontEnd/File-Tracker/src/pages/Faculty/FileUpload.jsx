@@ -25,37 +25,38 @@ export default function FileUpload() {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   // Fetch faculty loadeds for dropdown
-  const fetchFacultyLoadeds = async () => {
-    try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
-        console.error("No token found");
-        showFeedback("error", "Please log in to upload files");
-        return;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }); 
-      
-      if (!res.ok) throw new Error("Server responded with " + res.status);
-      const result = await res.json();
-      console.log("Fetched faculty loadeds:", result);
-      
-      if (result.success && Array.isArray(result.data)) {
-        setFacultyLoadeds(result.data);
-      } else {
-        console.error("Unexpected API response format:", result);
-        setFacultyLoadeds([]);
-      }
-    } catch (err) {
-      console.error("Error fetching faculty loadeds:", err);
-      showFeedback("error", "Failed to load your subjects");
-      setFacultyLoadeds([]); 
-    }
-  };
+ const fetchFacultyLoadeds = async () => {
+   try {
+     if (!tokenService.isFacultyAuthenticated()) {
+       console.error("No token found");
+       showFeedback("error", "Please log in to upload files");
+       return;
+     }
+ 
+     // Use authFetch instead of direct fetch
+     const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded`);
+     
+     if (!response.ok) throw new Error("Server responded with " + response.status);
+     const result = await response.json();
+     console.log("Fetched faculty loadeds:", result);
+     
+     if (result.success && Array.isArray(result.data)) {
+       setFacultyLoadeds(result.data);
+     } else {
+       console.error("Unexpected API response format:", result);
+       setFacultyLoadeds([]);
+     }
+   } catch (err) {
+     console.error("Error fetching faculty loadeds:", err);
+     if (err.message === 'Token refresh failed') {
+       showFeedback("error", "Session expired. Please log in again.");
+       tokenService.clearFacultyTokens();
+     } else {
+       showFeedback("error", "Failed to load your subjects");
+     }
+     setFacultyLoadeds([]); 
+   }
+ };
 
   // File type options
   const fileTypeOptions = [

@@ -28,24 +28,22 @@ export default function FileHistory() {
       
       if (!token) {
         console.error("No faculty token found");
+        showFeedback("error", "Please log in again");
+        navigate('/auth/login');
         return;
       }
-
+  
       const params = new URLSearchParams({
         page: page.toString(),
         limit: itemsPerPage.toString(),
         ...(search && { search })
       });
-
-      const response = await fetch(`${API_BASE_URL}/api/faculty/file-history?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
+  
+      // Use authFetch instead of direct fetch
+      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/file-history?${params}`);
+  
       if (!response.ok) throw new Error('Failed to fetch file history');
-
+  
       const result = await response.json();
       
       if (result.success) {
@@ -54,6 +52,11 @@ export default function FileHistory() {
       }
     } catch (error) {
       console.error("Error fetching file history:", error);
+      if (error.message === 'Token refresh failed') {
+        showFeedback("error", "Session expired. Please log in again.");
+        tokenService.clearFacultyTokens();
+        navigate('/auth/login');
+      }
     } finally {
       setLoading(false);
     }

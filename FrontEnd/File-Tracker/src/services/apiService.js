@@ -8,6 +8,22 @@ class ApiService {
     this.failedRequests = [];
   }
 
+  // Initialize token auto-refresh
+  init() {
+    // Check tokens on app start
+    this.autoRefreshTokens();
+    
+    // Set up periodic token check (every 30 minutes)
+    setInterval(() => {
+      this.autoRefreshTokens();
+    }, 30 * 60 * 1000);
+  }
+
+  // Auto-refresh tokens if needed
+  async autoRefreshTokens() {
+    await tokenService.autoRefreshTokens();
+  }
+
   // Faculty API calls
   async facultyApi(url, options = {}) {
     return this.makeApiCall(url, options, 'faculty');
@@ -19,6 +35,9 @@ class ApiService {
   }
 
   async makeApiCall(url, options = {}, userType) {
+    // Auto-refresh tokens before making API call if needed
+    await this.autoRefreshTokens();
+
     const accessToken = userType === 'faculty' 
       ? tokenService.getFacultyAccessToken()
       : tokenService.getAdminAccessToken();
@@ -58,49 +77,31 @@ class ApiService {
     this.isRefreshing = true;
 
     try {
-      const refreshToken = userType === 'faculty'
-        ? `${API_BASE_URL}/api/faculty/refresh-token`
-        : `${API_BASE_URL}/api/admin/admin-refresh-token`;
-
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
+      let refreshSuccess = false;
+      
+      if (userType === 'faculty') {
+        refreshSuccess = await tokenService.refreshFacultyToken();
+      } else {
+        refreshSuccess = await tokenService.refreshAdminToken();
       }
 
-      const refreshUrl = userType === 'faculty'
-        ? `${API_BASE_URL}/api/faculty/refresh-token`
-        : `${API_BASE_URL}/api/admin/admin-refresh-token`;
-
-      const response = await fetch(refreshUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!response.ok) {
+      if (!refreshSuccess) {
         throw new Error('Token refresh failed');
       }
 
-      const data = await response.json();
-
-      // Store new tokens
-      if (userType === 'faculty') {
-        tokenService.setFacultyAccessToken(data.accessToken);
-        tokenService.setFacultyRefreshToken(data.refreshToken);
-      } else {
-        tokenService.setAdminAccessToken(data.accessToken);
-        tokenService.setAdminRefreshToken(data.refreshToken);
-      }
+      // Get new token
+      const newAccessToken = userType === 'faculty'
+        ? tokenService.getFacultyAccessToken()
+        : tokenService.getAdminAccessToken();
 
       // Update the original request with new token
-      originalConfig.headers.Authorization = `Bearer ${data.accessToken}`;
+      originalConfig.headers.Authorization = `Bearer ${newAccessToken}`;
 
       // Retry original request
       const retryResponse = await fetch(`${API_BASE_URL}${originalUrl}`, originalConfig);
 
       // Process any queued requests
-      this.processFailedRequests(data.accessToken);
+      this.processFailedRequests(newAccessToken);
 
       return retryResponse;
     } catch (error) {
@@ -132,6 +133,41 @@ class ApiService {
           .catch(request.reject);
       }
     });
+  }
+
+  // File upload with FormData support
+  async uploadFile(url, formData, userType) {
+    await this.autoRefreshTokens();
+
+    const accessToken = userType === 'faculty' 
+      ? tokenService.getFacultyAccessToken()
+      : tokenService.getAdminAccessToken();
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          // Don't set Content-Type for FormData - let browser set it with boundary
+        },
+        body: formData,
+      });
+
+      if (response.status === 401) {
+        return this.handleTokenRefresh(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: formData,
+        }, userType);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('File upload failed:', error);
+      throw error;
+    }
   }
 }
 

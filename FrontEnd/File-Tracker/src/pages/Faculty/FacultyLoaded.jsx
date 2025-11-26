@@ -138,35 +138,29 @@ export default function FacultyLoadedManagement() {
   // Fetch faculty loadeds from backend 
   const fetchFacultyLoadeds = async () => {
     try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
-        console.error("No access token found");
+      if (!tokenService.isFacultyAuthenticated()) {
         showFeedback("error", "Please login again");
         navigate('/auth/login');
         return;
       }
-
-      const res = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }); 
+  
+      // Use authFetch instead of direct fetch
+      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded`);
       
-      if (!res.ok) {
-        if (res.status === 401) {
+      if (!response.ok) {
+        if (response.status === 401) {
           tokenService.clearFacultyTokens();
           showFeedback("error", "Session expired. Please login again.");
           navigate('/auth/login');
           return;
         }
-        throw new Error("Server responded with " + res.status);
+        throw new Error("Server responded with " + response.status);
       }
       
-      const result = await res.json();
+      const result = await response.json();
       console.log("Fetched faculty loadeds for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        // The backend now includes subject_title, so we don't need to enhance it
         setFacultyLoadeds(result.data);
       } else {
         console.error("Unexpected API response format:", result);
@@ -174,6 +168,11 @@ export default function FacultyLoadedManagement() {
       }
     } catch (err) {
       console.error("Error fetching faculty loadeds:", err);
+      if (err.message === 'Token refresh failed') {
+        showFeedback("error", "Session expired. Please login again.");
+        tokenService.clearFacultyTokens();
+        navigate('/auth/login');
+      }
       setFacultyLoadeds([]); 
     }
   };

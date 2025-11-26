@@ -51,30 +51,27 @@ export default function TaskDeliverablesManagement() {
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
+      
+      if (!tokenService.isFacultyAuthenticated()) {
         showFeedback("error", "Please login again");
         navigate('/auth/login');
         return;
       }
-
-      const res = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }); 
+  
+      // Use authFetch instead of direct fetch
+      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/task-deliverables`);
       
-      if (!res.ok) {
-        if (res.status === 401) {
+      if (!response.ok) {
+        if (response.status === 401) {
           tokenService.clearFacultyTokens();
           showFeedback("error", "Session expired. Please login again.");
           navigate('/auth/login');
           return;
         }
-        throw new Error("Server responded with " + res.status);
+        throw new Error("Server responded with " + response.status);
       }
       
-      const result = await res.json();
+      const result = await response.json();
       console.log("Fetched task deliverables for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
@@ -85,35 +82,36 @@ export default function TaskDeliverablesManagement() {
       }
     } catch (err) {
       console.error("Error fetching task deliverables:", err);
+      if (err.message === 'Token refresh failed') {
+        showFeedback("error", "Session expired. Please login again.");
+        tokenService.clearFacultyTokens();
+        navigate('/auth/login');
+      }
       setTaskDeliverables([]); 
     } finally {
       setLoading(false);
     }
   };
-
+  
   // Fetch faculty loadeds for dropdown 
   const fetchFacultyLoadeds = async () => {
     try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
+      if (!tokenService.isFacultyAuthenticated()) {
         return;
       }
-
-      const res = await fetch(`${API_BASE_URL}/api/faculty/task-deliverables/faculty-loaded`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }); 
+  
+      // Use authFetch instead of direct fetch
+      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/task-deliverables/faculty-loaded`);
       
-      if (!res.ok) {
-        if (res.status === 401) {
+      if (!response.ok) {
+        if (response.status === 401) {
           tokenService.clearFacultyTokens();
           return;
         }
-        throw new Error("Server responded with " + res.status);
+        throw new Error("Server responded with " + response.status);
       }
       
-      const result = await res.json();
+      const result = await response.json();
       console.log("Fetched faculty loadeds for dropdown:", result);
       
       if (result.success && Array.isArray(result.data)) {
@@ -124,6 +122,9 @@ export default function TaskDeliverablesManagement() {
       }
     } catch (err) {
       console.error("Error fetching faculty loadeds:", err);
+      if (err.message === 'Token refresh failed') {
+        tokenService.clearFacultyTokens();
+      }
       setFacultyLoadeds([]); 
     }
   };
@@ -175,37 +176,33 @@ export default function TaskDeliverablesManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+  
     try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
+      if (!tokenService.isFacultyAuthenticated()) {
         showFeedback("error", "Please login again. No authentication token found.");
         setLoading(false);
         return;
       }
-
+  
       const url = `${API_BASE_URL}/api/faculty/task-deliverables`;
       
       const requestData = {
         subject_code: formData.subject_code,
         course_section: formData.course_section
       };
-
+  
       console.log("Sending request to:", url);
       console.log("Request data:", requestData);
-
-      const response = await fetch(url, { 
+  
+      // Use authFetch instead of direct fetch
+      const response = await tokenService.authFetch(url, { 
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
         body: JSON.stringify(requestData),
       });
-
+  
       const result = await response.json();
       console.log("Server response:", result);
-
+  
       if (!response.ok) {
         if (response.status === 401) {
           tokenService.clearFacultyTokens();
@@ -215,7 +212,7 @@ export default function TaskDeliverablesManagement() {
         }
         throw new Error(result.message || `HTTP error! status: ${response.status}`);
       }
-
+  
       if (result.success) {
         resetForm();
         setShowModal(false);
@@ -226,7 +223,13 @@ export default function TaskDeliverablesManagement() {
       }
     } catch (error) {
       console.error("Error creating task deliverables:", error);
-      showFeedback("error", error.message || "Error creating task deliverables");
+      if (error.message === 'Token refresh failed') {
+        showFeedback("error", "Session expired. Please login again.");
+        tokenService.clearFacultyTokens();
+        navigate('/auth/login');
+      } else {
+        showFeedback("error", error.message || "Error creating task deliverables");
+      }
     } finally {
       setLoading(false);
     }
