@@ -17,27 +17,18 @@ export const createRequirement = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { task_name, prof_name, file_type, tos_type, due_date, notes } = req.body;
+    const { prof_name, document_type, due_date } = req.body;
 
     // Validation
-    if (!task_name || !prof_name || !file_type || !due_date) {
+    if (!prof_name || !document_type || !due_date) {
       return res.status(400).json({ 
         success: false, 
         message: "All required fields must be filled.",
         missing_fields: {
-          task_name: !task_name,
           prof_name: !prof_name,
-          file_type: !file_type,
+          document_type: !document_type,
           due_date: !due_date
         }
-      });
-    }
-
-    // If file_type is "tos", tos_type is required
-    if (file_type === "tos" && !tos_type) {
-      return res.status(400).json({
-        success: false,
-        message: "TOS type is required when file type is TOS."
       });
     }
 
@@ -47,24 +38,16 @@ export const createRequirement = async (req, res) => {
 
     const newRequirement = new Requirement({
       requirement_id,
-      task_name,
       prof_name,
-      file_type,
-      tos_type: file_type === "tos" ? tos_type : undefined,
-      due_date: new Date(due_date), 
-      notes: notes || "",
+      document_type,
+      due_date: new Date(due_date),
     });
 
     const savedRequirement = await newRequirement.save();
     console.log("Requirement saved successfully:", savedRequirement._id);
 
-    // Create notification message based on file type and TOS type
-    let notificationMessage = `You have a new requirement: ${savedRequirement.task_name}`;
-    
-    // Add TOS type to message if applicable
-    if (savedRequirement.file_type === 'tos' && savedRequirement.tos_type) {
-      notificationMessage += ` (${savedRequirement.tos_type})`;
-    }
+    // Create notification message
+    const notificationMessage = `You have a new requirement for document submission`;
 
     // Create notifications based on professor selection
     try {
@@ -84,10 +67,8 @@ export const createRequirement = async (req, res) => {
             recipient_name: faculty.facultyName,
             title: "New Requirement Assigned",
             message: notificationMessage,
-            file_type: file_type,
-            tos_type: file_type === "tos" ? tos_type : undefined, // Include TOS type in notification
+            document_type: document_type,
             due_date: new Date(due_date),
-            notes: notes || "",
             related_requirement_id: savedRequirement.requirement_id,
             is_read: false,
           });
@@ -114,10 +95,8 @@ export const createRequirement = async (req, res) => {
             recipient_name: faculty.facultyName,
             title: "New Requirement Assigned",
             message: notificationMessage,
-            file_type: file_type,
-            tos_type: file_type === "tos" ? tos_type : undefined, // Include TOS type in notification
+            document_type: document_type,
             due_date: new Date(due_date),
-            notes: notes || "",
             related_requirement_id: savedRequirement.requirement_id,
             is_read: false,
           });
@@ -133,12 +112,10 @@ export const createRequirement = async (req, res) => {
             recipient_id: "unknown",
             recipient_type: "Faculty",
             recipient_name: prof_name,
-            title: "New Task Assignment",
+            title: "New Requirement Assigned",
             message: notificationMessage,
-            file_type: file_type,
-            tos_type: file_type === "tos" ? tos_type : undefined, // Include TOS type in notification
+            document_type: document_type,
             due_date: new Date(due_date),
-            notes: notes || "",
             related_requirement_id: savedRequirement.requirement_id,
             is_read: false,
           });
@@ -216,31 +193,14 @@ export const getRequirementById = async (req, res) => {
 export const updateRequirement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { task_name, prof_name, file_type, tos_type, due_date, notes } = req.body;
-
-    // If file_type is "tos", tos_type is required
-    if (file_type === "tos" && !tos_type) {
-      return res.status(400).json({
-        success: false,
-        message: "TOS type is required when file type is TOS."
-      });
-    }
+    const { prof_name, document_type, due_date } = req.body;
 
     const updateData = {
-      task_name,
       prof_name,
-      file_type,
+      document_type,
       due_date,
-      notes,
       updated_at: new Date()
     };
-
-    // Only include tos_type if file_type is "tos"
-    if (file_type === "tos") {
-      updateData.tos_type = tos_type;
-    } else {
-      updateData.tos_type = undefined;
-    }
 
     const updated = await Requirement.findOneAndUpdate(
       { requirement_id: id },
@@ -250,23 +210,16 @@ export const updateRequirement = async (req, res) => {
 
     if (!updated) return res.status(404).json({ success: false, message: "Requirement not found" });
 
-    // Update notification message based on file type and TOS type
-    let notificationMessage = `You have an updated requirement: ${task_name}`;
-    
-    // Add TOS type to message if applicable
-    if (file_type === 'tos' && tos_type) {
-      notificationMessage += ` (${tos_type})`;
-    }
+    // Update notification message
+    const notificationMessage = `You have an updated requirement for document submission`;
 
     // Update notifications
     await Notification.updateMany(
       { related_requirement_id: id },
       {
         message: notificationMessage,
-        file_type,
-        tos_type: file_type === "tos" ? tos_type : undefined,
+        document_type,
         due_date,
-        notes,
       }
     );
     

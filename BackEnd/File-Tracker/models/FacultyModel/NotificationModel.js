@@ -31,20 +31,13 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
-  file_type: {
+  document_type: {
     type: String,
     default: "",
-  },
-  tos_type: { 
-    type: String 
   },
   due_date: {
     type: Date,
     default: null,
-  },
-  notes: {
-    type: String,
-    default: "",
   },
   is_read: {
     type: Boolean,

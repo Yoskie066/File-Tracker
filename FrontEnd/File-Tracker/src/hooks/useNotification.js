@@ -18,7 +18,6 @@ export default function useNotifications(currentUser) {
       try {
         console.log("Fetching notifications for facultyId:", currentUser.facultyId);
         
-        // USE THE NEW ENDPOINT that handles "ALL" notifications
         const res = await fetch(
           `${API_BASE_URL}/api/faculty/faculty-notifications/${currentUser.facultyId}`
         );

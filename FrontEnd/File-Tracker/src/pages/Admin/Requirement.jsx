@@ -7,7 +7,6 @@ Modal.setAppElement("#root");
 
 export default function RequirementManagement() {
   const [requirements, setRequirements] = useState([]);
-  const [facultyList, setFacultyList] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -27,32 +26,18 @@ export default function RequirementManagement() {
   // Form state
   const [formData, setFormData] = useState({
     requirement_id: "",
-    task_name: "",
     prof_name: "",
-    file_type: "",
-    tos_type: "",
-    due_date: "",
-    notes: ""
+    document_type: "",
+    due_date: ""
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // File type options for combo box
-  const fileTypeOptions = [
-    "syllabus",
-    "tos",
-    "midterm-exam",
-    "final-exam",
-    "instrumental materials",
+  // Document type options - only "All Files" remains
+  const documentTypeOptions = [
     "all-files"
-  ];
-
-  // TOS type options (only shown when file_type is "tos")
-  const tosTypeOptions = [
-    "TOS-Midterm",
-    "TOS-Finals"
   ];
 
   // Fetch requirements from backend 
@@ -75,37 +60,8 @@ export default function RequirementManagement() {
     }
   };
 
-  // Fetch faculty list from backend
-  const fetchFacultyList = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/api/admin/user-management`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!res.ok) throw new Error("Server responded with " + res.status);
-      const data = await res.json();
-      console.log("Fetched users for faculty list:", data);
-      
-      // Filter only faculty users and extract their names
-      const facultyUsers = data.filter(user => 
-        user.role === 'faculty' && user.name
-      );
-      
-      console.log("Filtered faculty users:", facultyUsers);
-      setFacultyList(facultyUsers);
-      
-    } catch (err) {
-      console.error("Error fetching faculty list:", err);
-      setFacultyList([]);
-    }
-  };
-  
   useEffect(() => {
     fetchRequirements();
-    fetchFacultyList();
   }, []);
 
   // Close dropdown when clicking outside
@@ -118,20 +74,10 @@ export default function RequirementManagement() {
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // If file type is changed and it's not "tos", clear the tos_type
-    if (name === "file_type" && value !== "tos") {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        tos_type: ""
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   // Show feedback modal
@@ -145,12 +91,9 @@ export default function RequirementManagement() {
   const resetForm = () => {
     setFormData({
       requirement_id: "",
-      task_name: "",
       prof_name: "",
-      file_type: "",
-      tos_type: "",
-      due_date: "",
-      notes: ""
+      document_type: "",
+      due_date: ""
     });
     setIsEditMode(false);
   };
@@ -168,12 +111,9 @@ export default function RequirementManagement() {
       const method = isEditMode ? "PUT" : "POST";
   
       const requestData = {
-        task_name: formData.task_name,
         prof_name: formData.prof_name,
-        file_type: formData.file_type,
-        tos_type: formData.tos_type,
-        due_date: formData.due_date,
-        notes: formData.notes
+        document_type: formData.document_type,
+        due_date: formData.due_date
       };
   
       console.log("Sending request to:", url);
@@ -223,12 +163,9 @@ export default function RequirementManagement() {
         const requirement = result.data;
         setFormData({
           requirement_id: requirement.requirement_id,
-          task_name: requirement.task_name,
           prof_name: requirement.prof_name,
-          file_type: requirement.file_type,
-          tos_type: requirement.tos_type || "",
-          due_date: requirement.due_date ? requirement.due_date.split('T')[0] : "",
-          notes: requirement.notes || ""
+          document_type: requirement.document_type,
+          due_date: requirement.due_date ? requirement.due_date.split('T')[0] : ""
         });
         setIsEditMode(true);
         setShowModal(true);
@@ -275,37 +212,19 @@ export default function RequirementManagement() {
   // Calculate stats
   const requirementStats = {
     total: Array.isArray(requirements) ? requirements.length : 0,
-    syllabus: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'syllabus').length : 0,
-    tos: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'tos').length : 0,
-    midterm: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'midterm-exam').length : 0,
-    final: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'final-exam').length : 0,
-    instrumental: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'instrumental materials').length : 0,
-    allFiles: Array.isArray(requirements) ? requirements.filter(req => req.file_type === 'all-files').length : 0
+    allFiles: Array.isArray(requirements) ? requirements.filter(req => req.document_type === 'all-files').length : 0
   };
 
   // Search filter
   const filteredRequirements = (Array.isArray(requirements) ? requirements : [])
     .filter((req) =>
-      [req.requirement_id, req.task_name, req.prof_name, req.file_type, req.tos_type]
+      [req.requirement_id, req.prof_name, req.document_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
-  // Get display text for file type with TOS type
-  const getFileTypeDisplay = (requirement) => {
-    if (requirement.file_type === 'tos' && requirement.tos_type) {
-      return `${requirement.file_type} (${requirement.tos_type})`;
-    }
-    return requirement.file_type;
-  };
-
-  // Get badge color for file type
-  const getFileTypeBadgeColor = (fileType) => {
-    switch (fileType) {
-      case 'syllabus': return 'bg-purple-100 text-purple-800';
-      case 'tos': return 'bg-green-100 text-green-800';
-      case 'midterm-exam': return 'bg-yellow-100 text-yellow-800';
-      case 'final-exam': return 'bg-red-100 text-red-800';
-      case 'instrumental materials': return 'bg-indigo-100 text-indigo-800';
+  // Get badge color for document type
+  const getDocumentTypeBadgeColor = (documentType) => {
+    switch (documentType) {
       case 'all-files': return 'bg-cyan-100 text-cyan-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -328,7 +247,7 @@ export default function RequirementManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Requirement</h1>
             <p className="text-sm text-gray-500">
-              Manage and track academic requirements, deadlines, and submissions
+              Manage and track academic requirements and deadlines
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
@@ -354,45 +273,14 @@ export default function RequirementManagement() {
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-blue-600 text-sm font-medium">Total Requirements</div>
-            <div className="text-2xl font-bold text-blue-800">{requirementStats.total}</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Syllabus</div>
-            <div className="text-2xl font-bold text-purple-800">{requirementStats.syllabus}</div>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">TOS</div>
-            <div className="text-2xl font-bold text-green-800">{requirementStats.tos}</div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Exams</div>
-            <div className="text-2xl font-bold text-yellow-800">
-              {requirementStats.midterm + requirementStats.final}
-            </div>
-          </div>
-          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-            <div className="text-indigo-600 text-sm font-medium">Instrumental Materials</div>
-            <div className="text-2xl font-bold text-indigo-800">{requirementStats.instrumental}</div>
-          </div>
-          <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
-            <div className="text-cyan-600 text-sm font-medium">All Files</div>
-            <div className="text-2xl font-bold text-cyan-800">{requirementStats.allFiles}</div>
-          </div>
-        </div>
-
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Req ID</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Task Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">File Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
@@ -403,11 +291,10 @@ export default function RequirementManagement() {
                 currentRequirements.map((requirement) => (
                   <tr key={requirement._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{requirement.requirement_id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{requirement.task_name}</td>
                     <td className="px-4 py-3 text-gray-700">{requirement.prof_name}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getFileTypeBadgeColor(requirement.file_type)}`}>
-                        {getFileTypeDisplay(requirement)}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(requirement.document_type)}`}>
+                        {requirement.document_type === 'all-files' ? 'All Files' : requirement.document_type}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -466,7 +353,7 @@ export default function RequirementManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
                     No requirements found.
                   </td>
                 </tr>
@@ -482,12 +369,12 @@ export default function RequirementManagement() {
               <div key={requirement._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800">{requirement.task_name}</h2>
+                    <h2 className="font-semibold text-gray-800">Document Requirement</h2>
                     <p className="text-sm text-gray-600 font-mono">ID: {requirement.requirement_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getFileTypeBadgeColor(requirement.file_type)}`}>
-                      {getFileTypeDisplay(requirement)}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(requirement.document_type)}`}>
+                      {requirement.document_type === 'all-files' ? 'All Files' : requirement.document_type}
                     </span>
                     
                     <div className="relative">
@@ -537,13 +424,6 @@ export default function RequirementManagement() {
                     </p>
                   </div>
                 </div>
-
-                {requirement.notes && (
-                  <div className="text-sm text-gray-600 mb-3">
-                    <span className="text-gray-500">Notes:</span>
-                    <p className="mt-1">{requirement.notes}</p>
-                  </div>
-                )}
 
                 <p className="text-xs text-gray-500 mt-3">
                   Created: {new Date(requirement.created_at).toLocaleDateString()}
@@ -637,22 +517,6 @@ export default function RequirementManagement() {
                 </div>
               )}
 
-              {/* Task Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Task Name *
-                </label>
-                <input
-                  type="text"
-                  name="task_name"
-                  value={formData.task_name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter task name"
-                />
-              </div>
-
               {/* Professor Name - DROPDOWN */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -667,17 +531,7 @@ export default function RequirementManagement() {
                 >
                   <option value="">Select professor</option>
                   <option value="ALL">ALL FACULTY</option>
-                  {facultyList.map((faculty) => (
-                    <option key={faculty.user_id} value={faculty.name}>
-                      {faculty.name}
-                    </option>
-                  ))}
                 </select>
-                {facultyList.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">
-                    No faculty accounts found. Please register faculty users first.
-                  </p>
-                )}
                 {formData.prof_name === "ALL" && (
                   <p className="text-xs text-blue-600 mt-1">
                     This requirement will be sent to ALL faculty members.
@@ -685,57 +539,31 @@ export default function RequirementManagement() {
                 )}
               </div>
 
-              {/* File Type - Combo Box */}
+              {/* Document Type - Combo Box */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File Type *
+                  Document Type *
                 </label>
                 <select
-                  name="file_type"
-                  value={formData.file_type}
+                  name="document_type"
+                  value={formData.document_type}
                   onChange={handleInputChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select file type</option>
-                  {fileTypeOptions.map((type) => (
+                  <option value="">Select document type</option>
+                  {documentTypeOptions.map((type) => (
                     <option key={type} value={type}>
-                      {type === 'all-files' ? 'All Files' : type.charAt(0).toUpperCase() + type.slice(1)}
+                      {type === 'all-files' ? 'All Files' : type}
                     </option>
                   ))}
                 </select>
-                {formData.file_type === "all-files" && (
+                {formData.document_type === "all-files" && (
                   <p className="text-xs text-blue-600 mt-1">
                     This requirement includes ALL file types.
                   </p>
                 )}
               </div>
-
-              {/* TOS Type Dropdown (only shown when file_type is "tos") */}
-              {formData.file_type === "tos" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    TOS Type *
-                  </label>
-                  <select
-                    name="tos_type"
-                    value={formData.tos_type}
-                    onChange={handleInputChange}
-                    required={formData.file_type === "tos"}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                  >
-                    <option value="">Select TOS type</option>
-                    {tosTypeOptions.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-blue-600 mt-1">
-                    The TOS type will be included in the notification sent to faculty.
-                  </p>
-                </div>
-              )}
 
               {/* Due Date */}
               <div>
@@ -749,21 +577,6 @@ export default function RequirementManagement() {
                   onChange={handleInputChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Additional notes (optional)"
                 />
               </div>
 

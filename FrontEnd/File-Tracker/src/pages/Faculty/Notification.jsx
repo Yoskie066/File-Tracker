@@ -21,7 +21,7 @@ export default function NotificationPage() {
           <div className="p-8 text-center">
             <p className="text-gray-500 text-lg">No notifications found.</p>
             <p className="text-gray-400 text-sm mt-2">
-              Notifications will appear here when admin assigns you tasks.
+              Notifications will appear here when admin assigns you requirements.
             </p>
           </div>
         ) : (
@@ -62,28 +62,16 @@ export default function NotificationPage() {
           <h2 className="text-xl font-bold mb-4 text-gray-800">Requirement Details</h2>
           <div className="space-y-2 text-gray-700">
             <p>
-              <span className="font-semibold">Task:</span>{" "}
-              {selectedNote.message.replace("You have a new requirement: ", "")}
+              <span className="font-semibold">Document Type:</span> {note.document_type === 'all-files' ? 'All Files' : note.document_type || "N/A"}
             </p>
-            <p>
-              <span className="font-semibold">File Type:</span> {selectedNote.file_type || "N/A"}
-            </p>
-            {selectedNote.tos_type && (
-              <p>
-                <span className="font-semibold">TOS Type:</span> {selectedNote.tos_type}
-              </p>
-            )}
             <p>
               <span className="font-semibold">Due Date:</span>{" "}
-              {selectedNote.due_date
-                ? new Date(selectedNote.due_date).toLocaleDateString()
+              {note.due_date
+                ? new Date(note.due_date).toLocaleDateString()
                 : "No due date"}
             </p>
-            <p>
-              <span className="font-semibold">Notes:</span> {selectedNote.notes || "No additional notes"}
-            </p>
             <p className="text-sm text-gray-500 mt-3">
-              Created: {new Date(selectedNote.created_at).toLocaleString()}
+              Created: {new Date(note.created_at).toLocaleString()}
             </p>
           </div>
 
