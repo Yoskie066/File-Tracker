@@ -62,16 +62,16 @@ export default function NotificationPage() {
           <h2 className="text-xl font-bold mb-4 text-gray-800">Requirement Details</h2>
           <div className="space-y-2 text-gray-700">
             <p>
-              <span className="font-semibold">Document Type:</span> {note.document_type === 'all-files' ? 'All Files' : note.document_type || "N/A"}
+              <span className="font-semibold">Document Type:</span> {selectedNote.document_type === 'all-files' ? 'All Files' : selectedNote.document_type || "N/A"}
             </p>
             <p>
               <span className="font-semibold">Due Date:</span>{" "}
-              {note.due_date
-                ? new Date(note.due_date).toLocaleDateString()
+              {selectedNote.due_date
+                ? new Date(selectedNote.due_date).toLocaleDateString()
                 : "No due date"}
             </p>
             <p className="text-sm text-gray-500 mt-3">
-              Created: {new Date(note.created_at).toLocaleString()}
+              Created: {new Date(selectedNote.created_at).toLocaleString()}
             </p>
           </div>
 
