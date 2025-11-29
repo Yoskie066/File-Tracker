@@ -5,7 +5,7 @@ import { verifyToken } from "../../middleware/verifyToken.js";
 import { createFacultyLoaded, getFacultyLoadeds, getFacultyLoadedById, updateFacultyLoaded, deleteFacultyLoaded } from "../../controllers/FacultyController/FacultyLoadedController.js";
 import { uploadFile, upload, getFacultyFiles } from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
-import { createTaskDeliverables, getTaskDeliverables, getTaskDeliverablesById, getFacultyLoadedsForTaskDeliverables, updateTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
+import { getTaskDeliverables, getTaskDeliverablesById, updateTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
 import { createNotification, getNotificationsByRecipient, getUnreadCount, markAsRead, markAllAsRead, getFacultyNotifications, getFacultyUnreadCount } from "../../controllers/FacultyController/NotificationController.js";
 
 const router = express.Router();
@@ -34,9 +34,7 @@ router.get("/file-upload/my-files", verifyToken, getFacultyFiles);
 router.get("/file-history", verifyToken, getFacultyFileHistory);
 
 // Task Deliverables Routes
-router.post("/task-deliverables", verifyToken, createTaskDeliverables);
 router.get("/task-deliverables", verifyToken, getTaskDeliverables);
-router.get("/task-deliverables/faculty-loaded", verifyToken, getFacultyLoadedsForTaskDeliverables); 
 router.get("/task-deliverables/:id", verifyToken, getTaskDeliverablesById);
 router.put("/task-deliverables/:id", verifyToken, updateTaskDeliverables);
 

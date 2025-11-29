@@ -1,125 +1,6 @@
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 
-// Generate 10-digit unique task_deliverables_id
-const generateTaskDeliverablesId = () => {
-  return Math.floor(1000000000 + Math.random() * 9000000000).toString();
-};
-
-// Create task deliverables - NOW WITH FACULTY ID
-export const createTaskDeliverables = async (req, res) => {
-  try {
-    console.log("Received request body:", req.body);
-    console.log("Authenticated faculty:", req.faculty);
-    
-    const { subject_code, course_section, tos_type } = req.body;
-
-    // Validation
-    if (!subject_code || !course_section) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Subject code and course section are required.",
-        missing_fields: {
-          subject_code: !subject_code,
-          course_section: !course_section
-        }
-      });
-    }
-
-    // Validate TOS type if provided
-    if (tos_type && !['midterm', 'final', 'both'].includes(tos_type)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid TOS type. Must be 'midterm', 'final', or 'both'."
-      });
-    }
-
-    // Check if faculty is authenticated
-    if (!req.faculty || !req.faculty.facultyId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required. Please login again."
-      });
-    }
-
-    // Check if faculty loaded exists with this subject code and course section FOR THIS FACULTY
-    const facultyLoaded = await FacultyLoaded.findOne({ 
-      subject_code, 
-      course_section,
-      faculty_id: req.faculty.facultyId 
-    });
-
-    if (!facultyLoaded) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "No faculty loaded found with the provided subject code and course section for your account."
-      });
-    }
-
-    // Check if task deliverables already exists for this subject and section FOR THIS FACULTY
-    const existingTaskDeliverables = await TaskDeliverables.findOne({
-      subject_code,
-      course_section,
-      faculty_id: req.faculty.facultyId 
-    });
-
-    if (existingTaskDeliverables) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Task deliverables already exist for this subject code and course section."
-      });
-    }
-
-    const task_deliverables_id = generateTaskDeliverablesId();
-
-    console.log("Creating task deliverables with ID:", task_deliverables_id, "for faculty:", req.faculty.facultyId);
-
-    const newTaskDeliverables = new TaskDeliverables({
-      task_deliverables_id,
-      faculty_id: req.faculty.facultyId,
-      faculty_name: req.faculty.facultyName || "Faculty",
-      subject_code,
-      course_section,
-      tos_type: tos_type || null
-    });
-
-    const savedTaskDeliverables = await newTaskDeliverables.save();
-    console.log("Task deliverables saved successfully for faculty:", req.faculty.facultyId);
-
-    res.status(201).json({
-      success: true,
-      message: "Task deliverables created successfully",
-      data: savedTaskDeliverables,
-    });
-
-  } catch (error) {
-    console.error("Error creating task deliverables:", error);
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Validation Error", 
-        error: error.message 
-      });
-    }
-    
-    if (error.code === 11000) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Duplicate task deliverables ID", 
-        error: "Task deliverables ID already exists" 
-      });
-    }
-
-    res.status(500).json({ 
-      success: false, 
-      message: "Server error", 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-};
-
 // Get all task deliverables 
 export const getTaskDeliverables = async (req, res) => {
   try {
@@ -234,7 +115,7 @@ export const updateTaskDeliverables = async (req, res) => {
   }
 };
 
-// Get faculty loadeds for dropdown 
+// Get faculty loads for dropdown (REMOVED - no longer needed for manual creation)
 export const getFacultyLoadedsForTaskDeliverables = async (req, res) => {
   try {
     // Check if faculty is authenticated
@@ -247,13 +128,13 @@ export const getFacultyLoadedsForTaskDeliverables = async (req, res) => {
 
     const facultyLoadeds = await FacultyLoaded.find({ 
       faculty_id: req.faculty.facultyId 
-    }).select('subject_code course_section subject_title').sort({ subject_code: 1 });
+    }).select('subject_code course_sections subject_title').sort({ subject_code: 1 });
     
-    console.log(`Found ${facultyLoadeds.length} faculty loadeds for dropdown for faculty: ${req.faculty.facultyId}`);
+    console.log(`Found ${facultyLoadeds.length} faculty loads for faculty: ${req.faculty.facultyId}`);
     
     res.status(200).json({ success: true, data: facultyLoadeds });
   } catch (error) {
-    console.error("Error fetching faculty loadeds:", error);
+    console.error("Error fetching faculty loads:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

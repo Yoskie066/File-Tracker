@@ -2,20 +2,20 @@ import { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import tokenService from "../../services/tokenService"
+import tokenService from "../../services/tokenService";
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
 
-export default function FacultyLoadedManagement() {
-  const [facultyLoadeds, setFacultyLoadeds] = useState([]);
+export default function FacultyLoadManagement() {
+  const [facultyLoads, setFacultyLoads] = useState([]);
   const [systemVariables, setSystemVariables] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
-  const facultyLoadedsPerPage = 10;
+  const facultyLoadsPerPage = 10;
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -24,14 +24,14 @@ export default function FacultyLoadedManagement() {
 
   // Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [facultyLoadedToDelete, setFacultyLoadedToDelete] = useState(null);
+  const [facultyLoadToDelete, setFacultyLoadToDelete] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
     faculty_loaded_id: "",
     subject_code: "",
     subject_title: "",
-    course_section: "",
+    course_sections: [], // CHANGED to array for multiple sections
     semester: "",
     school_year: ""
   });
@@ -96,7 +96,7 @@ export default function FacultyLoadedManagement() {
     return getVariablesByType('subject_code');
   };
 
-  // Get available course sections from system variables
+  // Get available course sections from system variables - FOR CHECKBOXES
   const getCourseSectionOptions = () => {
     return getVariablesByType('course_section').map(v => v.variable_name);
   };
@@ -109,14 +109,41 @@ export default function FacultyLoadedManagement() {
     return subject ? subject.subject_title : '';
   };
 
-  // Check for duplicate faculty loaded
-  const checkDuplicateFacultyLoaded = (subjectCode, courseSection, semester, schoolYear) => {
-    return facultyLoadeds.some(loaded => 
-      loaded.subject_code === subjectCode &&
-      loaded.course_section === courseSection &&
-      loaded.semester === semester &&
-      loaded.school_year === schoolYear
-    );
+  // Handle course section checkbox change
+  const handleCourseSectionChange = (courseSection) => {
+    setFormData(prev => {
+      const currentSections = [...prev.course_sections];
+      if (currentSections.includes(courseSection)) {
+        // Remove if already selected
+        return {
+          ...prev,
+          course_sections: currentSections.filter(section => section !== courseSection)
+        };
+      } else {
+        // Add if not selected
+        return {
+          ...prev,
+          course_sections: [...currentSections, courseSection]
+        };
+      }
+    });
+  };
+
+  // Select all course sections
+  const handleSelectAllSections = () => {
+    const allSections = getCourseSectionOptions();
+    setFormData(prev => ({
+      ...prev,
+      course_sections: allSections
+    }));
+  };
+
+  // Clear all course sections
+  const handleClearAllSections = () => {
+    setFormData(prev => ({
+      ...prev,
+      course_sections: []
+    }));
   };
 
   // Add authentication check on component mount
@@ -131,12 +158,12 @@ export default function FacultyLoadedManagement() {
       return;
     }
     
-    fetchFacultyLoadeds();
+    fetchFacultyLoads();
     fetchSystemVariables();
   }, [navigate]);
 
-  // Fetch faculty loadeds from backend 
-  const fetchFacultyLoadeds = async () => {
+  // Fetch faculty loads from backend 
+  const fetchFacultyLoads = async () => {
     try {
       if (!tokenService.isFacultyAuthenticated()) {
         showFeedback("error", "Please login again");
@@ -158,22 +185,22 @@ export default function FacultyLoadedManagement() {
       }
       
       const result = await response.json();
-      console.log("Fetched faculty loadeds for current user:", result);
+      console.log("Fetched faculty loads for current user:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setFacultyLoadeds(result.data);
+        setFacultyLoads(result.data);
       } else {
         console.error("Unexpected API response format:", result);
-        setFacultyLoadeds([]);
+        setFacultyLoads([]);
       }
     } catch (err) {
-      console.error("Error fetching faculty loadeds:", err);
+      console.error("Error fetching faculty loads:", err);
       if (err.message === 'Token refresh failed') {
         showFeedback("error", "Session expired. Please login again.");
         tokenService.clearFacultyTokens();
         navigate('/auth/login');
       }
-      setFacultyLoadeds([]); 
+      setFacultyLoads([]); 
     }
   };
 
@@ -216,7 +243,7 @@ export default function FacultyLoadedManagement() {
       faculty_loaded_id: "",
       subject_code: "",
       subject_title: "",
-      course_section: "",
+      course_sections: [],
       semester: "",
       school_year: ""
     });
@@ -236,14 +263,11 @@ export default function FacultyLoadedManagement() {
         return;
       }
 
-      // Check for duplicates (only when adding new, not when editing)
-      if (!isEditMode && checkDuplicateFacultyLoaded(
-        formData.subject_code, 
-        formData.course_section, 
-        formData.semester, 
-        formData.school_year
-      )) {
-        throw new Error("A faculty load with the same Subject Code, Course Section, Semester, and School Year already exists");
+      // Validate that at least one course section is selected
+      if (formData.course_sections.length === 0) {
+        showFeedback("error", "Please select at least one course section.");
+        setLoading(false);
+        return;
       }
 
       const url = isEditMode 
@@ -252,14 +276,9 @@ export default function FacultyLoadedManagement() {
       
       const method = isEditMode ? "PUT" : "POST";
   
-      const requestData = isEditMode ? {
+      const requestData = {
         subject_code: formData.subject_code,
-        course_section: formData.course_section,
-        semester: formData.semester,
-        school_year: formData.school_year
-      } : {
-        subject_code: formData.subject_code,
-        course_section: formData.course_section,
+        course_sections: formData.course_sections, // NOW AN ARRAY
         semester: formData.semester,
         school_year: formData.school_year
       };
@@ -293,23 +312,23 @@ export default function FacultyLoadedManagement() {
       if (result.success) {
         resetForm();
         setShowModal(false);
-        fetchFacultyLoadeds();
+        fetchFacultyLoads();
         showFeedback("success", 
-          isEditMode ? "Faculty loaded updated successfully!" : "Faculty loaded added successfully!"
+          isEditMode ? "Faculty load updated successfully!" : "Faculty load added successfully! Task deliverables auto-created."
         );
       } else {
-        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} faculty loaded`);
+        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} faculty load`);
       }
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} faculty loaded:`, error);
-      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} faculty loaded`);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} faculty load:`, error);
+      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} faculty load`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle edit faculty loaded 
-  const handleEdit = async (facultyLoadedId) => {
+  // Handle edit faculty load 
+  const handleEdit = async (facultyLoadId) => {
     try {
       const token = tokenService.getFacultyAccessToken();
       if (!token) {
@@ -317,7 +336,7 @@ export default function FacultyLoadedManagement() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/${facultyLoadedId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/${facultyLoadId}`, {
         headers: {
           'Authorization': `Bearer ${token}` 
         }
@@ -329,36 +348,36 @@ export default function FacultyLoadedManagement() {
           showFeedback("error", "Session expired. Please login again.");
           return;
         }
-        throw new Error("Failed to fetch faculty loaded data");
+        throw new Error("Failed to fetch faculty load data");
       }
 
       const result = await response.json();
   
       if (result.success && result.data) {
-        const facultyLoaded = result.data;
+        const facultyLoad = result.data;
         
         setFormData({
-          faculty_loaded_id: facultyLoaded.faculty_loaded_id,
-          subject_code: facultyLoaded.subject_code,
-          subject_title: facultyLoaded.subject_title, // Use the subject_title from backend
-          course_section: facultyLoaded.course_section,
-          semester: facultyLoaded.semester,
-          school_year: facultyLoaded.school_year
+          faculty_loaded_id: facultyLoad.faculty_loaded_id,
+          subject_code: facultyLoad.subject_code,
+          subject_title: facultyLoad.subject_title,
+          course_sections: facultyLoad.course_sections || [], // NOW AN ARRAY
+          semester: facultyLoad.semester,
+          school_year: facultyLoad.school_year
         });
         setIsEditMode(true);
         setShowModal(true);
       } else {
-        showFeedback("error", "Error loading faculty loaded data");
+        showFeedback("error", "Error loading faculty load data");
       }
     } catch (error) {
-      console.error("Error fetching faculty loaded:", error);
-      showFeedback("error", "Error loading faculty loaded data");
+      console.error("Error fetching faculty load:", error);
+      showFeedback("error", "Error loading faculty load data");
     }
     setActionDropdown(null);
   }
 
-  // Handle delete faculty loaded 
-  const handleDelete = async (facultyLoadedId) => {
+  // Handle delete faculty load 
+  const handleDelete = async (facultyLoadId) => {
     try {
       const token = tokenService.getFacultyAccessToken();
       if (!token) {
@@ -366,7 +385,7 @@ export default function FacultyLoadedManagement() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/${facultyLoadedId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/${facultyLoadId}`, {
         method: "DELETE",
         headers: {
           'Authorization': `Bearer ${token}` 
@@ -381,49 +400,52 @@ export default function FacultyLoadedManagement() {
           showFeedback("error", "Session expired. Please login again.");
           return;
         }
-        throw new Error(result.message || "Error deleting faculty loaded");
+        throw new Error(result.message || "Error deleting faculty load");
       }
 
       if (result.success) {
-        fetchFacultyLoadeds();
-        showFeedback("success", "Faculty loaded deleted successfully!");
+        fetchFacultyLoads();
+        showFeedback("success", "Faculty load deleted successfully!");
       } else {
-        showFeedback("error", result.message || "Error deleting faculty loaded");
+        showFeedback("error", result.message || "Error deleting faculty load");
       }
     } catch (error) {
-      console.error("Error deleting faculty loaded:", error);
-      showFeedback("error", "Error deleting faculty loaded");
+      console.error("Error deleting faculty load:", error);
+      showFeedback("error", "Error deleting faculty load");
     }
     setDeleteModalOpen(false);
-    setFacultyLoadedToDelete(null);
+    setFacultyLoadToDelete(null);
     setActionDropdown(null);
   };
 
   // Open delete confirmation modal
-  const confirmDelete = (facultyLoadedId) => {
-    setFacultyLoadedToDelete(facultyLoadedId);
+  const confirmDelete = (facultyLoadId) => {
+    setFacultyLoadToDelete(facultyLoadId);
     setDeleteModalOpen(true);
   };
 
   // Calculate stats for cards
-  const facultyLoadedStats = {
-    total: Array.isArray(facultyLoadeds) ? facultyLoadeds.length : 0,
-    subjectCode: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.subject_code))].length : 0,
-    courseSection: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.course_section))].length : 0,
-    schoolYear: Array.isArray(facultyLoadeds) ? [...new Set(facultyLoadeds.map(fl => fl.school_year))].length : 0
+  const facultyLoadStats = {
+    total: Array.isArray(facultyLoads) ? facultyLoads.length : 0,
+    subjectCode: Array.isArray(facultyLoads) ? [...new Set(facultyLoads.map(fl => fl.subject_code))].length : 0,
+    courseSection: Array.isArray(facultyLoads) ? facultyLoads.reduce((total, fl) => total + (fl.course_sections?.length || 0), 0) : 0,
+    schoolYear: Array.isArray(facultyLoads) ? [...new Set(facultyLoads.map(fl => fl.school_year))].length : 0
   };
 
   // Search filter
-  const filteredFacultyLoadeds = (Array.isArray(facultyLoadeds) ? facultyLoadeds : [])
+  const filteredFacultyLoads = (Array.isArray(facultyLoads) ? facultyLoads : [])
     .filter((fl) =>
-      [fl.faculty_loaded_id, fl.subject_code, fl.course_section, fl.semester, fl.school_year, fl.subject_title]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
+      [fl.faculty_loaded_id, fl.subject_code, fl.semester, fl.school_year, fl.subject_title]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
+      (fl.course_sections && fl.course_sections.some(section => 
+        section.toLowerCase().includes(search.toLowerCase())
+      ))
     );
 
   // Pagination
-  const totalPages = Math.ceil(filteredFacultyLoadeds.length / facultyLoadedsPerPage);
-  const startIndex = (currentPage - 1) * facultyLoadedsPerPage;
-  const currentFacultyLoadeds = filteredFacultyLoadeds.slice(startIndex, startIndex + facultyLoadedsPerPage);
+  const totalPages = Math.ceil(filteredFacultyLoads.length / facultyLoadsPerPage);
+  const startIndex = (currentPage - 1) * facultyLoadsPerPage;
+  const currentFacultyLoads = filteredFacultyLoads.slice(startIndex, startIndex + facultyLoadsPerPage);
 
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
@@ -443,7 +465,7 @@ export default function FacultyLoadedManagement() {
           <div className="flex gap-3 w-full md:w-auto">
             <input
               type="text"
-              placeholder="Search faculty loadeds..."
+              placeholder="Search faculty loads..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
@@ -455,7 +477,7 @@ export default function FacultyLoadedManagement() {
                 setShowModal(true);
               }}
               className="bg-black text-white p-2 rounded-md hover:bg-yellow-400 hover:text-black transition-colors duration-200 flex items-center justify-center w-10 h-10"
-              title="Add New Faculty Loaded"
+              title="Add New Faculty Load"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -468,19 +490,19 @@ export default function FacultyLoadedManagement() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Loads</div>
-            <div className="text-2xl font-bold text-blue-800">{facultyLoadedStats.total}</div>
+            <div className="text-2xl font-bold text-blue-800">{facultyLoadStats.total}</div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
             <div className="text-purple-600 text-sm font-medium">Subject Code</div>
-            <div className="text-2xl font-bold text-purple-800">{facultyLoadedStats.subjectCode}</div>
+            <div className="text-2xl font-bold text-purple-800">{facultyLoadStats.subjectCode}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Course Section</div>
-            <div className="text-2xl font-bold text-green-800">{facultyLoadedStats.courseSection}</div>
+            <div className="text-green-600 text-sm font-medium">Course Sections</div>
+            <div className="text-2xl font-bold text-green-800">{facultyLoadStats.courseSection}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
             <div className="text-yellow-600 text-sm font-medium">Academic Year</div>
-            <div className="text-2xl font-bold text-yellow-800">{facultyLoadedStats.schoolYear}</div>
+            <div className="text-2xl font-bold text-yellow-800">{facultyLoadStats.schoolYear}</div>
           </div>
         </div>
 
@@ -492,52 +514,63 @@ export default function FacultyLoadedManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Load ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course Sections</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentFacultyLoadeds.length > 0 ? (
-                currentFacultyLoadeds.map((facultyLoaded) => (
-                  <tr key={facultyLoaded._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoaded.faculty_loaded_id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoaded.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.subject_title || 'Loading...'}</td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.course_section}</td>
+              {currentFacultyLoads.length > 0 ? (
+                currentFacultyLoads.map((facultyLoad) => (
+                  <tr key={facultyLoad._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
+                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoad.faculty_loaded_id}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoad.subject_code}</td>
+                    <td className="px-4 py-3 text-gray-700">{facultyLoad.subject_title || 'Loading...'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {facultyLoad.course_sections?.map((section, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            {section}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        facultyLoaded.semester === '1st Semester' ? 'bg-purple-100 text-purple-800' :
-                        facultyLoaded.semester === '2nd Semester' ? 'bg-green-100 text-green-800' :
+                        facultyLoad.semester === '1st Semester' ? 'bg-purple-100 text-purple-800' :
+                        facultyLoad.semester === '2nd Semester' ? 'bg-green-100 text-green-800' :
                         'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {facultyLoaded.semester}
+                        {facultyLoad.semester}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoaded.school_year}</td>
+                    <td className="px-4 py-3 text-gray-700">{facultyLoad.school_year}</td>
                     <td className="px-4 py-3 relative">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionDropdown(actionDropdown === facultyLoaded.faculty_loaded_id ? null : facultyLoaded.faculty_loaded_id);
+                          setActionDropdown(actionDropdown === facultyLoad.faculty_loaded_id ? null : facultyLoad.faculty_loaded_id);
                         }}
                         className="p-1 rounded hover:bg-gray-200 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       
-                      {actionDropdown === facultyLoaded.faculty_loaded_id && (
+                      {actionDropdown === facultyLoad.faculty_loaded_id && (
                         <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                           <button
-                            onClick={() => handleEdit(facultyLoaded.faculty_loaded_id)}
+                            onClick={() => handleEdit(facultyLoad.faculty_loaded_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Update
                           </button>
                           <button
-                            onClick={() => confirmDelete(facultyLoaded.faculty_loaded_id)}
+                            onClick={() => confirmDelete(facultyLoad.faculty_loaded_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
@@ -551,7 +584,7 @@ export default function FacultyLoadedManagement() {
               ) : (
                 <tr>
                   <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
-                    No faculty loadeds found.
+                    No faculty loads found.
                   </td>
                 </tr>
               )}
@@ -561,21 +594,21 @@ export default function FacultyLoadedManagement() {
 
         {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
-          {currentFacultyLoadeds.length > 0 ? (
-            currentFacultyLoadeds.map((facultyLoaded) => (
-              <div key={facultyLoaded._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+          {currentFacultyLoads.length > 0 ? (
+            currentFacultyLoads.map((facultyLoad) => (
+              <div key={facultyLoad._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800 font-mono">{facultyLoaded.subject_code}</h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {facultyLoaded.faculty_loaded_id}</p>
+                    <h2 className="font-semibold text-gray-800 font-mono">{facultyLoad.subject_code}</h2>
+                    <p className="text-sm text-gray-600 font-mono">ID: {facultyLoad.faculty_loaded_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      facultyLoaded.semester === '1st Semester' ? 'bg-purple-100 text-purple-800' :
-                      facultyLoaded.semester === '2nd Semester' ? 'bg-green-100 text-green-800' :
+                      facultyLoad.semester === '1st Semester' ? 'bg-purple-100 text-purple-800' :
+                      facultyLoad.semester === '2nd Semester' ? 'bg-green-100 text-green-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {facultyLoaded.semester}
+                      {facultyLoad.semester}
                     </span>
                     
                     {/* Mobile Actions Dropdown */}
@@ -583,24 +616,24 @@ export default function FacultyLoadedManagement() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionDropdown(actionDropdown === facultyLoaded.faculty_loaded_id ? null : facultyLoaded.faculty_loaded_id);
+                          setActionDropdown(actionDropdown === facultyLoad.faculty_loaded_id ? null : facultyLoad.faculty_loaded_id);
                         }}
                         className="p-1 rounded hover:bg-gray-200 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       
-                      {actionDropdown === facultyLoaded.faculty_loaded_id && (
+                      {actionDropdown === facultyLoad.faculty_loaded_id && (
                         <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                           <button
-                            onClick={() => handleEdit(facultyLoaded.faculty_loaded_id)}
+                            onClick={() => handleEdit(facultyLoad.faculty_loaded_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Update
                           </button>
                           <button
-                            onClick={() => confirmDelete(facultyLoaded.faculty_loaded_id)}
+                            onClick={() => confirmDelete(facultyLoad.faculty_loaded_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
@@ -615,28 +648,37 @@ export default function FacultyLoadedManagement() {
                 <div className="grid grid-cols-1 gap-3 text-sm mb-3">
                   <div>
                     <span className="text-gray-500">Subject Title:</span>
-                    <p className="font-medium">{facultyLoaded.subject_title || 'Loading...'}</p>
+                    <p className="font-medium">{facultyLoad.subject_title || 'Loading...'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Course Sections:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {facultyLoad.course_sections?.map((section, index) => (
+                        <span 
+                          key={index}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        >
+                          {section}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <span className="text-gray-500">Course Section:</span>
-                      <p className="font-medium">{facultyLoaded.course_section}</p>
-                    </div>
-                    <div>
                       <span className="text-gray-500">Academic Year:</span>
-                      <p className="font-medium">{facultyLoaded.school_year}</p>
+                      <p className="font-medium">{facultyLoad.school_year}</p>
                     </div>
                   </div>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-3">
-                  Created: {new Date(facultyLoaded.created_at).toLocaleDateString()}
+                  Created: {new Date(facultyLoad.created_at).toLocaleDateString()}
                 </p>
               </div>
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              No faculty loadeds found.
+              No faculty loads found.
             </div>
           )}
         </div>
@@ -644,7 +686,7 @@ export default function FacultyLoadedManagement() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentFacultyLoadeds.length} of {filteredFacultyLoadeds.length} faculty loadeds
+            Showing {currentFacultyLoads.length} of {filteredFacultyLoads.length} faculty loads
           </div>
           
           <div className="flex items-center gap-3">
@@ -676,20 +718,20 @@ export default function FacultyLoadedManagement() {
           </div>
         </div>
 
-        {/* Add/Edit Faculty Loaded Modal */}
+        {/* Add/Edit Faculty Load Modal */}
         <Modal
           isOpen={showModal}
           onRequestClose={() => {
             setShowModal(false);
             resetForm();
           }}
-          className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
           overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
         >
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">
-                {isEditMode ? "Update Faculty Loaded" : "Add New Faculty Loaded"}
+                {isEditMode ? "Update Faculty Load" : "Add New Faculty Load"}
               </h3>
               <button
                 onClick={() => {
@@ -705,11 +747,11 @@ export default function FacultyLoadedManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Faculty Loaded ID (readonly in edit mode) */}
+              {/* Faculty Load ID (readonly in edit mode) */}
               {isEditMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Faculty Loaded ID
+                    Faculty Load ID
                   </label>
                   <input
                     type="text"
@@ -757,25 +799,52 @@ export default function FacultyLoadedManagement() {
                 />
               </div>
 
-              {/* Course Section - Dropdown from System Variables */}
+              {/* Course Sections - CHECKBOXES for multiple selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Section *
+                  Course Sections *
                 </label>
-                <select
-                  name="course_section"
-                  value={formData.course_section}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select course section</option>
-                  {getCourseSectionOptions().map((section) => (
-                    <option key={section} value={section}>
-                      {section}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm text-gray-600">
+                    Selected: {formData.course_sections.length} section(s)
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllSections}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearAllSections}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2">
+                    {getCourseSectionOptions().map((section) => (
+                      <label key={section} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.course_sections.includes(section)}
+                          onChange={() => handleCourseSectionChange(section)}
+                          className="rounded border-gray-300 text-black focus:ring-black"
+                        />
+                        <span className="text-sm text-gray-700">{section}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {formData.course_sections.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Please select at least one course section.
+                  </p>
+                )}
               </div>
 
               {/* Semester - Dropdown from System Variables */}
@@ -820,6 +889,13 @@ export default function FacultyLoadedManagement() {
                 </select>
               </div>
 
+              {/* Auto-sync notice */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>Auto-sync enabled:</strong> Task deliverables will be automatically created for each selected course section.
+                </p>
+              </div>
+
               {/* Form Actions */}
               <div className="flex gap-3 pt-4">
                 <button
@@ -834,10 +910,10 @@ export default function FacultyLoadedManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || formData.course_sections.length === 0}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Faculty Loaded" : "Add Faculty Loaded")}
+                  {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Faculty Load" : "Add Faculty Load")}
                 </button>
               </div>
             </form>
@@ -855,7 +931,7 @@ export default function FacultyLoadedManagement() {
             <XCircle className="text-red-500 w-12 h-12 mb-4" />
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this faculty loaded? This action cannot be undone.
+              Are you sure you want to delete this faculty load? This will also delete all associated task deliverables.
             </p>
             <div className="flex gap-3 w-full">
               <button
@@ -865,7 +941,7 @@ export default function FacultyLoadedManagement() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDelete(facultyLoadedToDelete)}
+                onClick={() => handleDelete(facultyLoadToDelete)}
                 className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
               >
                 Delete

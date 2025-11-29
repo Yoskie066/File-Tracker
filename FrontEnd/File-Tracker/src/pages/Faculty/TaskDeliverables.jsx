@@ -9,10 +9,8 @@ Modal.setAppElement("#root");
 
 export default function TaskDeliverablesManagement() {
   const [taskDeliverables, setTaskDeliverables] = useState([]);
-  const [facultyLoadeds, setFacultyLoadeds] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const taskDeliverablesPerPage = 10;
 
@@ -20,12 +18,6 @@ export default function TaskDeliverablesManagement() {
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
-
-  // Form state
-  const [formData, setFormData] = useState({
-    subject_code: "",
-    course_section: ""
-  });
 
   const navigate = useNavigate(); 
 
@@ -44,7 +36,6 @@ export default function TaskDeliverablesManagement() {
     }
     
     fetchTaskDeliverables();
-    fetchFacultyLoadeds();
   }, [navigate]);
 
   // Fetch task deliverables from backend 
@@ -92,147 +83,12 @@ export default function TaskDeliverablesManagement() {
       setLoading(false);
     }
   };
-  
-  // Fetch faculty loadeds for dropdown 
-  const fetchFacultyLoadeds = async () => {
-    try {
-      if (!tokenService.isFacultyAuthenticated()) {
-        return;
-      }
-  
-      // Use authFetch instead of direct fetch
-      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/task-deliverables/faculty-loaded`);
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          tokenService.clearFacultyTokens();
-          return;
-        }
-        throw new Error("Server responded with " + response.status);
-      }
-      
-      const result = await response.json();
-      console.log("Fetched faculty loadeds for dropdown:", result);
-      
-      if (result.success && Array.isArray(result.data)) {
-        setFacultyLoadeds(result.data);
-      } else {
-        console.error("Unexpected API response format:", result);
-        setFacultyLoadeds([]);
-      }
-    } catch (err) {
-      console.error("Error fetching faculty loadeds:", err);
-      if (err.message === 'Token refresh failed') {
-        tokenService.clearFacultyTokens();
-      }
-      setFacultyLoadeds([]); 
-    }
-  };
-
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Handle faculty loaded selection
-  const handleFacultyLoadedChange = (e) => {
-    const selectedId = e.target.value;
-    if (selectedId) {
-      const [subjectCode, courseSection] = selectedId.split('|');
-      setFormData(prev => ({
-        ...prev,
-        subject_code: subjectCode,
-        course_section: courseSection
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        subject_code: "",
-        course_section: ""
-      }));
-    }
-  };
 
   // Show feedback modal
   const showFeedback = (type, message) => {
     setFeedbackType(type);
     setFeedbackMessage(message);
     setFeedbackModalOpen(true);
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      subject_code: "",
-      course_section: ""
-    });
-  };
-
-  // Handle form submission (ADD ONLY) 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-  
-    try {
-      if (!tokenService.isFacultyAuthenticated()) {
-        showFeedback("error", "Please login again. No authentication token found.");
-        setLoading(false);
-        return;
-      }
-  
-      const url = `${API_BASE_URL}/api/faculty/task-deliverables`;
-      
-      const requestData = {
-        subject_code: formData.subject_code,
-        course_section: formData.course_section
-      };
-  
-      console.log("Sending request to:", url);
-      console.log("Request data:", requestData);
-  
-      // Use authFetch instead of direct fetch
-      const response = await tokenService.authFetch(url, { 
-        method: "POST",
-        body: JSON.stringify(requestData),
-      });
-  
-      const result = await response.json();
-      console.log("Server response:", result);
-  
-      if (!response.ok) {
-        if (response.status === 401) {
-          tokenService.clearFacultyTokens();
-          showFeedback("error", "Session expired. Please login again.");
-          setTimeout(() => navigate('/auth/login'), 2000);
-          return;
-        }
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
-      }
-  
-      if (result.success) {
-        resetForm();
-        setShowModal(false);
-        fetchTaskDeliverables();
-        showFeedback("success", "Task deliverables added successfully!");
-      } else {
-        showFeedback("error", result.message || "Error adding task deliverables");
-      }
-    } catch (error) {
-      console.error("Error creating task deliverables:", error);
-      if (error.message === 'Token refresh failed') {
-        showFeedback("error", "Session expired. Please login again.");
-        tokenService.clearFacultyTokens();
-        navigate('/auth/login');
-      } else {
-        showFeedback("error", error.message || "Error creating task deliverables");
-      }
-    } finally {
-      setLoading(false);
-    }
   };
 
   // FIXED: Calculate stats for charts - SIMPLE AND ACCURATE COUNTING
@@ -333,7 +189,7 @@ export default function TaskDeliverablesManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Task Deliverables</h1>
             <p className="text-sm text-gray-500">
-              Monitor the status of your submitted deliverables with ease
+              Auto-synced with your faculty loads. Monitor the status of your submitted deliverables.
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
@@ -344,19 +200,17 @@ export default function TaskDeliverablesManagement() {
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
-            {/* Plus Sign Button */}
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="bg-black text-white p-2 rounded-md hover:bg-yellow-400 hover:text-black transition-colors duration-200 flex items-center justify-center w-10 h-10"
-              title="Add New Task Deliverables"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+          </div>
+        </div>
+
+        {/* Auto-sync Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <CheckCircle className="text-blue-500 w-5 h-5 mr-2" />
+            <p className="text-blue-700 text-sm">
+              <strong>Auto-sync Enabled:</strong> Task deliverables are automatically created when you add faculty loads. 
+              Each course section from your faculty loads gets its own task deliverables entry.
+            </p>
           </div>
         </div>
 
@@ -477,7 +331,7 @@ export default function TaskDeliverablesManagement() {
               ) : (
                 <tr>
                   <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
-                    {loading ? "Loading task deliverables..." : "No task deliverables found."}
+                    {loading ? "Loading task deliverables..." : "No task deliverables found. Add faculty loads to auto-create task deliverables."}
                   </td>
                 </tr>
               )}
@@ -567,7 +421,7 @@ export default function TaskDeliverablesManagement() {
             })
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              {loading ? "Loading task deliverables..." : "No task deliverables found."}
+              {loading ? "Loading task deliverables..." : "No task deliverables found. Add faculty loads to auto-create task deliverables."}
             </div>
           )}
         </div>
@@ -606,110 +460,6 @@ export default function TaskDeliverablesManagement() {
             </button>
           </div>
         </div>
-
-        {/* Add Task Deliverables Modal */}
-        <Modal
-          isOpen={showModal}
-          onRequestClose={() => {
-            setShowModal(false);
-            resetForm();
-          }}
-          className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        >
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Add New Task Deliverables
-              </h3>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Faculty Loaded Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Subject & Section *
-                </label>
-                <select
-                  onChange={handleFacultyLoadedChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select subject and section</option>
-                  {facultyLoadeds.map((facultyLoaded) => (
-                    <option 
-                      key={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
-                      value={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
-                    >
-                      {facultyLoaded.subject_code} - {facultyLoaded.course_section} 
-                      {facultyLoaded.subject_title && ` (${facultyLoaded.subject_title})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Subject Code (auto-filled, readonly) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject Code (auto-filled)
-                </label>
-                <input
-                  type="text"
-                  name="subject_code"
-                  value={formData.subject_code}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-
-              {/* Course Section (auto-filled, readonly) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Section (auto-filled)
-                </label>
-                <input
-                  type="text"
-                  name="course_section"
-                  value={formData.course_section}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Adding..." : "Add Task Deliverables"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
 
         {/* Feedback Modal */}
         <Modal
