@@ -85,7 +85,6 @@ export default function FileManagement() {
         throw new Error(errorData?.message || `Download failed with status: ${response.status}`);
       }
   
-      // Check if response is valid
       const contentType = response.headers.get('content-type');
       const contentLength = response.headers.get('content-length');
       
@@ -112,7 +111,6 @@ export default function FileManagement() {
       link.click();
       document.body.removeChild(link);
       
-      // Clean up URL
       window.URL.revokeObjectURL(url);
       
       showFeedback("success", "File downloaded successfully!");
@@ -123,41 +121,41 @@ export default function FileManagement() {
     }
   };
   
-    // Handle preview file
-    const handlePreview = (file) => {
-      setFileToPreview(file);
-      setPreviewModalOpen(true);
-    };
-  
-    // Handle update status
-    const handleUpdateStatus = async () => {
-      if (!fileToUpdate || !newStatus) return;
-  
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileToUpdate.file_id}/status`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
-        });
-  
-        const result = await response.json();
-  
-        if (result.success) {
-          fetchFiles(); 
-          setStatusModalOpen(false);
-          setFileToUpdate(null);
-          setNewStatus("");
-          showFeedback("success", "File status updated successfully!");
-        } else {
-          showFeedback("error", result.message || "Error updating file status");
-        }
-      } catch (error) {
-        console.error("Error updating file status:", error);
-        showFeedback("error", "Error updating file status");
+  // Handle preview file
+  const handlePreview = (file) => {
+    setFileToPreview(file);
+    setPreviewModalOpen(true);
+  };
+
+  // Handle update status
+  const handleUpdateStatus = async () => {
+    if (!fileToUpdate || !newStatus) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileToUpdate.file_id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        fetchFiles(); 
+        setStatusModalOpen(false);
+        setFileToUpdate(null);
+        setNewStatus("");
+        showFeedback("success", "File status updated successfully!");
+      } else {
+        showFeedback("error", result.message || "Error updating file status");
       }
-    };
+    } catch (error) {
+      console.error("Error updating file status:", error);
+      showFeedback("error", "Error updating file status");
+    }
+  };
 
   // Open status update modal
   const openStatusModal = (file) => {
@@ -219,12 +217,11 @@ export default function FileManagement() {
 
   // Get document type label with TOS type support
   const getDocumentTypeLabel = (documentType, tosType = null) => {
-    // Handle TOS files with specific types
     if (documentType === 'tos-midterm' || (documentType === 'tos' && tosType === 'midterm')) {
-      return 'TOS (TOS-Midterm)';
+      return 'TOS (Midterm)';
     }
     if (documentType === 'tos-final' || (documentType === 'tos' && tosType === 'final')) {
-      return 'TOS (TOS-Final)';
+      return 'TOS (Final)';
     }
 
     const typeMap = {
@@ -249,7 +246,7 @@ export default function FileManagement() {
   // Search filter
   const filteredFiles = (Array.isArray(files) ? files : [])
     .filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_title]
+      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.course_section]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -310,7 +307,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - SUBJECT TITLE COLUMN REMOVED */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -321,7 +318,6 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Section</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Uploaded At</th>
@@ -347,9 +343,6 @@ export default function FileManagement() {
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {file.subject_code} - {file.course_section}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 text-xs">
-                      {file.subject_title || 'N/A'}
                     </td>
                     <td className="px-4 py-3 text-gray-700">{formatFileSize(file.file_size)}</td>
                     <td className="px-4 py-3">
@@ -408,7 +401,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : "No files found."}
                   </td>
                 </tr>
@@ -496,10 +489,6 @@ export default function FileManagement() {
                   <div>
                     <span className="text-gray-500">Subject & Section:</span>
                     <p className="font-medium">{file.subject_code} - {file.course_section}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Subject Title:</span>
-                    <p className="font-medium">{file.subject_title || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Size:</span>
@@ -617,7 +606,6 @@ export default function FileManagement() {
                   </div>
                 </div>
 
-                {/* Show TOS Type if applicable */}
                 {fileToPreview.tos_type && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">TOS Type</label>
@@ -634,11 +622,6 @@ export default function FileManagement() {
                     <label className="block text-sm font-medium text-gray-700">Course Section</label>
                     <p className="mt-1 text-sm text-gray-900">{fileToPreview.course_section}</p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Subject Title</label>
-                  <p className="mt-1 text-sm text-gray-900">{fileToPreview.subject_title || 'N/A'}</p>
                 </div>
 
                 <div>
@@ -701,7 +684,6 @@ export default function FileManagement() {
                   </p>
                   <p className="text-sm text-gray-600 mb-4">
                     Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                    {fileToUpdate.subject_title && ` (${fileToUpdate.subject_title})`}
                   </p>
                   <p className="text-sm text-gray-600 mb-4">
                     This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}

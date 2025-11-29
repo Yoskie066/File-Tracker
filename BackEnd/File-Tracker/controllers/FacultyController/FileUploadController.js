@@ -1,6 +1,6 @@
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
-import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js"; // Import FacultyLoaded
+import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -69,12 +69,11 @@ const mapDocumentTypeToField = (documentType) => {
 };
 
 // Get subject title from FacultyLoaded
-const getSubjectTitle = async (facultyId, subjectCode, courseSection) => {
+const getSubjectTitle = async (facultyId, subjectCode) => {
   try {
     const facultyLoaded = await FacultyLoaded.findOne({
       faculty_id: facultyId,
-      subject_code: subjectCode,
-      course_section: courseSection
+      subject_code: subjectCode
     });
     
     return facultyLoaded ? facultyLoaded.subject_title : 'Unknown Subject';
@@ -84,12 +83,12 @@ const getSubjectTitle = async (facultyId, subjectCode, courseSection) => {
   }
 };
 
-// Update Task Deliverables when file status changes 
+// Update Task Deliverables when file status changes - UPDATED FOR MULTIPLE SECTIONS
 const updateTaskDeliverables = async (fileData) => {
   try {
-    const { faculty_id, faculty_name, subject_code, course_section, document_type, status } = fileData;
+    const { faculty_id, faculty_name, subject_code, course_sections, document_type, status } = fileData;
     
-    console.log(`Syncing Task Deliverables for: ${subject_code}-${courseSection}`);
+    console.log(`Syncing Task Deliverables for: ${subject_code} - Sections: ${course_sections.join(', ')}`);
     console.log(`Document Type: ${document_type}, Status: ${status}`);
 
     // Map document_type to TaskDeliverables field name
@@ -99,55 +98,46 @@ const updateTaskDeliverables = async (fileData) => {
       return;
     }
 
-    // Find the corresponding TaskDeliverables
-    let taskDeliverables = await TaskDeliverables.findOne({
-      faculty_id,
-      subject_code,
-      course_section
-    });
-
-    if (taskDeliverables) {
-      // Update ONLY the specific field based on document type and status
-      const updateData = { 
-        [fieldName]: status,
-        updated_at: new Date()
-      };
-      
-      const updatedTask = await TaskDeliverables.findOneAndUpdate(
-        { faculty_id, subject_code, course_section },
-        updateData,
-        { new: true, runValidators: true }
-      );
-      
-      console.log(`Updated TaskDeliverables: ${subject_code}-${courseSection}`);
-      console.log(`Field: ${fieldName} = ${status}`);
-      console.log(`Updated document:`, updatedTask);
-    } else {
-      console.warn(`No TaskDeliverables found for ${subject_code}-${courseSection}`);
-      // Create new TaskDeliverables if doesn't exist
-      const task_deliverables_id = generateFileId();
-      
-      const newTaskDeliverables = new TaskDeliverables({
-        task_deliverables_id,
+    // Update Task Deliverables for EACH course section
+    const updatePromises = course_sections.map(async (course_section) => {
+      // Find the corresponding TaskDeliverables
+      let taskDeliverables = await TaskDeliverables.findOne({
         faculty_id,
-        faculty_name,
         subject_code,
-        course_section,
-        [fieldName]: status
+        course_section
       });
 
-      const savedTask = await newTaskDeliverables.save();
-      console.log(`Created new TaskDeliverables for ${subject_code}-${courseSection}`);
-      console.log(`Field: ${fieldName} = ${status}`);
-      console.log(`New document:`, savedTask);
-    }
+      if (taskDeliverables) {
+        // Update ONLY the specific field based on document type and status
+        const updateData = { 
+          [fieldName]: status,
+          updated_at: new Date()
+        };
+        
+        const updatedTask = await TaskDeliverables.findOneAndUpdate(
+          { faculty_id, subject_code, course_section },
+          updateData,
+          { new: true, runValidators: true }
+        );
+        
+        console.log(`Updated TaskDeliverables: ${subject_code}-${course_section}`);
+        console.log(`Field: ${fieldName} = ${status}`);
+        return updatedTask;
+      } else {
+        console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
+        return null;
+      }
+    });
+
+    await Promise.all(updatePromises);
+    
   } catch (error) {
     console.error("Error updating TaskDeliverables:", error);
     throw error;
   }
 };
 
-// File Upload Controller
+// File Upload Controller - UPDATED FOR MULTIPLE COURSE SECTIONS
 export const uploadFile = async (req, res) => {
   try {
     console.log("Upload request body:", req.body);
@@ -166,16 +156,16 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    const { file_name, document_type, subject_code, course_section, tos_type } = req.body;
+    const { file_name, document_type, subject_code, tos_type } = req.body;
 
-    console.log("Parsed form data:", { file_name, document_type, subject_code, course_section, tos_type });
+    console.log("Parsed form data:", { file_name, document_type, subject_code, tos_type });
 
     // Basic validation
-    if (!document_type || !subject_code || !course_section) {
+    if (!document_type || !subject_code) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message: "Document type, subject code, and course section are required",
+        message: "Document type and subject code are required",
       });
     }
 
@@ -188,8 +178,30 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    // Get subject title from FacultyLoaded
-    const subject_title = await getSubjectTitle(req.faculty.facultyId, subject_code, course_section);
+    // Get faculty loaded data to get course sections and subject title
+    const facultyLoaded = await FacultyLoaded.findOne({
+      faculty_id: req.faculty.facultyId,
+      subject_code: subject_code
+    });
+
+    if (!facultyLoaded) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({
+        success: false,
+        message: "Subject not found in your faculty loads",
+      });
+    }
+
+    const subject_title = facultyLoaded.subject_title;
+    const course_sections = facultyLoaded.course_sections || [];
+
+    if (course_sections.length === 0) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({
+        success: false,
+        message: "No course sections found for this subject",
+      });
+    }
 
     const file_id = generateFileId();
 
@@ -203,84 +215,99 @@ export const uploadFile = async (req, res) => {
       finalTosType = tos_type;
     }
 
-    console.log("Creating file with:", { finalDocumentType, finalTosType });
-
-    const newFile = new FileManagement({
-      file_id,
-      faculty_id: req.faculty.facultyId,
-      faculty_name: req.faculty.facultyName,
-      file_name: file_name || req.file.originalname,
-      document_type: finalDocumentType,
-      tos_type: finalTosType, // This will be null for non-TOS files
-      subject_code,
-      course_section,
-      subject_title, // Add subject title
-      status: "pending", 
-      file_path: req.file.path,
-      original_name: req.file.originalname,
-      file_size: req.file.size,
+    console.log("Creating file with:", { 
+      finalDocumentType, 
+      finalTosType, 
+      course_sections: course_sections.join(', '), 
+      subject_title 
     });
 
-    const savedFile = await newFile.save();
-    console.log("File saved successfully:", savedFile);
-
-    // Create file history record
-    try {
-      await createFileHistory({
-        file_name: savedFile.file_name,
-        document_type: savedFile.document_type,
-        tos_type: savedFile.tos_type,
-        faculty_id: savedFile.faculty_id,
-        subject_code: savedFile.subject_code,
-        course_section: savedFile.course_section,
-        date_submitted: new Date()
+    // Create file records for EACH course section
+    const fileCreationPromises = course_sections.map(async (course_section) => {
+      const sectionFileId = generateFileId();
+      
+      const newFile = new FileManagement({
+        file_id: sectionFileId,
+        faculty_id: req.faculty.facultyId,
+        faculty_name: req.faculty.facultyName,
+        file_name: `${file_name} - ${course_section}`,
+        document_type: finalDocumentType,
+        tos_type: finalTosType,
+        subject_code,
+        course_section,
+        subject_title,
+        status: "pending", 
+        file_path: req.file.path,
+        original_name: req.file.originalname,
+        file_size: req.file.size,
       });
-      console.log("File history created");
+
+      return newFile.save();
+    });
+
+    const savedFiles = await Promise.all(fileCreationPromises);
+    console.log(`Created ${savedFiles.length} file records for sections: ${course_sections.join(', ')}`);
+
+    // Create file history records
+    try {
+      const historyPromises = savedFiles.map(async (savedFile) => {
+        await createFileHistory({
+          file_name: savedFile.file_name,
+          document_type: savedFile.document_type,
+          tos_type: savedFile.tos_type,
+          faculty_id: savedFile.faculty_id,
+          subject_code: savedFile.subject_code,
+          course_section: savedFile.course_section,
+          date_submitted: new Date()
+        });
+      });
+      await Promise.all(historyPromises);
+      console.log("File history created for all sections");
     } catch (historyError) {
       console.error("Error creating file history:", historyError);
-      // Don't fail the upload if history fails
     }
 
-    // Update Task Deliverables
+    // Update Task Deliverables for ALL sections
     try {
       await updateTaskDeliverables({
-        faculty_id: savedFile.faculty_id,
-        faculty_name: savedFile.faculty_name,
-        subject_code: savedFile.subject_code,
-        course_section: savedFile.course_section,
-        document_type: savedFile.document_type,
-        status: savedFile.status
+        faculty_id: req.faculty.facultyId,
+        faculty_name: req.faculty.facultyName,
+        subject_code: subject_code,
+        course_sections: course_sections,
+        document_type: finalDocumentType,
+        status: "pending"
       });
-      console.log("Task deliverables updated");
+      console.log("Task deliverables updated for all sections");
     } catch (taskError) {
       console.error("Error updating task deliverables:", taskError);
-      // Don't fail the upload if task deliverables update fails
     }
 
-    // Auto-sync to Admin Deliverables
+    // Auto-sync to Admin Deliverables for ALL sections
     try {
-      await autoSyncDeliverable({
-        faculty_id: savedFile.faculty_id,
-        faculty_name: savedFile.faculty_name,
-        subject_code: savedFile.subject_code,
-        course_section: savedFile.course_section,
-        subject_title: savedFile.subject_title,
-        file_name: savedFile.file_name,
-        document_type: savedFile.document_type,
-        tos_type: savedFile.tos_type,
-        uploaded_at: savedFile.uploaded_at,
-        status: savedFile.status
+      const syncPromises = savedFiles.map(async (savedFile) => {
+        await autoSyncDeliverable({
+          faculty_id: savedFile.faculty_id,
+          faculty_name: savedFile.faculty_name,
+          subject_code: savedFile.subject_code,
+          course_section: savedFile.course_section,
+          subject_title: savedFile.subject_title,
+          file_name: savedFile.file_name,
+          document_type: savedFile.document_type,
+          tos_type: savedFile.tos_type,
+          uploaded_at: savedFile.uploaded_at,
+          status: savedFile.status
+        });
       });
-      console.log("Admin deliverables synced");
+      await Promise.all(syncPromises);
+      console.log("Admin deliverables synced for all sections");
     } catch (syncError) {
       console.error("Error syncing admin deliverables:", syncError);
-      // Don't fail the upload if sync fails
     }
 
     res.status(201).json({
       success: true,
-      message: "File uploaded successfully and pending admin approval",
-      data: savedFile,
+      message: `File uploaded successfully for ${course_sections.length} course section(s) and pending admin approval`,
+      data: savedFiles,
     });
   } catch (error) {
     console.error("Error uploading file:", error);
@@ -368,7 +395,6 @@ export const downloadFile = async (req, res) => {
       return res.status(404).json({ success: false, message: "File not found" });
     }
 
-    // Check if file exists
     if (!fs.existsSync(file.file_path)) {
       console.error(`File not found at path: ${file.file_path}`);
       return res.status(404).json({
@@ -377,12 +403,10 @@ export const downloadFile = async (req, res) => {
       });
     }
 
-    // Set appropriate headers
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
     res.setHeader('Content-Length', file.file_size);
 
-    // Stream the file
     const fileStream = fs.createReadStream(file.file_path);
     fileStream.pipe(res);
 
@@ -446,7 +470,14 @@ export const updateFileStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "File not found" });
 
     // Update corresponding TaskDeliverables with the EXACT same status
-    await updateTaskDeliverables(updatedFile);
+    await updateTaskDeliverables({
+      faculty_id: updatedFile.faculty_id,
+      faculty_name: updatedFile.faculty_name,
+      subject_code: updatedFile.subject_code,
+      course_sections: [updatedFile.course_section],
+      document_type: updatedFile.document_type,
+      status: updatedFile.status
+    });
 
     // AUTO-SYNC TO ADMIN DELIVERABLES 
     await autoSyncDeliverable({

@@ -13,13 +13,13 @@ export default function FileUpload() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [facultyLoadeds, setFacultyLoadeds] = useState([]);
+  const [availableSections, setAvailableSections] = useState([]);
 
   const [formData, setFormData] = useState({
     file_name: "",
     document_type: "syllabus",
-    tos_type: "", // Only used for TOS files
+    tos_type: "",
     subject_code: "",
-    course_section: "",
     subject_title: ""
   });
 
@@ -34,7 +34,6 @@ export default function FileUpload() {
         return;
       }
   
-      // Use authFetch instead of direct fetch
       const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded`);
       
       if (!response.ok) throw new Error("Server responded with " + response.status);
@@ -78,12 +77,11 @@ export default function FileUpload() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Reset tos_type when document_type changes from 'tos'
     if (name === 'document_type' && value !== 'tos') {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        tos_type: "" // Clear TOS type for non-TOS files
+        tos_type: ""
       }));
     } else {
       setFormData(prev => ({
@@ -93,25 +91,50 @@ export default function FileUpload() {
     }
   };
 
-  // Handle faculty loaded selection
-  const handleFacultyLoadedChange = (e) => {
-    const selectedId = e.target.value;
-    if (selectedId) {
-      const [subjectCode, courseSection, subjectTitle] = selectedId.split('|');
-      setFormData(prev => ({
-        ...prev,
-        subject_code: subjectCode,
-        course_section: courseSection,
-        subject_title: subjectTitle
-      }));
+  // Handle subject code selection - populate sections automatically
+  const handleSubjectCodeChange = (e) => {
+    const selectedSubjectCode = e.target.value;
+    
+    if (selectedSubjectCode) {
+      // Find the faculty loaded entry for this subject
+      const facultyLoaded = facultyLoadeds.find(fl => fl.subject_code === selectedSubjectCode);
+      
+      if (facultyLoaded) {
+        setFormData(prev => ({
+          ...prev,
+          subject_code: selectedSubjectCode,
+          subject_title: facultyLoaded.subject_title || ''
+        }));
+        
+        // Set available sections for this subject (AUTO-SYNC from faculty load)
+        setAvailableSections(facultyLoaded.course_sections || []);
+      }
     } else {
       setFormData(prev => ({
         ...prev,
         subject_code: "",
-        course_section: "",
         subject_title: ""
       }));
+      setAvailableSections([]);
     }
+  };
+
+  // Get unique subject codes from faculty loadeds
+  const getUniqueSubjectCodes = () => {
+    const uniqueSubjects = [];
+    const seenCodes = new Set();
+    
+    facultyLoadeds.forEach(fl => {
+      if (!seenCodes.has(fl.subject_code)) {
+        seenCodes.add(fl.subject_code);
+        uniqueSubjects.push({
+          code: fl.subject_code,
+          title: fl.subject_title
+        });
+      }
+    });
+    
+    return uniqueSubjects;
   };
 
   // Handle file selection
@@ -120,7 +143,6 @@ export default function FileUpload() {
     if (file) {
       setSelectedFile(file);
       
-      // Set file name as default if not provided
       if (!formData.file_name) {
         setFormData(prev => ({
           ...prev,
@@ -144,19 +166,18 @@ export default function FileUpload() {
       document_type: "syllabus",
       tos_type: "",
       subject_code: "",
-      course_section: "",
       subject_title: ""
     });
     setSelectedFile(null);
+    setAvailableSections([]);
     
-    // Reset file input
     const fileInput = document.getElementById('file-upload');
     if (fileInput) {
       fileInput.value = '';
     }
   };
 
-  // Handle modal open - fetch faculty loadeds when opening modal
+  // Handle modal open
   const handleModalOpen = () => {
     const token = tokenService.getFacultyAccessToken();
     if (!token) {
@@ -176,12 +197,16 @@ export default function FileUpload() {
       return;
     }
 
-    if (!formData.subject_code || !formData.course_section) {
-      showFeedback("error", "Please select a subject and course section");
+    if (!formData.subject_code) {
+      showFeedback("error", "Please select a subject");
       return;
     }
 
-    // Validate TOS type only for TOS files
+    if (availableSections.length === 0) {
+      showFeedback("error", "No course sections available for the selected subject");
+      return;
+    }
+
     if (formData.document_type === 'tos' && !formData.tos_type) {
       showFeedback("error", "Please select TOS type (Midterm or Final)");
       return;
@@ -199,23 +224,22 @@ export default function FileUpload() {
       formDataToSend.append('file_name', formData.file_name);
       formDataToSend.append('document_type', formData.document_type);
       formDataToSend.append('subject_code', formData.subject_code);
-      formDataToSend.append('course_section', formData.course_section);
       formDataToSend.append('file', selectedFile);
 
-      // Only append tos_type for TOS files
       if (formData.document_type === 'tos' && formData.tos_type) {
         formDataToSend.append('tos_type', formData.tos_type);
       }
-      // For non-TOS files, don't send tos_type at all
 
-      console.log("Sending form data with document type:", formData.document_type);
-      console.log("TOS type:", formData.document_type === 'tos' ? formData.tos_type : 'Not applicable');
+      console.log("Sending form data:");
+      console.log("- Subject:", formData.subject_code);
+      console.log("- Sections (auto-sync):", availableSections.join(', '));
+      console.log("- Document Type:", formData.document_type);
+      console.log("- TOS Type:", formData.tos_type || 'N/A');
 
       const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`
-          // Don't set Content-Type for FormData - let browser set it with boundary
         },
         body: formDataToSend,
       });
@@ -230,7 +254,7 @@ export default function FileUpload() {
       if (result.success) {
         resetForm();
         setShowModal(false);
-        showFeedback("success", "File uploaded successfully!");
+        showFeedback("success", `File uploaded successfully for ${availableSections.length} course section(s)!`);
       } else {
         showFeedback("error", result.message || "Error uploading file");
       }
@@ -277,8 +301,10 @@ export default function FileUpload() {
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
-            <li>• Required fields: File Name, Document Type, Subject & Section, and the File itself</li>
+            <li>• Required fields: File Name, Document Type, Subject, and the File itself</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
+            <li>• Course sections are automatically synced from your Faculty Load</li>
+            <li>• Files will be uploaded for ALL sections of the selected subject</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
           </ul>
@@ -313,36 +339,58 @@ export default function FileUpload() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Faculty Loaded Selection */}
+              {/* Subject Code Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Subject & Section *
+                  Select Subject *
                 </label>
                 <select
-                  onChange={handleFacultyLoadedChange}
+                  value={formData.subject_code}
+                  onChange={handleSubjectCodeChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select subject and section</option>
-                  {facultyLoadeds.map((facultyLoaded) => (
-                    <option 
-                      key={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}|${facultyLoaded.subject_title}`}
-                      value={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}|${facultyLoaded.subject_title}`}
-                    >
-                      {facultyLoaded.subject_code} - {facultyLoaded.course_section} 
-                      {facultyLoaded.subject_title && ` (${facultyLoaded.subject_title})`}
+                  <option value="">Select subject</option>
+                  {getUniqueSubjectCodes().map((subject) => (
+                    <option key={subject.code} value={subject.code}>
+                      {subject.code} {subject.title && `- ${subject.title}`}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Display selected subject and section */}
-              {(formData.subject_code || formData.course_section) && (
+              {/* Course Sections Display (READ-ONLY) */}
+              {formData.subject_code && availableSections.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Course Sections (Auto-Sync from Faculty Load)
+                  </label>
+                  <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
+                    <div className="flex flex-wrap gap-2">
+                      {availableSections.map((section, index) => (
+                        <span 
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                        >
+                          {section}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      File will be uploaded for all {availableSections.length} section(s) automatically
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Display selected subject info */}
+              {formData.subject_code && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                   <div className="text-sm font-medium text-green-800">Selected Course:</div>
                   <div className="text-sm text-green-700">
-                    {formData.subject_code} - {formData.course_section}
-                    {formData.subject_title && ` (${formData.subject_title})`}
+                    {formData.subject_code} 
+                    {formData.subject_title && ` - ${formData.subject_title}`}
+                    {availableSections.length > 0 && ` (${availableSections.length} section(s))`}
                   </div>
                 </div>
               )}
@@ -383,7 +431,7 @@ export default function FileUpload() {
                 </select>
               </div>
 
-              {/* TOS Type (only show when document type is TOS) */}
+              {/* TOS Type */}
               {formData.document_type === 'tos' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -430,7 +478,6 @@ export default function FileUpload() {
                   </label>
                 </div>
                 
-                {/* File Info */}
                 {selectedFile && (
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
                     <div className="flex items-center gap-2">
@@ -458,10 +505,10 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !selectedFile || !formData.subject_code || !formData.course_section || (formData.document_type === 'tos' && !formData.tos_type)}
+                  disabled={loading || !selectedFile || !formData.subject_code || availableSections.length === 0 || (formData.document_type === 'tos' && !formData.tos_type)}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Uploading..." : "Upload File"}
+                  {loading ? "Uploading..." : `Upload for ${availableSections.length} Section(s)`}
                 </button>
               </div>
             </form>
