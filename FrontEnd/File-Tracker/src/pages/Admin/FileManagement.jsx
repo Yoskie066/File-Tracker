@@ -217,13 +217,13 @@ export default function FileManagement() {
     });
   };
 
-  // Get file type label with TOS type support
-  const getFileTypeLabel = (fileType, tosType = null) => {
+  // Get document type label with TOS type support
+  const getDocumentTypeLabel = (documentType, tosType = null) => {
     // Handle TOS files with specific types
-    if (fileType === 'tos-midterm' || (fileType === 'tos' && tosType === 'midterm')) {
+    if (documentType === 'tos-midterm' || (documentType === 'tos' && tosType === 'midterm')) {
       return 'TOS (TOS-Midterm)';
     }
-    if (fileType === 'tos-final' || (fileType === 'tos' && tosType === 'final')) {
+    if (documentType === 'tos-final' || (documentType === 'tos' && tosType === 'final')) {
       return 'TOS (TOS-Final)';
     }
 
@@ -234,7 +234,7 @@ export default function FileManagement() {
       'final-exam': 'Final Exam',
       'instructional-materials': 'Instructional Materials'
     };
-    return typeMap[fileType] || fileType;
+    return typeMap[documentType] || documentType;
   };
 
   // Get status badge color
@@ -249,7 +249,7 @@ export default function FileManagement() {
   // Search filter
   const filteredFiles = (Array.isArray(files) ? files : [])
     .filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.file_type, file.status, file.tos_type]
+      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_title]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -318,9 +318,10 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">File ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Name</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">File Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Section</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Uploaded At</th>
@@ -334,7 +335,7 @@ export default function FileManagement() {
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{file.file_id}</td>
                     <td className="px-4 py-3 text-gray-700">{file.faculty_name}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{file.file_name}</td>
-                    <td className="px-4 py-3 text-gray-700">{getFileTypeLabel(file.file_type, file.tos_type)}</td>
+                    <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(file.document_type, file.tos_type)}</td>
                     <td className="px-4 py-3 text-gray-700">
                       {file.tos_type ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
@@ -346,6 +347,9 @@ export default function FileManagement() {
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {file.subject_code} - {file.course_section}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 text-xs">
+                      {file.subject_title || 'N/A'}
                     </td>
                     <td className="px-4 py-3 text-gray-700">{formatFileSize(file.file_size)}</td>
                     <td className="px-4 py-3">
@@ -404,7 +408,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : "No files found."}
                   </td>
                 </tr>
@@ -482,16 +486,20 @@ export default function FileManagement() {
                     <p className="font-medium">{file.faculty_name}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Type:</span>
-                    <p className="font-medium">{getFileTypeLabel(file.file_type, file.tos_type)}</p>
+                    <span className="text-gray-500">Document Type:</span>
+                    <p className="font-medium">{getDocumentTypeLabel(file.document_type, file.tos_type)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">TOS Type:</span>
                     <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Subject:</span>
+                    <span className="text-gray-500">Subject & Section:</span>
                     <p className="font-medium">{file.subject_code} - {file.course_section}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Subject Title:</span>
+                    <p className="font-medium">{file.subject_title || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Size:</span>
@@ -600,8 +608,8 @@ export default function FileManagement() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">File Type</label>
-                    <p className="mt-1 text-sm text-gray-900">{getFileTypeLabel(fileToPreview.file_type, fileToPreview.tos_type)}</p>
+                    <label className="block text-sm font-medium text-gray-700">Document Type</label>
+                    <p className="mt-1 text-sm text-gray-900">{getDocumentTypeLabel(fileToPreview.document_type, fileToPreview.tos_type)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">File Size</label>
@@ -626,6 +634,11 @@ export default function FileManagement() {
                     <label className="block text-sm font-medium text-gray-700">Course Section</label>
                     <p className="mt-1 text-sm text-gray-900">{fileToPreview.course_section}</p>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subject Title</label>
+                  <p className="mt-1 text-sm text-gray-900">{fileToPreview.subject_title || 'N/A'}</p>
                 </div>
 
                 <div>
@@ -683,8 +696,12 @@ export default function FileManagement() {
                     File: <span className="font-semibold">{fileToUpdate.file_name}</span>
                   </label>
                   <p className="text-sm text-gray-600 mb-4">
-                    Type: {getFileTypeLabel(fileToUpdate.file_type, fileToUpdate.tos_type)}
+                    Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
                     {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
+                    {fileToUpdate.subject_title && ` (${fileToUpdate.subject_title})`}
                   </p>
                   <p className="text-sm text-gray-600 mb-4">
                     This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}

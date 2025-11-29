@@ -76,17 +76,17 @@ export default function FileHistory() {
     return () => clearTimeout(timeoutId);
   }, [search]);
 
-  // Get file type icon and color with TOS type support
-  const getFileTypeDetails = (fileType, tosType = null) => {
+  // Get document type icon and color with TOS type support
+  const getDocumentTypeDetails = (documentType, tosType = null) => {
     // Handle TOS files with specific types
-    if (fileType === 'tos-midterm' || (fileType === 'tos' && tosType === 'midterm')) {
+    if (documentType === 'tos-midterm' || (documentType === 'tos' && tosType === 'midterm')) {
       return { 
         icon: File, 
         color: 'bg-orange-100 text-orange-600 border-orange-200', 
         label: 'TOS (TOS-Midterm)' 
       };
     }
-    if (fileType === 'tos-final' || (fileType === 'tos' && tosType === 'final')) {
+    if (documentType === 'tos-final' || (documentType === 'tos' && tosType === 'final')) {
       return { 
         icon: File, 
         color: 'bg-purple-100 text-purple-600 border-purple-200', 
@@ -101,7 +101,7 @@ export default function FileHistory() {
       'final-exam': { icon: FileText, color: 'bg-red-100 text-red-600 border-red-200', label: 'Final Exam' },
       'instructional-materials': { icon: Download, color: 'bg-indigo-100 text-indigo-600 border-indigo-200', label: 'Instructional Materials' }
     };
-    return typeMap[fileType] || { icon: File, color: 'bg-gray-100 text-gray-600 border-gray-200', label: fileType };
+    return typeMap[documentType] || { icon: File, color: 'bg-gray-100 text-gray-600 border-gray-200', label: documentType };
   };
 
   // Format date
@@ -145,7 +145,7 @@ export default function FileHistory() {
         {/* Desktop Grid Header - Hidden on mobile */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg">
           <div className="col-span-5 text-sm font-semibold text-gray-600">File Name</div>
-          <div className="col-span-3 text-sm font-semibold text-gray-600">File Type</div>
+          <div className="col-span-3 text-sm font-semibold text-gray-600">Document Type</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">TOS Type</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">Date Submitted</div>
         </div>
@@ -162,8 +162,8 @@ export default function FileHistory() {
               {/* Desktop Grid Layout */}
               <div className="hidden md:block">
                 {files.map((file) => {
-                  const fileTypeDetails = getFileTypeDetails(file.file_type, file.tos_type);
-                  const FileTypeIcon = fileTypeDetails.icon;
+                  const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
+                  const DocumentTypeIcon = documentTypeDetails.icon;
                   
                   return (
                     <div 
@@ -173,8 +173,8 @@ export default function FileHistory() {
                       {/* File Name */}
                       <div className="col-span-5">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${fileTypeDetails.color} border`}>
-                            <FileTypeIcon className="w-4 h-4" />
+                          <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
+                            <DocumentTypeIcon className="w-4 h-4" />
                           </div>
                           <div>
                             <h3 className="font-medium text-gray-900 text-sm">
@@ -187,11 +187,11 @@ export default function FileHistory() {
                         </div>
                       </div>
 
-                      {/* File Type */}
+                      {/* Document Type */}
                       <div className="col-span-3">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${fileTypeDetails.color} border`}>
-                          <FileTypeIcon className="w-3 h-3" />
-                          {fileTypeDetails.label}
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${documentTypeDetails.color} border`}>
+                          <DocumentTypeIcon className="w-3 h-3" />
+                          {documentTypeDetails.label}
                         </span>
                       </div>
 
@@ -224,15 +224,15 @@ export default function FileHistory() {
               {/* Mobile Cards Layout */}
               <div className="md:hidden grid grid-cols-1 gap-4 p-4">
                 {files.map((file) => {
-                  const fileTypeDetails = getFileTypeDetails(file.file_type, file.tos_type);
-                  const FileTypeIcon = fileTypeDetails.icon;
+                  const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
+                  const DocumentTypeIcon = documentTypeDetails.icon;
                   
                   return (
                     <div key={file._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${fileTypeDetails.color} border`}>
-                            <FileTypeIcon className="w-4 h-4" />
+                          <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
+                            <DocumentTypeIcon className="w-4 h-4" />
                           </div>
                           <div>
                             <h2 className="font-semibold text-gray-800 text-sm">{file.file_name}</h2>
@@ -241,9 +241,9 @@ export default function FileHistory() {
                             </p>
                           </div>
                         </div>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${fileTypeDetails.color} border`}>
-                          <FileTypeIcon className="w-3 h-3" />
-                          {fileTypeDetails.label}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${documentTypeDetails.color} border`}>
+                          <DocumentTypeIcon className="w-3 h-3" />
+                          {documentTypeDetails.label}
                         </span>
                       </div>
                       

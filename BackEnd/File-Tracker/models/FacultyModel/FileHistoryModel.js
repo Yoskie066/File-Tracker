@@ -6,7 +6,7 @@ const fileHistorySchema = new mongoose.Schema(
       type: String, 
       required: true 
     },
-    file_type: { 
+    document_type: { 
       type: String, 
       required: true,
       enum: ['syllabus', 'tos', 'tos-midterm', 'tos-final', 'midterm-exam', 'final-exam', 'instructional-materials'] 

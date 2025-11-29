@@ -1,5 +1,6 @@
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
+import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js"; // Import FacultyLoaded
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -54,8 +55,8 @@ const generateFileId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Helper function to map file_type to TaskDeliverables field
-const mapFileTypeToField = (fileType) => {
+// Helper function to map document_type to TaskDeliverables field
+const mapDocumentTypeToField = (documentType) => {
   const mapping = {
     'syllabus': 'syllabus',
     'tos-midterm': 'tos_midterm',
@@ -64,21 +65,37 @@ const mapFileTypeToField = (fileType) => {
     'final-exam': 'final_exam',
     'instructional-materials': 'instructional_materials'
   };
-  return mapping[fileType] || null;
+  return mapping[documentType] || null;
+};
+
+// Get subject title from FacultyLoaded
+const getSubjectTitle = async (facultyId, subjectCode, courseSection) => {
+  try {
+    const facultyLoaded = await FacultyLoaded.findOne({
+      faculty_id: facultyId,
+      subject_code: subjectCode,
+      course_section: courseSection
+    });
+    
+    return facultyLoaded ? facultyLoaded.subject_title : 'Unknown Subject';
+  } catch (error) {
+    console.error("Error fetching subject title:", error);
+    return 'Unknown Subject';
+  }
 };
 
 // Update Task Deliverables when file status changes 
 const updateTaskDeliverables = async (fileData) => {
   try {
-    const { faculty_id, faculty_name, subject_code, course_section, file_type, status } = fileData;
+    const { faculty_id, faculty_name, subject_code, course_section, document_type, status } = fileData;
     
-    console.log(`Syncing Task Deliverables for: ${subject_code}-${course_section}`);
-    console.log(`File Type: ${file_type}, Status: ${status}`);
+    console.log(`Syncing Task Deliverables for: ${subject_code}-${courseSection}`);
+    console.log(`Document Type: ${document_type}, Status: ${status}`);
 
-    // Map file_type to TaskDeliverables field name
-    const fieldName = mapFileTypeToField(file_type);
+    // Map document_type to TaskDeliverables field name
+    const fieldName = mapDocumentTypeToField(document_type);
     if (!fieldName) {
-      console.warn(`No mapping found for file type: ${file_type}`);
+      console.warn(`No mapping found for document type: ${document_type}`);
       return;
     }
 
@@ -90,7 +107,7 @@ const updateTaskDeliverables = async (fileData) => {
     });
 
     if (taskDeliverables) {
-      // Update ONLY the specific field based on file type and status
+      // Update ONLY the specific field based on document type and status
       const updateData = { 
         [fieldName]: status,
         updated_at: new Date()
@@ -102,11 +119,11 @@ const updateTaskDeliverables = async (fileData) => {
         { new: true, runValidators: true }
       );
       
-      console.log(`Updated TaskDeliverables: ${subject_code}-${course_section}`);
+      console.log(`Updated TaskDeliverables: ${subject_code}-${courseSection}`);
       console.log(`Field: ${fieldName} = ${status}`);
       console.log(`Updated document:`, updatedTask);
     } else {
-      console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
+      console.warn(`No TaskDeliverables found for ${subject_code}-${courseSection}`);
       // Create new TaskDeliverables if doesn't exist
       const task_deliverables_id = generateFileId();
       
@@ -120,7 +137,7 @@ const updateTaskDeliverables = async (fileData) => {
       });
 
       const savedTask = await newTaskDeliverables.save();
-      console.log(`Created new TaskDeliverables for ${subject_code}-${course_section}`);
+      console.log(`Created new TaskDeliverables for ${subject_code}-${courseSection}`);
       console.log(`Field: ${fieldName} = ${status}`);
       console.log(`New document:`, savedTask);
     }
@@ -149,21 +166,21 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    const { file_name, file_type, subject_code, course_section, tos_type } = req.body;
+    const { file_name, document_type, subject_code, course_section, tos_type } = req.body;
 
-    console.log("Parsed form data:", { file_name, file_type, subject_code, course_section, tos_type });
+    console.log("Parsed form data:", { file_name, document_type, subject_code, course_section, tos_type });
 
     // Basic validation
-    if (!file_type || !subject_code || !course_section) {
+    if (!document_type || !subject_code || !course_section) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message: "File type, subject code, and course section are required",
+        message: "Document type, subject code, and course section are required",
       });
     }
 
-    // Validate TOS type only if file type is 'tos'
-    if (file_type === 'tos' && !tos_type) {
+    // Validate TOS type only if document type is 'tos'
+    if (document_type === 'tos' && !tos_type) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
@@ -171,29 +188,33 @@ export const uploadFile = async (req, res) => {
       });
     }
 
+    // Get subject title from FacultyLoaded
+    const subject_title = await getSubjectTitle(req.faculty.facultyId, subject_code, course_section);
+
     const file_id = generateFileId();
 
-    // Determine the final file type
-    let finalFileType = file_type;
+    // Determine the final document type
+    let finalDocumentType = document_type;
     let finalTosType = null;
 
-    // If file_type is 'tos', convert to specific TOS type
-    if (file_type === 'tos' && tos_type) {
-      finalFileType = `tos-${tos_type}`;
+    // If document_type is 'tos', convert to specific TOS type
+    if (document_type === 'tos' && tos_type) {
+      finalDocumentType = `tos-${tos_type}`;
       finalTosType = tos_type;
     }
 
-    console.log("Creating file with:", { finalFileType, finalTosType });
+    console.log("Creating file with:", { finalDocumentType, finalTosType });
 
     const newFile = new FileManagement({
       file_id,
       faculty_id: req.faculty.facultyId,
       faculty_name: req.faculty.facultyName,
       file_name: file_name || req.file.originalname,
-      file_type: finalFileType,
+      document_type: finalDocumentType,
       tos_type: finalTosType, // This will be null for non-TOS files
       subject_code,
       course_section,
+      subject_title, // Add subject title
       status: "pending", 
       file_path: req.file.path,
       original_name: req.file.originalname,
@@ -207,7 +228,7 @@ export const uploadFile = async (req, res) => {
     try {
       await createFileHistory({
         file_name: savedFile.file_name,
-        file_type: savedFile.file_type,
+        document_type: savedFile.document_type,
         tos_type: savedFile.tos_type,
         faculty_id: savedFile.faculty_id,
         subject_code: savedFile.subject_code,
@@ -227,7 +248,7 @@ export const uploadFile = async (req, res) => {
         faculty_name: savedFile.faculty_name,
         subject_code: savedFile.subject_code,
         course_section: savedFile.course_section,
-        file_type: savedFile.file_type,
+        document_type: savedFile.document_type,
         status: savedFile.status
       });
       console.log("Task deliverables updated");
@@ -243,8 +264,9 @@ export const uploadFile = async (req, res) => {
         faculty_name: savedFile.faculty_name,
         subject_code: savedFile.subject_code,
         course_section: savedFile.course_section,
+        subject_title: savedFile.subject_title,
         file_name: savedFile.file_name,
-        file_type: savedFile.file_type,
+        document_type: savedFile.document_type,
         tos_type: savedFile.tos_type,
         uploaded_at: savedFile.uploaded_at,
         status: savedFile.status
@@ -432,8 +454,9 @@ export const updateFileStatus = async (req, res) => {
       faculty_name: updatedFile.faculty_name,
       subject_code: updatedFile.subject_code,
       course_section: updatedFile.course_section,
+      subject_title: updatedFile.subject_title,
       file_name: updatedFile.file_name,
-      file_type: updatedFile.file_type,
+      document_type: updatedFile.document_type,
       tos_type: updatedFile.tos_type,
       uploaded_at: updatedFile.uploaded_at,
       status: updatedFile.status

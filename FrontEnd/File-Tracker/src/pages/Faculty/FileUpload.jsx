@@ -16,50 +16,51 @@ export default function FileUpload() {
 
   const [formData, setFormData] = useState({
     file_name: "",
-    file_type: "syllabus",
+    document_type: "syllabus",
     tos_type: "", // Only used for TOS files
     subject_code: "",
-    course_section: ""
+    course_section: "",
+    subject_title: ""
   });
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   // Fetch faculty loadeds for dropdown
- const fetchFacultyLoadeds = async () => {
-   try {
-     if (!tokenService.isFacultyAuthenticated()) {
-       console.error("No token found");
-       showFeedback("error", "Please log in to upload files");
-       return;
-     }
- 
-     // Use authFetch instead of direct fetch
-     const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded`);
-     
-     if (!response.ok) throw new Error("Server responded with " + response.status);
-     const result = await response.json();
-     console.log("Fetched faculty loadeds:", result);
-     
-     if (result.success && Array.isArray(result.data)) {
-       setFacultyLoadeds(result.data);
-     } else {
-       console.error("Unexpected API response format:", result);
-       setFacultyLoadeds([]);
-     }
-   } catch (err) {
-     console.error("Error fetching faculty loadeds:", err);
-     if (err.message === 'Token refresh failed') {
-       showFeedback("error", "Session expired. Please log in again.");
-       tokenService.clearFacultyTokens();
-     } else {
-       showFeedback("error", "Failed to load your subjects");
-     }
-     setFacultyLoadeds([]); 
-   }
- };
+  const fetchFacultyLoadeds = async () => {
+    try {
+      if (!tokenService.isFacultyAuthenticated()) {
+        console.error("No token found");
+        showFeedback("error", "Please log in to upload files");
+        return;
+      }
+  
+      // Use authFetch instead of direct fetch
+      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded`);
+      
+      if (!response.ok) throw new Error("Server responded with " + response.status);
+      const result = await response.json();
+      console.log("Fetched faculty loadeds:", result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        setFacultyLoadeds(result.data);
+      } else {
+        console.error("Unexpected API response format:", result);
+        setFacultyLoadeds([]);
+      }
+    } catch (err) {
+      console.error("Error fetching faculty loadeds:", err);
+      if (err.message === 'Token refresh failed') {
+        showFeedback("error", "Session expired. Please log in again.");
+        tokenService.clearFacultyTokens();
+      } else {
+        showFeedback("error", "Failed to load your subjects");
+      }
+      setFacultyLoadeds([]); 
+    }
+  };
 
-  // File type options
-  const fileTypeOptions = [
+  // Document type options
+  const documentTypeOptions = [
     { value: "syllabus", label: "Syllabus" },
     { value: "tos", label: "Table of Specifications (TOS)" },
     { value: "midterm-exam", label: "Midterm Exam" },
@@ -77,8 +78,8 @@ export default function FileUpload() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Reset tos_type when file_type changes from 'tos'
-    if (name === 'file_type' && value !== 'tos') {
+    // Reset tos_type when document_type changes from 'tos'
+    if (name === 'document_type' && value !== 'tos') {
       setFormData(prev => ({
         ...prev,
         [name]: value,
@@ -96,17 +97,19 @@ export default function FileUpload() {
   const handleFacultyLoadedChange = (e) => {
     const selectedId = e.target.value;
     if (selectedId) {
-      const [subjectCode, courseSection] = selectedId.split('|');
+      const [subjectCode, courseSection, subjectTitle] = selectedId.split('|');
       setFormData(prev => ({
         ...prev,
         subject_code: subjectCode,
-        course_section: courseSection
+        course_section: courseSection,
+        subject_title: subjectTitle
       }));
     } else {
       setFormData(prev => ({
         ...prev,
         subject_code: "",
-        course_section: ""
+        course_section: "",
+        subject_title: ""
       }));
     }
   };
@@ -138,10 +141,11 @@ export default function FileUpload() {
   const resetForm = () => {
     setFormData({
       file_name: "",
-      file_type: "syllabus",
+      document_type: "syllabus",
       tos_type: "",
       subject_code: "",
-      course_section: ""
+      course_section: "",
+      subject_title: ""
     });
     setSelectedFile(null);
     
@@ -178,7 +182,7 @@ export default function FileUpload() {
     }
 
     // Validate TOS type only for TOS files
-    if (formData.file_type === 'tos' && !formData.tos_type) {
+    if (formData.document_type === 'tos' && !formData.tos_type) {
       showFeedback("error", "Please select TOS type (Midterm or Final)");
       return;
     }
@@ -193,19 +197,19 @@ export default function FileUpload() {
 
       const formDataToSend = new FormData();
       formDataToSend.append('file_name', formData.file_name);
-      formDataToSend.append('file_type', formData.file_type);
+      formDataToSend.append('document_type', formData.document_type);
       formDataToSend.append('subject_code', formData.subject_code);
       formDataToSend.append('course_section', formData.course_section);
       formDataToSend.append('file', selectedFile);
 
       // Only append tos_type for TOS files
-      if (formData.file_type === 'tos' && formData.tos_type) {
+      if (formData.document_type === 'tos' && formData.tos_type) {
         formDataToSend.append('tos_type', formData.tos_type);
       }
       // For non-TOS files, don't send tos_type at all
 
-      console.log("Sending form data with file type:", formData.file_type);
-      console.log("TOS type:", formData.file_type === 'tos' ? formData.tos_type : 'Not applicable');
+      console.log("Sending form data with document type:", formData.document_type);
+      console.log("TOS type:", formData.document_type === 'tos' ? formData.tos_type : 'Not applicable');
 
       const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",
@@ -273,7 +277,7 @@ export default function FileUpload() {
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
-            <li>• Required fields: File Name, File Type, Subject & Section, and the File itself</li>
+            <li>• Required fields: File Name, Document Type, Subject & Section, and the File itself</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
@@ -322,8 +326,8 @@ export default function FileUpload() {
                   <option value="">Select subject and section</option>
                   {facultyLoadeds.map((facultyLoaded) => (
                     <option 
-                      key={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
-                      value={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}`}
+                      key={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}|${facultyLoaded.subject_title}`}
+                      value={`${facultyLoaded.subject_code}|${facultyLoaded.course_section}|${facultyLoaded.subject_title}`}
                     >
                       {facultyLoaded.subject_code} - {facultyLoaded.course_section} 
                       {facultyLoaded.subject_title && ` (${facultyLoaded.subject_title})`}
@@ -338,6 +342,7 @@ export default function FileUpload() {
                   <div className="text-sm font-medium text-green-800">Selected Course:</div>
                   <div className="text-sm text-green-700">
                     {formData.subject_code} - {formData.course_section}
+                    {formData.subject_title && ` (${formData.subject_title})`}
                   </div>
                 </div>
               )}
@@ -358,19 +363,19 @@ export default function FileUpload() {
                 />
               </div>
 
-              {/* File Type */}
+              {/* Document Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File Type *
+                  Document Type *
                 </label>
                 <select
-                  name="file_type"
-                  value={formData.file_type}
+                  name="document_type"
+                  value={formData.document_type}
                   onChange={handleInputChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  {fileTypeOptions.map((option) => (
+                  {documentTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -378,8 +383,8 @@ export default function FileUpload() {
                 </select>
               </div>
 
-              {/* TOS Type (only show when file type is TOS) */}
-              {formData.file_type === 'tos' && (
+              {/* TOS Type (only show when document type is TOS) */}
+              {formData.document_type === 'tos' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     TOS Type *
@@ -453,7 +458,7 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !selectedFile || !formData.subject_code || !formData.course_section || (formData.file_type === 'tos' && !formData.tos_type)}
+                  disabled={loading || !selectedFile || !formData.subject_code || !formData.course_section || (formData.document_type === 'tos' && !formData.tos_type)}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Uploading..." : "Upload File"}
