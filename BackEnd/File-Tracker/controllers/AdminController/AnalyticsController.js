@@ -19,6 +19,7 @@ export const getAnalyticsData = async (req, res) => {
 
     const totalUsers = admins + faculties;
     const onlineUsers = onlineAdmins + onlineFaculties;
+    const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
 
     // Get file management statistics
@@ -57,11 +58,6 @@ export const getAnalyticsData = async (req, res) => {
       }
     ]);
 
-    const requirementStatusDistribution = {
-      overdue: overdueRequirements,
-      not_overdue: notOverdueRequirements
-    };
-
     // Convert aggregation results to object format
     const documentTypeDist = {
       syllabus: 0,
@@ -90,25 +86,6 @@ export const getAnalyticsData = async (req, res) => {
       }
     });
 
-    // Get storage stats
-    const storageStats = await FileManagement.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalStorage: { $sum: '$file_size' },
-          avgFileSize: { $avg: '$file_size' }
-        }
-      }
-    ]);
-
-    const dailySubmissions = await FileManagement.countDocuments({
-      uploaded_at: {
-        $gte: new Date(new Date().setHours(0, 0, 0, 0))
-      }
-    });
-
-    const storageData = storageStats[0] || { totalStorage: 0, avgFileSize: 0 };
-
     // Calculate system health
     const fileCompletionRate = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
     
@@ -124,10 +101,14 @@ export const getAnalyticsData = async (req, res) => {
       user_management: {
         total_users: totalUsers,
         online_users: onlineUsers,
-        offline_users: totalUsers - onlineUsers,
+        offline_users: offlineUsers,
         admin_count: admins,
         faculty_count: faculties,
-        active_rate: activeRate
+        active_rate: activeRate,
+        online_status_distribution: {
+          online: onlineUsers,
+          offline: offlineUsers
+        }
       },
       file_management: {
         total_files: totalFiles,
@@ -146,12 +127,6 @@ export const getAnalyticsData = async (req, res) => {
         total_variables: totalVariables,
         variable_type_distribution: variableTypeDist
       },
-      system_performance: {
-        total_storage_used: storageData.totalStorage,
-        average_upload_size: storageData.avgFileSize,
-        daily_submissions: dailySubmissions,
-        storage_efficiency: totalFiles > 0 ? (storageData.totalStorage / totalFiles) : 0
-      },
       summary: {
         total_records: totalUsers + totalFiles + totalRequirements + totalVariables,
         completion_rate: fileCompletionRate,
@@ -163,6 +138,7 @@ export const getAnalyticsData = async (req, res) => {
     console.log("Analytics Data Summary:", {
       totalUsers,
       onlineUsers,
+      offlineUsers,
       admins,
       faculties,
       totalFiles,

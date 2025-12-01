@@ -13,7 +13,11 @@ const analyticsSchema = new mongoose.Schema(
       offline_users: Number,
       admin_count: Number,
       faculty_count: Number,
-      active_rate: Number
+      active_rate: Number,
+      online_status_distribution: {
+        online: Number,
+        offline: Number
+      }
     },
     
     // File Management Stats
@@ -49,13 +53,6 @@ const analyticsSchema = new mongoose.Schema(
         academic_year: Number,
         semester: Number
       }
-    },
-    
-    // System Performance
-    system_stats: {
-      total_storage_used: Number,
-      average_upload_size: Number,
-      daily_submissions: Number
     }
   },
   { 

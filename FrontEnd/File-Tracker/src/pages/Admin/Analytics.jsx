@@ -118,30 +118,14 @@ export default function Analytics() {
     },
   };
 
-  // Prepare chart data based on analytics data
-  const getStatusDistributionData = () => ({
-    labels: ['Pending', 'Completed', 'Rejected'],
-    datasets: [
-      {
-        data: [
-          analyticsData?.file_management.pending_files || 0,
-          analyticsData?.file_management.completed_files || 0,
-          analyticsData?.file_management.rejected_files || 0
-        ],
-        backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderWidth: 2,
-      },
-    ],
-  });
-
+  // 1. User Distribution (Admin vs Faculty)
   const getUserDistributionData = () => ({
     labels: ['Admin', 'Faculty'],
     datasets: [
       {
         data: [
-          analyticsData?.user_management.admin_count || 0,
-          analyticsData?.user_management.faculty_count || 0
+          analyticsData?.user_management?.admin_count || 0,
+          analyticsData?.user_management?.faculty_count || 0
         ],
         backgroundColor: ['#4F46E5', '#10B981'],
         borderColor: ['#4F46E5', '#10B981'],
@@ -150,9 +134,42 @@ export default function Analytics() {
     ],
   });
 
-  // Document Type Distribution
+  // 2. Online Status Distribution (Online vs Offline)
+  const getOnlineStatusData = () => ({
+    labels: ['Online', 'Offline'],
+    datasets: [
+      {
+        data: [
+          analyticsData?.user_management?.online_status_distribution?.online || 0,
+          analyticsData?.user_management?.online_status_distribution?.offline || 0
+        ],
+        backgroundColor: ['#10B981', '#6B7280'],
+        borderColor: ['#10B981', '#6B7280'],
+        borderWidth: 2,
+      },
+    ],
+  });
+
+  // 3. File Status Distribution
+  const getStatusDistributionData = () => ({
+    labels: ['Pending', 'Completed', 'Rejected'],
+    datasets: [
+      {
+        data: [
+          analyticsData?.file_management?.pending_files || 0,
+          analyticsData?.file_management?.completed_files || 0,
+          analyticsData?.file_management?.rejected_files || 0
+        ],
+        backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
+        borderColor: ['#F59E0B', '#10B981', '#EF4444'],
+        borderWidth: 2,
+      },
+    ],
+  });
+
+  // 4. Document Type Distribution
   const getDocumentTypeData = () => {
-    const documentTypes = analyticsData?.file_management.document_type_distribution || {};
+    const documentTypes = analyticsData?.file_management?.document_type_distribution || {};
     
     const labels = Object.keys(documentTypes).map(type => {
       const typeMap = {
@@ -168,7 +185,6 @@ export default function Analytics() {
 
     const data = Object.values(documentTypes);
     
-    // Color palette for document types
     const backgroundColors = [
       '#4F46E5', // Indigo - Syllabus
       '#10B981', // Emerald - TOS Midterm
@@ -191,14 +207,14 @@ export default function Analytics() {
     };
   };
 
-  // Requirement Status Distribution
+  // 5. Requirement Status Distribution
   const getRequirementStatusData = () => ({
     labels: ['Overdue', 'Not Overdue'],
     datasets: [
       {
         data: [
-          analyticsData?.requirement_management.overdue_requirements || 0,
-          analyticsData?.requirement_management.not_overdue_requirements || 0
+          analyticsData?.requirement_management?.overdue_requirements || 0,
+          analyticsData?.requirement_management?.not_overdue_requirements || 0
         ],
         backgroundColor: ['#EF4444', '#10B981'],
         borderColor: ['#EF4444', '#10B981'],
@@ -207,7 +223,7 @@ export default function Analytics() {
     ],
   });
 
-  // System Variables Distribution
+  // 6. System Variables Distribution
   const getSystemVariablesData = () => {
     const variableTypes = analyticsData?.system_variables?.variable_type_distribution || {
       subject_code: 0,
@@ -268,7 +284,7 @@ export default function Analytics() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
             <p className="text-sm text-gray-500">
               Comprehensive insights across all system modules and performance metrics
             </p>
@@ -306,7 +322,7 @@ export default function Analytics() {
         {analyticsData?.summary && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-blue-600 text-sm font-medium">System Overview</div>
+              <div className="text-blue-600 text-sm font-medium">System Health</div>
               <div className="text-2xl font-bold text-blue-800">
                 {analyticsData.summary.system_health}%
               </div>
@@ -323,22 +339,22 @@ export default function Analytics() {
                 {analyticsData.summary.completion_rate}%
               </div>
               <div className="text-sm text-green-600 mt-1">
-                {analyticsData.file_management.completed_files} of {analyticsData.file_management.total_files} files
+                {analyticsData?.file_management?.completed_files || 0} of {analyticsData?.file_management?.total_files || 0} files
               </div>
             </div>
             <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
               <div className="text-purple-600 text-sm font-medium">Active Users</div>
               <div className="text-2xl font-bold text-purple-800">
-                {analyticsData.user_management.active_rate}%
+                {analyticsData?.user_management?.active_rate || 0}%
               </div>
               <div className="text-sm text-purple-600 mt-1">
-                {analyticsData.user_management.online_users} online
+                {analyticsData?.user_management?.online_users || 0} online users
               </div>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
               <div className="text-orange-600 text-sm font-medium">Total Records</div>
               <div className="text-2xl font-bold text-orange-800">
-                {analyticsData.summary.total_records.toLocaleString()}
+                {analyticsData?.summary?.total_records?.toLocaleString() || 0}
               </div>
               <div className="text-sm text-orange-600 mt-1">
                 Across all modules
@@ -349,7 +365,7 @@ export default function Analytics() {
 
         {activeTab === 'overview' && analyticsData && (
           <div className="space-y-8">
-            {/* Module Statistics */}
+            {/* Module Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -357,19 +373,23 @@ export default function Analytics() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Users:</span>
-                    <span className="font-semibold">{analyticsData.user_management.total_users}</span>
+                    <span className="font-semibold">{analyticsData?.user_management?.total_users || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Online:</span>
-                    <span className="font-semibold text-green-600">{analyticsData.user_management.online_users}</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.user_management?.online_users || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Offline:</span>
+                    <span className="font-semibold text-gray-600">{analyticsData?.user_management?.offline_users || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Admins:</span>
-                    <span className="font-semibold">{analyticsData.user_management.admin_count}</span>
+                    <span className="font-semibold">{analyticsData?.user_management?.admin_count || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Faculty:</span>
-                    <span className="font-semibold">{analyticsData.user_management.faculty_count}</span>
+                    <span className="font-semibold">{analyticsData?.user_management?.faculty_count || 0}</span>
                   </div>
                 </div>
               </div>
@@ -380,19 +400,19 @@ export default function Analytics() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Files:</span>
-                    <span className="font-semibold">{analyticsData.file_management.total_files}</span>
+                    <span className="font-semibold">{analyticsData?.file_management?.total_files || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Completed:</span>
-                    <span className="font-semibold text-green-600">{analyticsData.file_management.completed_files}</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.file_management?.completed_files || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Pending:</span>
-                    <span className="font-semibold text-yellow-600">{analyticsData.file_management.pending_files}</span>
+                    <span className="font-semibold text-yellow-600">{analyticsData?.file_management?.pending_files || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Rejected:</span>
-                    <span className="font-semibold text-red-600">{analyticsData.file_management.rejected_files}</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.file_management?.rejected_files || 0}</span>
                   </div>
                 </div>
               </div>
@@ -403,20 +423,20 @@ export default function Analytics() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total:</span>
-                    <span className="font-semibold">{analyticsData.requirement_management.total_requirements}</span>
+                    <span className="font-semibold">{analyticsData?.requirement_management?.total_requirements || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Overdue:</span>
-                    <span className="font-semibold text-red-600">{analyticsData.requirement_management.overdue_requirements}</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.requirement_management?.overdue_requirements || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Not Overdue:</span>
-                    <span className="font-semibold text-green-600">{analyticsData.requirement_management.not_overdue_requirements}</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.requirement_management?.not_overdue_requirements || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Completion Rate:</span>
                     <span className="font-semibold text-blue-600">
-                      {analyticsData.requirement_management.completion_rate}%
+                      {analyticsData?.requirement_management?.completion_rate || 0}%
                     </span>
                   </div>
                 </div>
@@ -428,101 +448,75 @@ export default function Analytics() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Variables:</span>
-                    <span className="font-semibold">{analyticsData.system_variables.total_variables}</span>
+                    <span className="font-semibold">{analyticsData?.system_variables?.total_variables || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subject Codes:</span>
-                    <span className="font-semibold text-purple-600">{analyticsData.system_variables.variable_type_distribution.subject_code || 0}</span>
+                    <span className="font-semibold text-purple-600">{analyticsData?.system_variables?.variable_type_distribution?.subject_code || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Course Sections:</span>
-                    <span className="font-semibold text-green-600">{analyticsData.system_variables.variable_type_distribution.course_section || 0}</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.system_variables?.variable_type_distribution?.course_section || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Academic Years:</span>
-                    <span className="font-semibold text-yellow-600">{analyticsData.system_variables.variable_type_distribution.academic_year || 0}</span>
+                    <span className="font-semibold text-yellow-600">{analyticsData?.system_variables?.variable_type_distribution?.academic_year || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Semesters:</span>
-                    <span className="font-semibold text-red-600">{analyticsData.system_variables.variable_type_distribution.semester || 0}</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.system_variables?.variable_type_distribution?.semester || 0}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* User Distribution */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">User Distribution</h3>
+            {/* 3x3 Charts Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* 1. User Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">User Role Distribution</h3>
                 <div className="h-64">
                   <Doughnut data={getUserDistributionData()} options={chartOptions} />
                 </div>
               </div>
 
-              {/* File Status Distribution */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
+              {/* 2. Online Status Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">User Status Distribution</h3>
+                <div className="h-64">
+                  <Doughnut data={getOnlineStatusData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* 3. File Status Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">File Status Distribution</h3>
                 <div className="h-64">
                   <Doughnut data={getStatusDistributionData()} options={chartOptions} />
                 </div>
               </div>
 
-              {/* Document Type Distribution */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
+              {/* 4. Document Type Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Document Type Distribution</h3>
                 <div className="h-64">
                   <Doughnut data={getDocumentTypeData()} options={chartOptions} />
                 </div>
               </div>
 
-              {/* Requirement Status */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
+              {/* 5. Requirement Status */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirement Status</h3>
                 <div className="h-64">
                   <Doughnut data={getRequirementStatusData()} options={chartOptions} />
                 </div>
               </div>
-            </div>
 
-            {/* Additional Charts Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* System Variables Distribution */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables Distribution</h3>
+              {/* 6. System Variables Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">
                   <Doughnut data={getSystemVariablesData()} options={chartOptions} />
-                </div>
-              </div>
-
-              {/* System Performance */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">System Performance</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Storage Used:</span>
-                      <span className="font-semibold">{formatFileSize(analyticsData.system_performance.total_storage_used)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min((analyticsData.system_performance.total_storage_used / (1024 * 1024 * 100)) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Average File Size:</span>
-                      <span className="font-semibold">{formatFileSize(analyticsData.system_performance.average_upload_size)}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Daily Submissions:</span>
-                      <span className="font-semibold">{analyticsData.system_performance.daily_submissions}</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
