@@ -5,7 +5,6 @@ import {
   X,
   Users,
   FileStack,
-  ClipboardCheck,
   BellRing,
   BarChart3,
   LogOut,
@@ -94,13 +93,6 @@ export default function Header() {
           File Management
         </Link>
         <Link
-          to="/admin/deliverables"
-          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
-        >
-          <ClipboardCheck className="w-4 h-4" />
-          Admin Deliverables
-        </Link>
-        <Link
           to="/admin/requirement"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
@@ -180,16 +172,6 @@ export default function Header() {
           >
             <FileStack className="w-5 h-5" />
             File Management
-          </Link>
-          <Link
-            to="/admin/deliverables"
-            onClick={() => setIsOpen(false)}
-            className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/admin/deliverables"
-            )}`}
-          >
-            <ClipboardCheck className="w-5 h-5" />
-            Admin Deliverables
           </Link>
           <Link
             to="/admin/requirement"

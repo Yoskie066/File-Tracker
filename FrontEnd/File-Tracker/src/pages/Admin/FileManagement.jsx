@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit, Calendar, History } from "lucide-react";
 
 Modal.setAppElement("#root");
 
@@ -11,6 +11,11 @@ export default function FileManagement() {
   const [loading, setLoading] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
   const filesPerPage = 10;
+
+  // History of Records states - NEWLY ADDED
+  const [historyView, setHistoryView] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [availableYears, setAvailableYears] = useState([]);
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -32,7 +37,7 @@ export default function FileManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Fetch files from backend
+  // Fetch files from backend - MODIFIED to extract years
   const fetchFiles = async () => {
     try {
       setLoading(true);
@@ -42,14 +47,28 @@ export default function FileManagement() {
       console.log("Fetched files:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setFiles(result.data);
+        const filesData = result.data;
+        setFiles(filesData);
+        
+        // Extract available years from files - NEWLY ADDED
+        const years = [...new Set(filesData.map(f => {
+          const date = new Date(f.uploaded_at);
+          return date.getFullYear();
+        }))].sort((a, b) => b - a);
+        
+        setAvailableYears(years);
+        if (years.length > 0 && !years.includes(selectedYear)) {
+          setSelectedYear(years[0]);
+        }
       } else {
         console.error("Unexpected API response format:", result);
         setFiles([]);
+        setAvailableYears([]);
       }
     } catch (err) {
       console.error("Error fetching files:", err);
       setFiles([]);
+      setAvailableYears([]);
     } finally {
       setLoading(false);
     }
@@ -243,12 +262,61 @@ export default function FileManagement() {
     }
   };
 
-  // Search filter
-  const filteredFiles = (Array.isArray(files) ? files : [])
-    .filter((file) =>
+  // Search filter - MODIFIED for history view
+  const getFilteredFiles = () => {
+    let filtered = (Array.isArray(files) ? files : []);
+
+    // Apply search filter
+    filtered = filtered.filter((file) =>
       [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.course_section]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
+
+    // Apply filters for history view - NEWLY ADDED
+    if (historyView) {
+      // Year filter
+      filtered = filtered.filter(file => {
+        const fileYear = new Date(file.uploaded_at).getFullYear();
+        return fileYear === selectedYear;
+      });
+    }
+
+    return filtered;
+  };
+
+  const filteredFiles = getFilteredFiles();
+
+  // Calculate stats - MODIFIED for history view
+  const calculateStats = (filesList) => {
+    if (!Array.isArray(filesList) || filesList.length === 0) {
+      return { total: 0, pending: 0, completed: 0, rejected: 0 };
+    }
+  
+    let pendingCount = 0;
+    let completedCount = 0;
+    let rejectedCount = 0;
+  
+    filesList.forEach(file => {
+      const status = file.status?.toLowerCase().trim();
+      
+      if (status === 'completed') {
+        completedCount++;
+      } else if (status === 'rejected') {
+        rejectedCount++;
+      } else {
+        pendingCount++;
+      }
+    });
+  
+    return {
+      total: filesList.length,
+      pending: pendingCount,
+      completed: completedCount,
+      rejected: rejectedCount
+    };
+  };
+
+  const fileStats = calculateStats(filteredFiles);
 
   // Pagination
   const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
@@ -258,61 +326,197 @@ export default function FileManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Calculate stats
-  const fileStats = {
-    total: files.length,
-    pending: files.filter(f => f.status === 'pending').length,
-    completed: files.filter(f => f.status === 'completed').length,
-    rejected: files.filter(f => f.status === 'rejected').length
+  // History of Records functions - NEWLY ADDED
+  const handleExportHistory = async (year) => {
+    try {
+      const filesForYear = files.filter(f => 
+        new Date(f.uploaded_at).getFullYear() === year
+      );
+      
+      // Create CSV content with the specified columns
+      const headers = [
+        'File ID',
+        'Faculty Name', 
+        'File Name',
+        'Document Type',
+        'TOS Type',
+        'Subject & Section',
+        'File Size',
+        'Status',
+        'Uploaded At'
+      ];
+      
+      const csvContent = [
+        headers.join(','),
+        ...filesForYear.map(f => [
+          f.file_id,
+          `"${f.faculty_name}"`,
+          `"${f.file_name}"`,
+          f.document_type,
+          f.tos_type || 'N/A',
+          `${f.subject_code} - ${f.course_section}`,
+          formatFileSize(f.file_size),
+          f.status,
+          new Date(f.uploaded_at).toISOString()
+        ].join(','))
+      ].join('\n');
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `file-management-history-${year}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showFeedback("success", `History of Records for ${year} exported successfully!`);
+    } catch (error) {
+      console.error("Error exporting history:", error);
+      showFeedback("error", "Error exporting history");
+    }
   };
+
+  // Auto-refresh to get latest data - NEWLY ADDED
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFiles();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header */}
+        {/* Header - MODIFIED for history view */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">File Management</h1>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {historyView ? `History of Records - ${selectedYear}` : 'File Management'}
+            </h1>
             <p className="text-sm text-gray-500">
-              A secure file management system for storing, organizing, and monitoring all details
+              {historyView 
+                ? `Viewing historical file records and submissions for ${selectedYear}`
+                : 'A secure file management system for storing, organizing, and monitoring all details'
+              }
             </p>
           </div>
-          <input
-            type="text"
-            placeholder="Search files..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
-          />
+          
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            {/* History of Records Filters - NEWLY ADDED */}
+            {historyView && (
+              <div className="flex flex-col md:flex-row gap-2">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    setSelectedYear(parseInt(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  {availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* View Toggle Buttons - NEWLY ADDED */}
+            <div className="flex border border-gray-300 rounded-md overflow-hidden">
+              <button
+                onClick={() => {
+                  setHistoryView(false);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  !historyView 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Current
+              </button>
+              <button
+                onClick={() => {
+                  setHistoryView(true);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  historyView 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  History of Records
+                </div>
+              </button>
+            </div>
+
+            <input
+              type="text"
+              placeholder={`Search ${historyView ? 'historical records' : 'files'}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
+            />
+          </div>
         </div>
 
-        {/* Statistics Cards */}
+        {/* History of Records Management Bar - NEWLY ADDED */}
+        {historyView && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-gray-600" />
+                <span className="text-sm text-gray-800">
+                  Viewing {filteredFiles.length} historical file records from {selectedYear}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportHistory(selectedYear)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export {selectedYear} History
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Statistics Cards - MODIFIED for history view */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-blue-600 text-sm font-medium">Total Files</div>
+            <div className="text-blue-600 text-sm font-medium">Total {historyView ? 'Records' : 'Files'}</div>
             <div className="text-2xl font-bold text-blue-800">{fileStats.total}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Pending</div>
+            <div className="text-yellow-600 text-sm font-medium">Pending {historyView ? 'Records' : 'Files'}</div>
             <div className="text-2xl font-bold text-yellow-800">{fileStats.pending}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Completed</div>
+            <div className="text-green-600 text-sm font-medium">Completed {historyView ? 'Records' : 'Files'}</div>
             <div className="text-2xl font-bold text-green-800">{fileStats.completed}</div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Rejected</div>
+            <div className="text-red-600 text-sm font-medium">Rejected {historyView ? 'Records' : 'Files'}</div>
             <div className="text-2xl font-bold text-red-800">{fileStats.rejected}</div>
           </div>
         </div>
 
-        {/* Desktop Table - SUBJECT TITLE COLUMN REMOVED */}
+        {/* Desktop Table - MODIFIED for history view */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">File ID</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">{historyView ? 'Record' : 'File'} ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
@@ -374,26 +578,30 @@ export default function FileManagement() {
                             Preview Details
                           </button>
                           <button
-                            onClick={() => openStatusModal(file)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Update Status
-                          </button>
-                          <button
                             onClick={() => handleDownload(file.file_id, file.original_name)}
                             className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
                           </button>
-                          <button
-                            onClick={() => confirmDelete(file.file_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
+                          {!historyView && (
+                            <>
+                              <button
+                                onClick={() => openStatusModal(file)}
+                                className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Update Status
+                              </button>
+                              <button
+                                onClick={() => confirmDelete(file.file_id)}
+                                className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </td>
@@ -402,7 +610,7 @@ export default function FileManagement() {
               ) : (
                 <tr>
                   <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
-                    {loading ? "Loading files..." : "No files found."}
+                    {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
                   </td>
                 </tr>
               )}
@@ -410,7 +618,7 @@ export default function FileManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - MODIFIED for history view */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentFiles.length > 0 ? (
             currentFiles.map((file) => (
@@ -447,26 +655,30 @@ export default function FileManagement() {
                             Preview Details
                           </button>
                           <button
-                            onClick={() => openStatusModal(file)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Update Status
-                          </button>
-                          <button
                             onClick={() => handleDownload(file.file_id, file.original_name)}
                             className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
                           </button>
-                          <button
-                            onClick={() => confirmDelete(file.file_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
+                          {!historyView && (
+                            <>
+                              <button
+                                onClick={() => openStatusModal(file)}
+                                className="flex items-center w-full px-3 py-2 text-sm text-blue-600 hover:bg-gray-100"
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Update Status
+                              </button>
+                              <button
+                                onClick={() => confirmDelete(file.file_id)}
+                                className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -503,15 +715,16 @@ export default function FileManagement() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              {loading ? "Loading files..." : "No files found."}
+              {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
             </div>
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - MODIFIED for history view */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentFiles.length} of {filteredFiles.length} files
+            Showing {currentFiles.length} of {filteredFiles.length} {historyView ? 'historical records' : 'files'}
+            {historyView && ` for ${selectedYear}`}
           </div>
           
           <div className="flex items-center gap-3">
@@ -543,7 +756,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* File Preview Modal */}
+        {/* File Preview Modal - MODIFIED for history view */}
         <Modal
           isOpen={previewModalOpen}
           onRequestClose={() => setPreviewModalOpen(false)}
@@ -554,7 +767,7 @@ export default function FileManagement() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  File Details
+                  {historyView ? 'Historical Record' : 'File'} Details
                 </h3>
                 <button
                   onClick={() => setPreviewModalOpen(false)}
@@ -569,7 +782,7 @@ export default function FileManagement() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">File ID</label>
+                    <label className="block text-sm font-medium text-gray-700">{historyView ? 'Record' : 'File'} ID</label>
                     <p className="mt-1 text-sm text-gray-900 font-mono">{fileToPreview.file_id}</p>
                   </div>
                   <div>
@@ -631,19 +844,21 @@ export default function FileManagement() {
 
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => openStatusModal(fileToPreview)}
-                    className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Update Status
-                  </button>
-                  <button
                     onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
                     className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <Download className="w-4 h-4" />
                     Download File
                   </button>
+                  {!historyView && (
+                    <button
+                      onClick={() => openStatusModal(fileToPreview)}
+                      className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Update Status
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -724,7 +939,7 @@ export default function FileManagement() {
           )}
         </Modal>
 
-        {/* Delete Confirmation Modal */}
+        {/* Delete Confirmation Modal - MODIFIED for history view */}
         <Modal
           isOpen={deleteModalOpen}
           onRequestClose={() => setDeleteModalOpen(false)}
@@ -735,7 +950,7 @@ export default function FileManagement() {
             <XCircle className="text-red-500 w-12 h-12 mb-4" />
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this file? This action cannot be undone.
+              Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
             </p>
             <div className="flex gap-3 w-full">
               <button

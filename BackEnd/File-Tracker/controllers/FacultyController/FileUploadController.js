@@ -5,7 +5,6 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
-import { autoSyncDeliverable } from "../AdminController/AdminDeliverablesController.js";
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
@@ -282,28 +281,6 @@ export const uploadFile = async (req, res) => {
       console.error("Error updating task deliverables:", taskError);
     }
 
-    // Auto-sync to Admin Deliverables for ALL sections
-    try {
-      const syncPromises = savedFiles.map(async (savedFile) => {
-        await autoSyncDeliverable({
-          faculty_id: savedFile.faculty_id,
-          faculty_name: savedFile.faculty_name,
-          subject_code: savedFile.subject_code,
-          course_section: savedFile.course_section,
-          subject_title: savedFile.subject_title,
-          file_name: savedFile.file_name,
-          document_type: savedFile.document_type,
-          tos_type: savedFile.tos_type,
-          uploaded_at: savedFile.uploaded_at,
-          status: savedFile.status
-        });
-      });
-      await Promise.all(syncPromises);
-      console.log("Admin deliverables synced for all sections");
-    } catch (syncError) {
-      console.error("Error syncing admin deliverables:", syncError);
-    }
-
     res.status(201).json({
       success: true,
       message: `File uploaded successfully for ${course_sections.length} course section(s) and pending admin approval`,
@@ -479,25 +456,11 @@ export const updateFileStatus = async (req, res) => {
       status: updatedFile.status
     });
 
-    // AUTO-SYNC TO ADMIN DELIVERABLES 
-    await autoSyncDeliverable({
-      faculty_id: updatedFile.faculty_id,
-      faculty_name: updatedFile.faculty_name,
-      subject_code: updatedFile.subject_code,
-      course_section: updatedFile.course_section,
-      subject_title: updatedFile.subject_title,
-      file_name: updatedFile.file_name,
-      document_type: updatedFile.document_type,
-      tos_type: updatedFile.tos_type,
-      uploaded_at: updatedFile.uploaded_at,
-      status: updatedFile.status
-    });
-
-    console.log(`File status updated and synced across all systems: ${status}`);
+    console.log(`File status updated and synced to Task Deliverables: ${status}`);
 
     res.status(200).json({
       success: true,
-      message: "File status updated successfully and synchronized with Task Deliverables & Admin Deliverables",
+      message: "File status updated successfully and synchronized with Task Deliverables",
       data: updatedFile,
     });
   } catch (error) {

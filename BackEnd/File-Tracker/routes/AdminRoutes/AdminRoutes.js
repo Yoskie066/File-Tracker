@@ -4,9 +4,8 @@ import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLo
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
 import { getFiles, getFileById, downloadFile, deleteFile, updateFileStatus } from "../../controllers/FacultyController/FileUploadController.js";
-import { syncAdminDeliverables, getAdminDeliverables, getDeliverableById, deleteDeliverable, getDeliverablesStats, updateDeliverableStatus } from "../../controllers/AdminController/AdminDeliverablesController.js";
 import { createRequirement, getRequirements, getRequirementById, updateRequirement,  deleteRequirement } from "../../controllers/AdminController/RequirementController.js";
-import { getAnalyticsData, getAnalyticsTrends, getFacultyPerformance, storeAnalyticsSnapshot } from "../../controllers/AdminController/AnalyticsController.js";
+import { getAnalyticsData, getFacultyPerformance } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
 
 const router = express.Router();
@@ -29,14 +28,6 @@ router.get("/file-management/:id/download", downloadFile);
 router.delete("/file-management/:id", deleteFile);
 router.put("/file-management/:id/status", updateFileStatus);
 
-// Admin Deliverables Routes
-router.post("/deliverables/sync", syncAdminDeliverables);
-router.get("/deliverables", getAdminDeliverables);
-router.get("/deliverables/stats", getDeliverablesStats);
-router.get("/deliverables/:id", getDeliverableById);
-router.put("/deliverables/:id/status", updateDeliverableStatus);
-router.delete("/deliverables/:id", deleteDeliverable);
-
 // Requirement Routes
 router.get("/requirement", getRequirements);
 router.post("/requirement", createRequirement);
@@ -46,9 +37,7 @@ router.delete("/requirement/:id", deleteRequirement);
 
 // Analytics Routes 
 router.get("/analytics", getAnalyticsData);
-router.get("/analytics/trends", getAnalyticsTrends);
 router.get("/analytics/faculty-performance", getFacultyPerformance);
-router.post("/analytics/snapshot", storeAnalyticsSnapshot);
 
 // System Variable Routes
 router.get("/system-variables", getSystemVariables);

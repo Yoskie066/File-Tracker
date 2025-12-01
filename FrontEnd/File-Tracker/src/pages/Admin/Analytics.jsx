@@ -28,7 +28,6 @@ ChartJS.register(
 
 export default function Analytics() {
   const [analyticsData, setAnalyticsData] = useState(null);
-  const [trendsData, setTrendsData] = useState(null);
   const [facultyPerformance, setFacultyPerformance] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -47,9 +46,8 @@ export default function Analytics() {
       setLoading(true);
       setError(null);
       
-      const [analyticsRes, trendsRes, facultyRes] = await Promise.all([
+      const [analyticsRes, facultyRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/admin/analytics`),
-        fetch(`${API_BASE_URL}/api/admin/analytics/trends?days=30`),
         fetch(`${API_BASE_URL}/api/admin/analytics/faculty-performance`)
       ]);
 
@@ -63,14 +61,6 @@ export default function Analytics() {
         }
       } else {
         throw new Error(`Analytics endpoint returned ${analyticsRes.status}`);
-      }
-
-      // Handle trends response
-      if (trendsRes.ok) {
-        const trendsResult = await trendsRes.json();
-        if (trendsResult.success) {
-          setTrendsData(trendsResult.data);
-        }
       }
 
       // Handle faculty performance response
@@ -160,73 +150,15 @@ export default function Analytics() {
     ],
   });
 
-  // NEW: Admin Deliverables Status Distribution
-  const getAdminDeliverablesStatusData = () => ({
-    labels: ['Pending', 'Completed', 'Rejected'],
-    datasets: [
-      {
-        data: [
-          analyticsData?.admin_deliverables.pending_deliverables || 0,
-          analyticsData?.admin_deliverables.completed_deliverables || 0,
-          analyticsData?.admin_deliverables.rejected_deliverables || 0
-        ],
-        backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderWidth: 2,
-      },
-    ],
-  });
-
-  // NEW: Requirement Type Distribution
-  const getRequirementTypeData = () => {
-    const requirementTypes = analyticsData?.requirement_management.requirement_type_distribution || {};
+  // Document Type Distribution
+  const getDocumentTypeData = () => {
+    const documentTypes = analyticsData?.file_management.document_type_distribution || {};
     
-    const labels = Object.keys(requirementTypes).map(type => {
+    const labels = Object.keys(documentTypes).map(type => {
       const typeMap = {
         'syllabus': 'Syllabus',
-        'tos': 'TOS',
-        'midterm-exam': 'Midterm Exam',
-        'final-exam': 'Final Exam',
-        'instructional-materials': 'Instructional Materials',
-        'all-files': 'All Files'
-      };
-      return typeMap[type] || type;
-    });
-
-    const data = Object.values(requirementTypes);
-    
-    // Color palette for requirement types
-    const backgroundColors = [
-      '#4F46E5', // Indigo
-      '#10B981', // Emerald
-      '#F59E0B', // Amber
-      '#EF4444', // Red
-      '#8B5CF6', // Violet
-      '#06B6D4', // Cyan
-      '#84CC16', // Lime
-    ];
-
-    return {
-      labels: labels,
-      datasets: [
-        {
-          data: data,
-          backgroundColor: backgroundColors.slice(0, data.length),
-          borderColor: backgroundColors.slice(0, data.length),
-          borderWidth: 2,
-        }
-      ],
-    };
-  };
-
-  // File Type Comparison 
-  const getFileTypeComparisonData = () => {
-    const fileTypes = analyticsData?.file_management.file_type_distribution || {};
-    
-    const labels = Object.keys(fileTypes).map(type => {
-      const typeMap = {
-        'syllabus': 'Syllabus',
-        'tos': 'TOS',
+        'tos-midterm': 'TOS Midterm',
+        'tos-final': 'TOS Final',
         'midterm-exam': 'Midterm Exam',
         'final-exam': 'Final Exam',
         'instructional-materials': 'Instructional Materials'
@@ -234,17 +166,16 @@ export default function Analytics() {
       return typeMap[type] || type;
     });
 
-    const data = Object.values(fileTypes);
+    const data = Object.values(documentTypes);
     
-    // Color palette for file types
+    // Color palette for document types
     const backgroundColors = [
-      '#4F46E5', // Indigo
-      '#10B981', // Emerald
-      '#F59E0B', // Amber
-      '#EF4444', // Red
-      '#8B5CF6', // Violet
-      '#06B6D4', // Cyan
-      '#84CC16', // Lime
+      '#4F46E5', // Indigo - Syllabus
+      '#10B981', // Emerald - TOS Midterm
+      '#0EA5E9', // Sky - TOS Final
+      '#F59E0B', // Amber - Midterm Exam
+      '#EF4444', // Red - Final Exam
+      '#8B5CF6', // Violet - Instructional Materials
     ];
 
     return {
@@ -259,6 +190,22 @@ export default function Analytics() {
       ],
     };
   };
+
+  // Requirement Status Distribution
+  const getRequirementStatusData = () => ({
+    labels: ['Overdue', 'Not Overdue'],
+    datasets: [
+      {
+        data: [
+          analyticsData?.requirement_management.overdue_requirements || 0,
+          analyticsData?.requirement_management.not_overdue_requirements || 0
+        ],
+        backgroundColor: ['#EF4444', '#10B981'],
+        borderColor: ['#EF4444', '#10B981'],
+        borderWidth: 2,
+      },
+    ],
+  });
 
   // System Variables Distribution
   const getSystemVariablesData = () => {
@@ -403,7 +350,7 @@ export default function Analytics() {
         {activeTab === 'overview' && analyticsData && (
           <div className="space-y-8">
             {/* Module Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">User Management</h3>
@@ -450,29 +397,6 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Deliverables Card - FIXED COUNTS */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Deliverables</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total:</span>
-                    <span className="font-semibold">{analyticsData.admin_deliverables.total_deliverables}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Completed:</span>
-                    <span className="font-semibold text-green-600">{analyticsData.admin_deliverables.completed_deliverables}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Pending:</span>
-                    <span className="font-semibold text-yellow-600">{analyticsData.admin_deliverables.pending_deliverables}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Rejected:</span>
-                    <span className="font-semibold text-red-600">{analyticsData.admin_deliverables.rejected_deliverables}</span>
-                  </div>
-                </div>
-              </div>
-
               {/* Requirements Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirements</h3>
@@ -486,12 +410,13 @@ export default function Analytics() {
                     <span className="font-semibold text-red-600">{analyticsData.requirement_management.overdue_requirements}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-600">Not Overdue:</span>
+                    <span className="font-semibold text-green-600">{analyticsData.requirement_management.not_overdue_requirements}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-600">Completion Rate:</span>
-                    <span className="font-semibold text-green-600">
-                      {analyticsData.requirement_management.total_requirements > 0 
-                        ? Math.round(((analyticsData.requirement_management.total_requirements - analyticsData.requirement_management.overdue_requirements) / analyticsData.requirement_management.total_requirements) * 100)
-                        : 0
-                      }%
+                    <span className="font-semibold text-blue-600">
+                      {analyticsData.requirement_management.completion_rate}%
                     </span>
                   </div>
                 </div>
@@ -525,7 +450,7 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* Charts Section - UPDATED WITH NEW CHARTS */}
+            {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
@@ -535,7 +460,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Status Distribution */}
+              {/* File Status Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">File Status Distribution</h3>
                 <div className="h-64">
@@ -543,19 +468,19 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* NEW: Admin Deliverables Status */}
+              {/* Document Type Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Deliverables Status</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Document Type Distribution</h3>
                 <div className="h-64">
-                  <Doughnut data={getAdminDeliverablesStatusData()} options={chartOptions} />
+                  <Doughnut data={getDocumentTypeData()} options={chartOptions} />
                 </div>
               </div>
 
-              {/* NEW: Requirement Types */}
+              {/* Requirement Status */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirement Types</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirement Status</h3>
                 <div className="h-64">
-                  <Doughnut data={getRequirementTypeData()} options={chartOptions} />
+                  <Doughnut data={getRequirementStatusData()} options={chartOptions} />
                 </div>
               </div>
             </div>
@@ -570,11 +495,34 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* File Type Distribution */}
+              {/* System Performance */}
               <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">File Type Distribution</h3>
-                <div className="h-64">
-                  <Doughnut data={getFileTypeComparisonData()} options={chartOptions} />
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">System Performance</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Storage Used:</span>
+                      <span className="font-semibold">{formatFileSize(analyticsData.system_performance.total_storage_used)}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ width: `${Math.min((analyticsData.system_performance.total_storage_used / (1024 * 1024 * 100)) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Average File Size:</span>
+                      <span className="font-semibold">{formatFileSize(analyticsData.system_performance.average_upload_size)}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Daily Submissions:</span>
+                      <span className="font-semibold">{analyticsData.system_performance.daily_submissions}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
