@@ -3,6 +3,7 @@ import Modal from "react-modal";
 import { CheckCircle, XCircle, ClipboardPlus, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
+import * as XLSX from 'xlsx';
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -235,64 +236,83 @@ export default function TaskDeliverablesManagement() {
     return () => clearInterval(interval);
   }, []);
 
-  // History of Records export function - NEWLY ADDED
+  // History of Records export function - MODIFIED for Excel export
   const handleExportReport = async (year) => {
     try {
       const tasksForYear = filteredTaskDeliverables.filter(task => 
         new Date(task.updated_at || task.created_at).getFullYear() === year
       );
       
-      // Create CSV content with the specified columns
-      const headers = [
-        'Task ID',
-        'Subject Code', 
-        'Course Section',
-        'Syllabus',
-        'TOS Midterm',
-        'TOS Final',
-        'Midterm Exam',
-        'Final Exam',
-        'Instructional Materials',
-        'Overall Status',
-        'Last Updated'
-      ];
+      // Prepare data for Excel
+      const excelData = tasksForYear.map(task => {
+        const { overallStatus, completedCount } = calculateOverallStatus(task);
+        
+        return {
+          'Task ID': task.task_deliverables_id,
+          'Subject Code': task.subject_code,
+          'Course Section': task.course_section,
+          'Syllabus': task.syllabus || 'N/A',
+          'TOS Midterm': task.tos_midterm || 'N/A',
+          'TOS Final': task.tos_final || 'N/A',
+          'Midterm Exam': task.midterm_exam || 'N/A',
+          'Final Exam': task.final_exam || 'N/A',
+          'Instructional Materials': task.instructional_materials || 'N/A',
+          'Completed Deliverables': `${completedCount}/6`,
+          'Overall Status': overallStatus,
+          'Last Updated': new Date(task.updated_at).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        };
+      });
       
-      const csvContent = [
-        headers.join(','),
-        ...tasksForYear.map(task => {
-          const { overallStatus } = calculateOverallStatus(task);
-          
-          return [
-            task.task_deliverables_id,
-            `"${task.subject_code}"`,
-            `"${task.course_section}"`,
-            task.syllabus || 'N/A',
-            task.tos_midterm || 'N/A',
-            task.tos_final || 'N/A',
-            task.midterm_exam || 'N/A',
-            task.final_exam || 'N/A',
-            task.instructional_materials || 'N/A',
-            overallStatus,
-            new Date(task.updated_at).toISOString()
-          ].join(',');
-        })
-      ].join('\n');
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Create a worksheet
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Set column widths for better readability
+      const colWidths = [
+        { wch: 20 }, // Task ID
+        { wch: 15 }, // Subject Code
+        { wch: 15 }, // Course Section
+        { wch: 15 }, // Syllabus
+        { wch: 15 }, // TOS Midterm
+        { wch: 15 }, // TOS Final
+        { wch: 15 }, // Midterm Exam
+        { wch: 15 }, // Final Exam
+        { wch: 25 }, // Instructional Materials
+        { wch: 20 }, // Completed Deliverables
+        { wch: 15 }, // Overall Status
+        { wch: 25 }  // Last Updated
+      ];
+      ws['!cols'] = colWidths;
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, `Report_${year}`);
+      
+      // Generate Excel file
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       
       // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `task-deliverables-report-${year}.csv`;
+      link.download = `task-deliverables-report-${year}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      showFeedback("success", `Task Deliverables Report for ${year} exported successfully!`);
+      showFeedback("success", `Task Deliverables Report for ${year} exported as Excel file successfully!`);
     } catch (error) {
       console.error("Error exporting report:", error);
-      showFeedback("error", "Error exporting report");
+      showFeedback("error", "Error exporting report as Excel file");
     }
   };
 

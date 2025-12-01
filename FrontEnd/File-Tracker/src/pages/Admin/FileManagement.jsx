@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit, Calendar, History } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
 
@@ -12,7 +13,7 @@ export default function FileManagement() {
   const [actionDropdown, setActionDropdown] = useState(null);
   const filesPerPage = 10;
 
-  // History of Records states - NEWLY ADDED
+  // History of Records states
   const [historyView, setHistoryView] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState([]);
@@ -37,7 +38,7 @@ export default function FileManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Fetch files from backend - MODIFIED to extract years
+  // Fetch files from backend
   const fetchFiles = async () => {
     try {
       setLoading(true);
@@ -50,7 +51,7 @@ export default function FileManagement() {
         const filesData = result.data;
         setFiles(filesData);
         
-        // Extract available years from files - NEWLY ADDED
+        // Extract available years from files
         const years = [...new Set(filesData.map(f => {
           const date = new Date(f.uploaded_at);
           return date.getFullYear();
@@ -262,7 +263,7 @@ export default function FileManagement() {
     }
   };
 
-  // Search filter - MODIFIED for history view
+  // Search filter
   const getFilteredFiles = () => {
     let filtered = (Array.isArray(files) ? files : []);
 
@@ -272,7 +273,7 @@ export default function FileManagement() {
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
-    // Apply filters for history view - NEWLY ADDED
+    // Apply filters for history view
     if (historyView) {
       // Year filter
       filtered = filtered.filter(file => {
@@ -286,7 +287,7 @@ export default function FileManagement() {
 
   const filteredFiles = getFilteredFiles();
 
-  // Calculate stats - MODIFIED for history view
+  // Calculate stats
   const calculateStats = (filesList) => {
     if (!Array.isArray(filesList) || filesList.length === 0) {
       return { total: 0, pending: 0, completed: 0, rejected: 0 };
@@ -326,60 +327,115 @@ export default function FileManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // History of Records functions - NEWLY ADDED
+  // History of Records functions - EXCEL EXPORT
   const handleExportHistory = async (year) => {
     try {
       const filesForYear = files.filter(f => 
         new Date(f.uploaded_at).getFullYear() === year
       );
       
-      // Create CSV content with the specified columns
-      const headers = [
-        'File ID',
-        'Faculty Name', 
-        'File Name',
-        'Document Type',
-        'TOS Type',
-        'Subject & Section',
-        'File Size',
-        'Status',
-        'Uploaded At'
+      // Prepare data for Excel
+      const excelData = filesForYear.map(f => ({
+        'File ID': f.file_id,
+        'Faculty Name': f.faculty_name,
+        'File Name': f.file_name,
+        'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
+        'TOS Type': f.tos_type || 'N/A',
+        'Subject Code': f.subject_code,
+        'Course Section': f.course_section,
+        'Subject & Section': `${f.subject_code} - ${f.course_section}`,
+        'File Size': formatFileSize(f.file_size),
+        'Status': f.status,
+        'Uploaded At': new Date(f.uploaded_at).toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }));
+      
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Create a worksheet
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Set column widths for better readability
+      const colWidths = [
+        { wch: 20 }, // File ID
+        { wch: 25 }, // Faculty Name
+        { wch: 30 }, // File Name
+        { wch: 20 }, // Document Type
+        { wch: 15 }, // TOS Type
+        { wch: 15 }, // Subject Code
+        { wch: 15 }, // Course Section
+        { wch: 20 }, // Subject & Section
+        { wch: 15 }, // File Size
+        { wch: 15 }, // Status
+        { wch: 25 }  // Uploaded At
       ];
+      ws['!cols'] = colWidths;
       
-      const csvContent = [
-        headers.join(','),
-        ...filesForYear.map(f => [
-          f.file_id,
-          `"${f.faculty_name}"`,
-          `"${f.file_name}"`,
-          f.document_type,
-          f.tos_type || 'N/A',
-          `${f.subject_code} - ${f.course_section}`,
-          formatFileSize(f.file_size),
-          f.status,
-          new Date(f.uploaded_at).toISOString()
-        ].join(','))
-      ].join('\n');
+      // Add headers with formatting
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell_address = XLSX.utils.encode_cell({r: 0, c: C});
+        if (!ws[cell_address]) continue;
+        
+        // Style header cells
+        ws[cell_address].s = {
+          font: {
+            bold: true,
+            color: { rgb: "FFFFFF" }
+          },
+          fill: {
+            fgColor: { rgb: "000000" }
+          },
+          alignment: {
+            horizontal: "center",
+            vertical: "center"
+          }
+        };
+      }
       
-      // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, `History_${year}`);
+      
+      // Generate Excel file with proper formatting
+      const wbout = XLSX.write(wb, { 
+        bookType: 'xlsx', 
+        type: 'array'
+      });
+      
+      // Create and download file with proper MIME type for Excel
+      const blob = new Blob([wbout], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `file-management-history-${year}.csv`;
+      link.download = `file-management-history-${year}.xlsx`;
+      link.style.display = 'none';
+      
+      // Add to document and trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up
       window.URL.revokeObjectURL(url);
       
-      showFeedback("success", `History of Records for ${year} exported successfully!`);
+      showFeedback("success", `History of Records for ${year} exported as Excel file successfully!`);
     } catch (error) {
       console.error("Error exporting history:", error);
-      showFeedback("error", "Error exporting history");
+      showFeedback("error", "Error exporting history as Excel file");
     }
   };
 
-  // Auto-refresh to get latest data - NEWLY ADDED
+  // Auto-refresh to get latest data
   useEffect(() => {
     const interval = setInterval(() => {
       fetchFiles();
@@ -392,7 +448,7 @@ export default function FileManagement() {
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - MODIFIED for history view */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
@@ -407,7 +463,7 @@ export default function FileManagement() {
           </div>
           
           <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            {/* History of Records Filters - NEWLY ADDED */}
+            {/* History of Records Filters */}
             {historyView && (
               <div className="flex flex-col md:flex-row gap-2">
                 <select
@@ -425,7 +481,7 @@ export default function FileManagement() {
               </div>
             )}
             
-            {/* View Toggle Buttons - NEWLY ADDED */}
+            {/* View Toggle Buttons */}
             <div className="flex border border-gray-300 rounded-md overflow-hidden">
               <button
                 onClick={() => {
@@ -468,7 +524,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* History of Records Management Bar - NEWLY ADDED */}
+        {/* History of Records Management Bar */}
         {historyView && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -491,7 +547,7 @@ export default function FileManagement() {
           </div>
         )}
 
-        {/* Statistics Cards - MODIFIED for history view */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total {historyView ? 'Records' : 'Files'}</div>
@@ -511,7 +567,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* Desktop Table - MODIFIED for history view */}
+        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -582,7 +638,7 @@ export default function FileManagement() {
                             className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
                           >
                             <Download className="w-4 h-4 mr-2" />
-                            Download
+                            Download File
                           </button>
                           {!historyView && (
                             <>
@@ -618,7 +674,7 @@ export default function FileManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - MODIFIED for history view */}
+        {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentFiles.length > 0 ? (
             currentFiles.map((file) => (
@@ -659,7 +715,7 @@ export default function FileManagement() {
                             className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
                           >
                             <Download className="w-4 h-4 mr-2" />
-                            Download
+                            Download File
                           </button>
                           {!historyView && (
                             <>
@@ -720,7 +776,7 @@ export default function FileManagement() {
           )}
         </div>
 
-        {/* Pagination - MODIFIED for history view */}
+        {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentFiles.length} of {filteredFiles.length} {historyView ? 'historical records' : 'files'}
@@ -756,7 +812,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* File Preview Modal - MODIFIED for history view */}
+        {/* File Preview Modal */}
         <Modal
           isOpen={previewModalOpen}
           onRequestClose={() => setPreviewModalOpen(false)}
@@ -839,159 +895,159 @@ export default function FileManagement() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
-                </div>
+                    <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
+                  </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
-                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download File
-                  </button>
-                  {!historyView && (
+                  <div className="flex gap-3 pt-4">
                     <button
-                      onClick={() => openStatusModal(fileToPreview)}
-                      className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
+                      className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                     >
-                      <Edit className="w-4 h-4" />
-                      Update Status
+                      <Download className="w-4 h-4" />
+                      Download File
                     </button>
-                  )}
+                    {!historyView && (
+                      <button
+                        onClick={() => openStatusModal(fileToPreview)}
+                        className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Update Status
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </Modal>
+            )}
+          </Modal>
 
-        {/* Status Update Modal */}
-        <Modal
-          isOpen={statusModalOpen}
-          onRequestClose={() => setStatusModalOpen(false)}
-          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        >
-          {fileToUpdate && (
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Update File Status
-                </h3>
-                <button
-                  onClick={() => setStatusModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File: <span className="font-semibold">{fileToUpdate.file_name}</span>
-                  </label>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
-                    {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Status
-                  </label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </div>
-
-                <div className="flex gap-3 pt-4">
+          {/* Status Update Modal */}
+          <Modal
+            isOpen={statusModalOpen}
+            onRequestClose={() => setStatusModalOpen(false)}
+            className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          >
+            {fileToUpdate && (
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Update File Status
+                  </h3>
                   <button
                     onClick={() => setStatusModalOpen(false)}
-                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleUpdateStatus}
-                    className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
-                  >
-                    Update Status
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      File: <span className="font-semibold">{fileToUpdate.file_name}</span>
+                    </label>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
+                      {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Status
+                    </label>
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => setStatusModalOpen(false)}
+                      className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateStatus}
+                      className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
+                    >
+                      Update Status
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
+
+          {/* Delete Confirmation Modal */}
+          <Modal
+            isOpen={deleteModalOpen}
+            onRequestClose={() => setDeleteModalOpen(false)}
+            className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <div className="flex flex-col items-center text-center">
+              <XCircle className="text-red-500 w-12 h-12 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(fileToDelete)}
+                  className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
+                >
+                  Delete
+                </button>
               </div>
             </div>
-          )}
-        </Modal>
+          </Modal>
 
-        {/* Delete Confirmation Modal - MODIFIED for history view */}
-        <Modal
-          isOpen={deleteModalOpen}
-          onRequestClose={() => setDeleteModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        >
-          <div className="flex flex-col items-center text-center">
-            <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 w-full">
+          {/* Feedback Modal */}
+          <Modal
+            isOpen={feedbackModalOpen}
+            onRequestClose={() => setFeedbackModalOpen(false)}
+            className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <div className="flex flex-col items-center text-center">
+              {feedbackType === "success" ? (
+                <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
+              ) : (
+                <XCircle className="text-red-500 w-12 h-12 mb-4" />
+              )}
+              <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
               <button
-                onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => setFeedbackModalOpen(false)}
+                className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
               >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(fileToDelete)}
-                className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
-              >
-                Delete
+                Close
               </button>
             </div>
-          </div>
-        </Modal>
-
-        {/* Feedback Modal */}
-        <Modal
-          isOpen={feedbackModalOpen}
-          onRequestClose={() => setFeedbackModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        >
-          <div className="flex flex-col items-center text-center">
-            {feedbackType === "success" ? (
-              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
-            ) : (
-              <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            )}
-            <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
-            <button
-              onClick={() => setFeedbackModalOpen(false)}
-              className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
+          </Modal>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
