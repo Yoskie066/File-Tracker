@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, ClipboardPlus, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
 
@@ -14,12 +14,17 @@ export default function TaskDeliverablesManagement() {
   const [loading, setLoading] = useState(false);
   const taskDeliverablesPerPage = 10;
 
+  // History of Records states - NEWLY ADDED
+  const [historyView, setHistoryView] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [availableYears, setAvailableYears] = useState([]);
+
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -38,7 +43,7 @@ export default function TaskDeliverablesManagement() {
     fetchTaskDeliverables();
   }, [navigate]);
 
-  // Fetch task deliverables from backend 
+  // Fetch task deliverables from backend - MODIFIED to extract years
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
@@ -67,9 +72,21 @@ export default function TaskDeliverablesManagement() {
       
       if (result.success && Array.isArray(result.data)) {
         setTaskDeliverables(result.data);
+        
+        // Extract available years from task deliverables - NEWLY ADDED
+        const years = [...new Set(result.data.map(task => {
+          const date = new Date(task.updated_at || task.created_at);
+          return date.getFullYear();
+        }))].sort((a, b) => b - a);
+        
+        setAvailableYears(years);
+        if (years.length > 0 && !years.includes(selectedYear)) {
+          setSelectedYear(years[0]);
+        }
       } else {
         console.error("Unexpected API response format:", result);
         setTaskDeliverables([]);
+        setAvailableYears([]);
       }
     } catch (err) {
       console.error("Error fetching task deliverables:", err);
@@ -78,7 +95,8 @@ export default function TaskDeliverablesManagement() {
         tokenService.clearFacultyTokens();
         navigate('/auth/login');
       }
-      setTaskDeliverables([]); 
+      setTaskDeliverables([]);
+      setAvailableYears([]);
     } finally {
       setLoading(false);
     }
@@ -91,17 +109,40 @@ export default function TaskDeliverablesManagement() {
     setFeedbackModalOpen(true);
   };
 
+  // Calculate overall status for a task
+  const calculateOverallStatus = (task) => {
+    const fields = [task.syllabus, task.tos_midterm, task.tos_final, task.midterm_exam, task.final_exam, task.instructional_materials];
+    const completedCount = fields.filter(field => field === 'completed').length;
+    const rejectedCount = fields.filter(field => field === 'rejected').length;
+    
+    let overallStatus = 'pending';
+    let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    
+    if (rejectedCount > 0) {
+      overallStatus = 'rejected';
+      overallColor = 'bg-red-100 text-red-800 border border-red-200';
+    } else if (completedCount === 6) {
+      overallStatus = 'completed';
+      overallColor = 'bg-green-100 text-green-800 border border-green-200';
+    } else if (completedCount > 0) {
+      overallStatus = 'in-progress';
+      overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
+    }
+
+    return { overallStatus, overallColor, completedCount };
+  };
+
   // FIXED: Calculate stats for charts - SIMPLE AND ACCURATE COUNTING
-  const calculateStats = () => {
-    if (!Array.isArray(taskDeliverables) || taskDeliverables.length === 0) {
-      return { total: 0, pending: 0, completed: 0, rejected: 0 };
+  const calculateStats = (taskList) => {
+    if (!Array.isArray(taskList) || taskList.length === 0) {
+      return { total: 0, pending: 0, completed: 0, rejected: 0, totalDeliverables: 0 };
     }
 
     let pendingCount = 0;
     let completedCount = 0;
     let rejectedCount = 0;
 
-    taskDeliverables.forEach(task => {
+    taskList.forEach(task => {
       // Count individual field statuses including both TOS types
       const fields = [
         task.syllabus, 
@@ -122,7 +163,7 @@ export default function TaskDeliverablesManagement() {
     const totalDeliverables = pendingCount + completedCount + rejectedCount;
 
     return {
-      total: taskDeliverables.length, 
+      total: taskList.length, 
       pending: pendingCount, 
       completed: completedCount, 
       rejected: rejectedCount,
@@ -130,29 +171,43 @@ export default function TaskDeliverablesManagement() {
     };
   };
 
-  const taskDeliverablesStats = calculateStats();
+  // Get filtered task deliverables based on search and history view
+  const getFilteredTaskDeliverables = () => {
+    let filtered = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
+      .filter((td) => {
+        if (!td) return false;
+        
+        const searchableFields = [
+          td.task_deliverables_id, 
+          td.subject_code, 
+          td.course_section, 
+          td.syllabus, 
+          td.tos_midterm, 
+          td.tos_final,
+          td.midterm_exam, 
+          td.final_exam, 
+          td.instructional_materials
+        ].filter(field => field !== undefined && field !== null);
+        
+        return searchableFields.some((field) => 
+          field.toString().toLowerCase().includes(search.toLowerCase())
+        );
+      });
 
-  // Search filter
-  const filteredTaskDeliverables = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
-    .filter((td) => {
-      if (!td) return false;
-      
-      const searchableFields = [
-        td.task_deliverables_id, 
-        td.subject_code, 
-        td.course_section, 
-        td.syllabus, 
-        td.tos_midterm, 
-        td.tos_final,
-        td.midterm_exam, 
-        td.final_exam, 
-        td.instructional_materials
-      ].filter(field => field !== undefined && field !== null);
-      
-      return searchableFields.some((field) => 
-        field.toString().toLowerCase().includes(search.toLowerCase())
-      );
-    });
+    // Apply filters for history view - NEWLY ADDED
+    if (historyView) {
+      // Year filter
+      filtered = filtered.filter(task => {
+        const taskYear = new Date(task.updated_at || task.created_at).getFullYear();
+        return taskYear === selectedYear;
+      });
+    }
+
+    return filtered;
+  };
+
+  const filteredTaskDeliverables = getFilteredTaskDeliverables();
+  const taskDeliverablesStats = calculateStats(filteredTaskDeliverables);
 
   // Pagination
   const totalPages = Math.ceil(filteredTaskDeliverables.length / taskDeliverablesPerPage);
@@ -175,27 +230,145 @@ export default function TaskDeliverablesManagement() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTaskDeliverables();
-    }, 10000); 
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
+
+  // History of Records export function - NEWLY ADDED
+  const handleExportReport = async (year) => {
+    try {
+      const tasksForYear = filteredTaskDeliverables.filter(task => 
+        new Date(task.updated_at || task.created_at).getFullYear() === year
+      );
+      
+      // Create CSV content with the specified columns
+      const headers = [
+        'Task ID',
+        'Subject Code', 
+        'Course Section',
+        'Syllabus',
+        'TOS Midterm',
+        'TOS Final',
+        'Midterm Exam',
+        'Final Exam',
+        'Instructional Materials',
+        'Overall Status',
+        'Last Updated'
+      ];
+      
+      const csvContent = [
+        headers.join(','),
+        ...tasksForYear.map(task => {
+          const { overallStatus } = calculateOverallStatus(task);
+          
+          return [
+            task.task_deliverables_id,
+            `"${task.subject_code}"`,
+            `"${task.course_section}"`,
+            task.syllabus || 'N/A',
+            task.tos_midterm || 'N/A',
+            task.tos_final || 'N/A',
+            task.midterm_exam || 'N/A',
+            task.final_exam || 'N/A',
+            task.instructional_materials || 'N/A',
+            overallStatus,
+            new Date(task.updated_at).toISOString()
+          ].join(',');
+        })
+      ].join('\n');
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `task-deliverables-report-${year}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showFeedback("success", `Task Deliverables Report for ${year} exported successfully!`);
+    } catch (error) {
+      console.error("Error exporting report:", error);
+      showFeedback("error", "Error exporting report");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header */}
+        {/* Header - MODIFIED for history view */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Task Deliverables</h1>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {historyView ? `Task Deliverables Report - ${selectedYear}` : 'Task Deliverables'}
+            </h1>
             <p className="text-sm text-gray-500">
-              Auto-synced with your faculty loads. Monitor the status of your submitted deliverables.
+              {historyView 
+                ? `Viewing historical task deliverables data for ${selectedYear}`
+                : 'Auto-synced with your faculty loads. Monitor the status of your submitted deliverables.'
+              }
             </p>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
+          
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            {/* History of Records Filters - NEWLY ADDED */}
+            {historyView && (
+              <div className="flex flex-col md:flex-row gap-2">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    setSelectedYear(parseInt(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  {availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* View Toggle Buttons - NEWLY ADDED */}
+            <div className="flex border border-gray-300 rounded-md overflow-hidden">
+              <button
+                onClick={() => {
+                  setHistoryView(false);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  !historyView 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Current
+              </button>
+              <button
+                onClick={() => {
+                  setHistoryView(true);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  historyView 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <ClipboardPlus className="w-4 h-4" />
+                  Report
+                </div>
+              </button>
+            </div>
+
             <input
               type="text"
-              placeholder="Search task deliverables..."
+              placeholder={`Search ${historyView ? 'report' : 'task deliverables'}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
@@ -203,18 +376,43 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Auto-sync Notice */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <CheckCircle className="text-blue-500 w-5 h-5 mr-2" />
-            <p className="text-blue-700 text-sm">
-              <strong>Auto-sync Enabled:</strong> Task deliverables are automatically created when you add faculty loads. 
-              Each course section from your faculty loads gets its own task deliverables entry.
-            </p>
+        {/* Auto-sync Notice - HIDDEN in history view */}
+        {!historyView && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <CheckCircle className="text-blue-500 w-5 h-5 mr-2" />
+              <p className="text-blue-700 text-sm">
+                <strong>Auto-sync Enabled:</strong> Task deliverables are automatically created when you add faculty loads. 
+                Each course section from your faculty loads gets its own task deliverables entry.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Statistics Cards */}
+        {/* Report Management Bar - NEWLY ADDED */}
+        {historyView && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2">
+                <ClipboardPlus className="w-5 h-5 text-gray-600" />
+                <span className="text-sm text-gray-800">
+                  Viewing {filteredTaskDeliverables.length} task deliverables records from {selectedYear}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportReport(selectedYear)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export {selectedYear} Report
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Statistics Cards - MODIFIED for history view */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
@@ -241,7 +439,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - UPDATED for history view */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -262,25 +460,7 @@ export default function TaskDeliverablesManagement() {
             <tbody>
               {currentTaskDeliverables.length > 0 ? (
                 currentTaskDeliverables.map((task) => {
-                  // Calculate overall status for this task
-                  const fields = [task.syllabus, task.tos_midterm, task.tos_final, task.midterm_exam, task.final_exam, task.instructional_materials];
-                  const completedCount = fields.filter(field => field === 'completed').length;
-                  const rejectedCount = fields.filter(field => field === 'rejected').length;
-                  const pendingCount = fields.filter(field => field === 'pending').length;
-                  
-                  let overallStatus = 'pending';
-                  let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-                  
-                  if (rejectedCount > 0) {
-                    overallStatus = 'rejected';
-                    overallColor = 'bg-red-100 text-red-800 border border-red-200';
-                  } else if (completedCount === 6) {
-                    overallStatus = 'completed';
-                    overallColor = 'bg-green-100 text-green-800 border border-green-200';
-                  } else if (completedCount > 0) {
-                    overallStatus = 'in-progress';
-                    overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-                  }
+                  const { overallStatus, overallColor, completedCount } = calculateOverallStatus(task);
 
                   return (
                     <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
@@ -331,7 +511,12 @@ export default function TaskDeliverablesManagement() {
               ) : (
                 <tr>
                   <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
-                    {loading ? "Loading task deliverables..." : "No task deliverables found. Add faculty loads to auto-create task deliverables."}
+                    {loading 
+                      ? "Loading task deliverables..." 
+                      : historyView 
+                        ? `No task deliverables found for ${selectedYear}`
+                        : "No task deliverables found. Add faculty loads to auto-create task deliverables."
+                    }
                   </td>
                 </tr>
               )}
@@ -339,28 +524,11 @@ export default function TaskDeliverablesManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - UPDATED for history view */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentTaskDeliverables.length > 0 ? (
             currentTaskDeliverables.map((task) => {
-              // Calculate overall status for mobile view
-              const fields = [task.syllabus, task.tos_midterm, task.tos_final, task.midterm_exam, task.final_exam, task.instructional_materials];
-              const completedCount = fields.filter(field => field === 'completed').length;
-              const rejectedCount = fields.filter(field => field === 'rejected').length;
-              
-              let overallStatus = 'pending';
-              let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-              
-              if (rejectedCount > 0) {
-                overallStatus = 'rejected';
-                overallColor = 'bg-red-100 text-red-800 border border-red-200';
-              } else if (completedCount === 6) {
-                overallStatus = 'completed';
-                overallColor = 'bg-green-100 text-green-800 border border-green-200';
-              } else if (completedCount > 0) {
-                overallStatus = 'in-progress';
-                overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-              }
+              const { overallStatus, overallColor, completedCount } = calculateOverallStatus(task);
 
               return (
                 <div key={task._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
@@ -421,15 +589,21 @@ export default function TaskDeliverablesManagement() {
             })
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              {loading ? "Loading task deliverables..." : "No task deliverables found. Add faculty loads to auto-create task deliverables."}
+              {loading 
+                ? "Loading task deliverables..." 
+                : historyView 
+                  ? `No task deliverables found for ${selectedYear}`
+                  : "No task deliverables found. Add faculty loads to auto-create task deliverables."
+              }
             </div>
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - MODIFIED for history view */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentTaskDeliverables.length} of {filteredTaskDeliverables.length} tasks
+            {historyView && ` for ${selectedYear}`}
           </div>
           
           <div className="flex items-center gap-3">
