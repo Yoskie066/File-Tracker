@@ -472,3 +472,76 @@ export const updateFileStatus = async (req, res) => {
     });
   }
 };
+
+// BULK UPDATE ALL FILES STATUS TO COMPLETED
+export const bulkCompleteAllFiles = async (req, res) => {
+  try {
+    console.log("Bulk completing all files...");
+    
+    // Get all pending files
+    const pendingFiles = await FileManagement.find({ 
+      status: { $in: ["pending", "rejected"] } 
+    });
+
+    if (pendingFiles.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No pending files found to update"
+      });
+    }
+
+    const updatedFiles = [];
+    const errors = [];
+
+    // Update each file to completed
+    for (const file of pendingFiles) {
+      try {
+        // Update file status to completed
+        const updatedFile = await FileManagement.findOneAndUpdate(
+          { file_id: file.file_id },
+          { status: "completed" },
+          { new: true, runValidators: true }
+        );
+
+        if (updatedFile) {
+          // Update corresponding TaskDeliverables
+          await updateTaskDeliverables({
+            faculty_id: updatedFile.faculty_id,
+            faculty_name: updatedFile.faculty_name,
+            subject_code: updatedFile.subject_code,
+            course_sections: [updatedFile.course_section],
+            document_type: updatedFile.document_type,
+            status: "completed"
+          });
+
+          updatedFiles.push(updatedFile);
+          console.log(`Updated file: ${updatedFile.file_id} - ${updatedFile.file_name}`);
+        }
+      } catch (fileError) {
+        errors.push({
+          file_id: file.file_id,
+          error: fileError.message
+        });
+        console.error(`Error updating file ${file.file_id}:`, fileError);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully completed ${updatedFiles.length} files`,
+      data: {
+        completed: updatedFiles.length,
+        errors: errors.length,
+        details: errors.length > 0 ? errors : undefined
+      }
+    });
+
+  } catch (error) {
+    console.error("Error in bulk complete:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during bulk update",
+      error: error.message,
+    });
+  }
+};

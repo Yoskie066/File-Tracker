@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit, Calendar, History } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit, Calendar, History, CheckCheck } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
@@ -35,6 +35,10 @@ export default function FileManagement() {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [fileToUpdate, setFileToUpdate] = useState(null);
   const [newStatus, setNewStatus] = useState("");
+
+  // Bulk complete confirmation modal
+  const [bulkCompleteModalOpen, setBulkCompleteModalOpen] = useState(false);
+  const [bulkCompleteLoading, setBulkCompleteLoading] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -215,6 +219,45 @@ export default function FileManagement() {
     setDeleteModalOpen(true);
   };
 
+  // Handle bulk complete all files
+  const handleBulkComplete = async () => {
+    try {
+      setBulkCompleteLoading(true);
+      
+      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/bulk-complete`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        fetchFiles(); // Refresh the files list
+        setBulkCompleteModalOpen(false);
+        showFeedback("success", `Successfully marked ${result.data.completed} files as completed! Task deliverables have been automatically updated.`);
+      } else {
+        showFeedback("error", result.message || "Error completing files");
+      }
+    } catch (error) {
+      console.error("Error completing files:", error);
+      showFeedback("error", "Error completing files");
+    } finally {
+      setBulkCompleteLoading(false);
+    }
+  };
+
+  // Open bulk complete confirmation modal
+  const confirmBulkComplete = () => {
+    const pendingCount = files.filter(f => f.status === "pending" || f.status === "rejected").length;
+    if (pendingCount === 0) {
+      showFeedback("info", "No pending or rejected files to complete.");
+      return;
+    }
+    setBulkCompleteModalOpen(true);
+  };
+
   // Format file size
   const formatFileSize = (bytes) => {
     if (!bytes) return '0 Bytes';
@@ -318,6 +361,11 @@ export default function FileManagement() {
   };
 
   const fileStats = calculateStats(filteredFiles);
+
+  // Get pending files count for bulk complete
+  const getPendingCount = () => {
+    return files.filter(f => f.status === "pending" || f.status === "rejected").length;
+  };
 
   // Pagination
   const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
@@ -523,6 +571,23 @@ export default function FileManagement() {
             />
           </div>
         </div>
+
+        {/* Bulk Complete Button - Only show in current view */}
+        {!historyView && getPendingCount() > 0 && (
+          <div className="mb-6">
+            <button
+              onClick={confirmBulkComplete}
+              disabled={getPendingCount() === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CheckCheck className="w-5 h-5" />
+              Mark All Files as Completed ({getPendingCount()} pending)
+            </button>
+            <p className="text-xs text-gray-500 mt-2">
+              This will mark all pending and rejected files as "completed" and automatically update Task Deliverables.
+            </p>
+          </div>
+        )}
 
         {/* History of Records Management Bar */}
         {historyView && (
@@ -993,6 +1058,77 @@ export default function FileManagement() {
                 </div>
               </div>
             )}
+          </Modal>
+
+          {/* Bulk Complete Confirmation Modal */}
+          <Modal
+            isOpen={bulkCompleteModalOpen}
+            onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+            className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Mark All Files as Completed
+                </h3>
+                <button
+                  onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={bulkCompleteLoading}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                  <div className="flex items-center">
+                    <CheckCheck className="w-5 h-5 text-yellow-600 mr-2" />
+                    <p className="text-yellow-800 font-medium">Important Information:</p>
+                  </div>
+                  <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                    <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
+                    <li>• Affects files with status: "pending" or "rejected"</li>
+                    <li>• Task Deliverables will be automatically updated to "completed"</li>
+                    <li>• This action cannot be undone</li>
+                  </ul>
+                </div>
+
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables.
+                </p>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+                    disabled={bulkCompleteLoading}
+                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkComplete}
+                    disabled={bulkCompleteLoading}
+                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {bulkCompleteLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCheck className="w-4 h-4" />
+                        Mark All as Completed
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </Modal>
 
           {/* Delete Confirmation Modal */}

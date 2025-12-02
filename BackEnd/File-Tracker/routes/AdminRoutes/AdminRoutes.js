@@ -3,7 +3,7 @@ import { registerAdmin, loginAdmin, forgotPasswordAdmin, refreshTokenAdmin } fro
 import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLogout.js";
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
-import { getFiles, getFileById, downloadFile, deleteFile, updateFileStatus } from "../../controllers/FacultyController/FileUploadController.js";
+import { getFiles, getFileById, downloadFile, deleteFile, updateFileStatus, bulkCompleteAllFiles } from "../../controllers/FacultyController/FileUploadController.js";
 import { createRequirement, getRequirements, getRequirementById, updateRequirement,  deleteRequirement } from "../../controllers/AdminController/RequirementController.js";
 import { getAnalyticsData, getFacultyPerformance } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
@@ -27,6 +27,7 @@ router.get("/file-management/:id", getFileById);
 router.get("/file-management/:id/download", downloadFile);
 router.delete("/file-management/:id", deleteFile);
 router.put("/file-management/:id/status", updateFileStatus);
+router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
 
 // Requirement Routes
 router.get("/requirement", getRequirements);
