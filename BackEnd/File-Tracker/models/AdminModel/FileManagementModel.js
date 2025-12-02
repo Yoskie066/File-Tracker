@@ -23,8 +23,16 @@ const fileManagementSchema = new mongoose.Schema(
     },
     subject_code: { type: String, required: true }, 
     course_section: { type: String, required: true },
-    subject_title: { type: String, required: true }, // Added subject_title
-    file_path: { type: String, required: true },
+    subject_title: { type: String, required: true },
+    
+    // Google Drive fields
+    google_drive_file_id: { type: String, required: true },
+    google_drive_file_name: { type: String, required: true },
+    google_drive_view_link: { type: String, required: true },
+    google_drive_download_link: { type: String, required: true },
+    google_drive_mime_type: { type: String, required: true },
+    
+    // Original file info
     original_name: { type: String, required: true },
     file_size: { type: Number, required: true },
     uploaded_at: { type: Date, default: Date.now },
