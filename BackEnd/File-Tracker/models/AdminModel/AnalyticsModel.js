@@ -36,11 +36,11 @@ const analyticsSchema = new mongoose.Schema(
       }
     },
     
-    // Requirement Management Stats
-    requirement_stats: {
-      total_requirements: Number,
-      overdue_requirements: Number,
-      not_overdue_requirements: Number,
+    // Admin Notice Stats 
+    admin_notice_stats: {
+      total_notices: Number,
+      overdue_notices: Number,
+      not_overdue_notices: Number,
       completion_rate: Number
     },
     

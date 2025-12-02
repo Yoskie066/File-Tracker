@@ -207,14 +207,14 @@ export default function Analytics() {
     };
   };
 
-  // 5. Requirement Status Distribution
-  const getRequirementStatusData = () => ({
+  // 5. Admin Notice Status Distribution
+  const getAdminNoticeStatusData = () => ({
     labels: ['Overdue', 'Not Overdue'],
     datasets: [
       {
         data: [
-          analyticsData?.requirement_management?.overdue_requirements || 0,
-          analyticsData?.requirement_management?.not_overdue_requirements || 0
+          analyticsData?.admin_notice_management?.overdue_notices || 0,
+          analyticsData?.admin_notice_management?.not_overdue_notices || 0
         ],
         backgroundColor: ['#EF4444', '#10B981'],
         borderColor: ['#EF4444', '#10B981'],
@@ -417,26 +417,26 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Requirements Card */}
+              {/* Admin Notice Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirements</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total:</span>
-                    <span className="font-semibold">{analyticsData?.requirement_management?.total_requirements || 0}</span>
+                    <span className="font-semibold">{analyticsData?.admin_notice_management?.total_notices || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Overdue:</span>
-                    <span className="font-semibold text-red-600">{analyticsData?.requirement_management?.overdue_requirements || 0}</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.admin_notice_management?.overdue_notices || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Not Overdue:</span>
-                    <span className="font-semibold text-green-600">{analyticsData?.requirement_management?.not_overdue_requirements || 0}</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.admin_notice_management?.not_overdue_notices || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Completion Rate:</span>
                     <span className="font-semibold text-blue-600">
-                      {analyticsData?.requirement_management?.completion_rate || 0}%
+                      {analyticsData?.admin_notice_management?.completion_rate || 0}%
                     </span>
                   </div>
                 </div>
@@ -504,11 +504,11 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 5. Requirement Status */}
+              {/* 5. Admin Notice Status */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Requirement Status</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Status</h3>
                 <div className="h-64">
-                  <Doughnut data={getRequirementStatusData()} options={chartOptions} />
+                  <Doughnut data={getAdminNoticeStatusData()} options={chartOptions} />
                 </div>
               </div>
 

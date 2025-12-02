@@ -1,7 +1,7 @@
 import Analytics from "../../models/AdminModel/AnalyticsModel.js";
 import User from "../../models/AdminModel/UserManagementModel.js";
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
-import Requirement from "../../models/AdminModel/AdminNoticeModel.js";
+import AdminNotice from "../../models/AdminModel/AdminNoticeModel.js";
 import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
@@ -28,14 +28,14 @@ export const getAnalyticsData = async (req, res) => {
     const completedFiles = await FileManagement.countDocuments({ status: 'completed' });
     const rejectedFiles = await FileManagement.countDocuments({ status: 'rejected' });
 
-    // Get requirement statistics
-    const totalRequirements = await Requirement.countDocuments();
-    const overdueRequirements = await Requirement.countDocuments({
+    // Get admin notice statistics (formerly requirement statistics)
+    const totalNotices = await AdminNotice.countDocuments();
+    const overdueNotices = await AdminNotice.countDocuments({
       due_date: { $lt: new Date() }
     });
-    const notOverdueRequirements = totalRequirements - overdueRequirements;
-    const requirementCompletionRate = totalRequirements > 0 ? 
-      Math.round(((totalRequirements - overdueRequirements) / totalRequirements) * 100) : 0;
+    const notOverdueNotices = totalNotices - overdueNotices;
+    const noticeCompletionRate = totalNotices > 0 ? 
+      Math.round(((totalNotices - overdueNotices) / totalNotices) * 100) : 0;
 
     // Get system variables statistics
     const totalVariables = await SystemVariable.countDocuments();
@@ -93,7 +93,7 @@ export const getAnalyticsData = async (req, res) => {
       activeRate,
       completedFiles,
       totalFiles,
-      overdueRequirements
+      overdueNotices
     );
 
     // Prepare response data
@@ -117,18 +117,18 @@ export const getAnalyticsData = async (req, res) => {
         rejected_files: rejectedFiles,
         document_type_distribution: documentTypeDist
       },
-      requirement_management: {
-        total_requirements: totalRequirements,
-        overdue_requirements: overdueRequirements,
-        not_overdue_requirements: notOverdueRequirements,
-        completion_rate: requirementCompletionRate
+      admin_notice_management: {
+        total_notices: totalNotices,
+        overdue_notices: overdueNotices,
+        not_overdue_notices: notOverdueNotices,
+        completion_rate: noticeCompletionRate
       },
       system_variables: {
         total_variables: totalVariables,
         variable_type_distribution: variableTypeDist
       },
       summary: {
-        total_records: totalUsers + totalFiles + totalRequirements + totalVariables,
+        total_records: totalUsers + totalFiles + totalNotices + totalVariables,
         completion_rate: fileCompletionRate,
         system_health: systemHealth
       }
@@ -143,8 +143,8 @@ export const getAnalyticsData = async (req, res) => {
       faculties,
       totalFiles,
       completedFiles,
-      totalRequirements,
-      overdueRequirements,
+      totalNotices,
+      overdueNotices,
       totalVariables,
       systemHealth
     });
@@ -226,7 +226,7 @@ export const getFacultyPerformance = async (req, res) => {
 };
 
 // Helper function to calculate system health
-const calculateSystemHealth = (activeRate, completedFiles, totalFiles, overdueRequirements) => {
+const calculateSystemHealth = (activeRate, completedFiles, totalFiles, overdueNotices) => {
   let healthScore = 0;
   
   // Active rate contributes 30%
@@ -236,8 +236,8 @@ const calculateSystemHealth = (activeRate, completedFiles, totalFiles, overdueRe
   const completionRate = totalFiles > 0 ? (completedFiles / totalFiles) * 100 : 0;
   healthScore += (completionRate / 100) * 40;
   
-  // Overdue requirements penalty (30% base - deductions)
-  const overduePenalty = Math.min(overdueRequirements * 2, 30);
+  // Overdue notices penalty (30% base - deductions)
+  const overduePenalty = Math.min(overdueNotices * 2, 30);
   healthScore += (30 - overduePenalty);
   
   return Math.min(Math.round(healthScore), 100);
