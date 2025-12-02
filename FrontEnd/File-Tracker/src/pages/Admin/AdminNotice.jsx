@@ -5,14 +5,14 @@ import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
 // Set app element for react-modal
 Modal.setAppElement("#root");
 
-export default function RequirementManagement() {
-  const [requirements, setRequirements] = useState([]);
+export default function AdminNoticeManagement() {
+  const [adminNotices, setAdminNotices] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
-  const requirementsPerPage = 10;
+  const adminNoticesPerPage = 10;
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -21,11 +21,11 @@ export default function RequirementManagement() {
 
   // Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [requirementToDelete, setRequirementToDelete] = useState(null);
+  const [adminNoticeToDelete, setAdminNoticeToDelete] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
-    requirement_id: "",
+    notice_id: "",
     prof_name: "",
     document_type: "",
     due_date: ""
@@ -40,28 +40,28 @@ export default function RequirementManagement() {
     "all-files"
   ];
 
-  // Fetch requirements from backend 
-  const fetchRequirements = async () => {
+  // Fetch admin notices from backend 
+  const fetchAdminNotices = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/requirement`); 
+      const res = await fetch(`${API_BASE_URL}/api/admin/admin-notice`); 
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
-      console.log("Fetched requirements:", result);
+      console.log("Fetched admin notices:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setRequirements(result.data);
+        setAdminNotices(result.data);
       } else {
         console.error("Unexpected API response format:", result);
-        setRequirements([]);
+        setAdminNotices([]);
       }
     } catch (err) {
-      console.error("Error fetching requirements:", err);
-      setRequirements([]); 
+      console.error("Error fetching admin notices:", err);
+      setAdminNotices([]); 
     }
   };
 
   useEffect(() => {
-    fetchRequirements();
+    fetchAdminNotices();
   }, []);
 
   // Close dropdown when clicking outside
@@ -90,7 +90,7 @@ export default function RequirementManagement() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      requirement_id: "",
+      notice_id: "",
       prof_name: "",
       document_type: "",
       due_date: ""
@@ -105,8 +105,8 @@ export default function RequirementManagement() {
   
     try {
       const url = isEditMode 
-        ? `${API_BASE_URL}/api/admin/requirement/${formData.requirement_id}`
-        : `${API_BASE_URL}/api/admin/requirement`;
+        ? `${API_BASE_URL}/api/admin/admin-notice/${formData.notice_id}`
+        : `${API_BASE_URL}/api/admin/admin-notice`;
       
       const method = isEditMode ? "PUT" : "POST";
   
@@ -138,87 +138,87 @@ export default function RequirementManagement() {
       if (result.success) {
         resetForm();
         setShowModal(false);
-        fetchRequirements();
+        fetchAdminNotices();
         showFeedback("success", 
-          isEditMode ? "Requirement updated successfully!" : "Requirement added successfully!"
+          isEditMode ? "Admin notice updated successfully!" : "Admin notice added successfully!"
         );
       } else {
-        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} requirement`);
+        showFeedback("error", result.message || `Error ${isEditMode ? 'updating' : 'adding'} admin notice`);
       }
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} requirement:`, error);
-      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} requirement`);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} admin notice:`, error);
+      showFeedback("error", error.message || `Error ${isEditMode ? 'updating' : 'creating'} admin notice`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle edit requirement
-  const handleEdit = async (requirementId) => {
+  // Handle edit admin notice
+  const handleEdit = async (noticeId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/requirement/${requirementId}`);
+      const response = await fetch(`${API_BASE_URL}/api/admin/admin-notice/${noticeId}`);
       const result = await response.json();
   
       if (result.success && result.data) {
-        const requirement = result.data;
+        const adminNotice = result.data;
         setFormData({
-          requirement_id: requirement.requirement_id,
-          prof_name: requirement.prof_name,
-          document_type: requirement.document_type,
-          due_date: requirement.due_date ? requirement.due_date.split('T')[0] : ""
+          notice_id: adminNotice.notice_id,
+          prof_name: adminNotice.prof_name,
+          document_type: adminNotice.document_type,
+          due_date: adminNotice.due_date ? adminNotice.due_date.split('T')[0] : ""
         });
         setIsEditMode(true);
         setShowModal(true);
       } else {
-        showFeedback("error", "Error loading requirement data");
+        showFeedback("error", "Error loading admin notice data");
       }
     } catch (error) {
-      console.error("Error fetching requirement:", error);
-      showFeedback("error", "Error loading requirement data");
+      console.error("Error fetching admin notice:", error);
+      showFeedback("error", "Error loading admin notice data");
     }
     setActionDropdown(null);
   }
 
-  // Handle delete requirement
-  const handleDelete = async (requirementId) => {
+  // Handle delete admin notice
+  const handleDelete = async (noticeId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/requirement/${requirementId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/admin-notice/${noticeId}`, {
         method: "DELETE",
       });
 
       const result = await response.json();
 
       if (result.success) {
-        fetchRequirements();
-        showFeedback("success", "Requirement deleted successfully!");
+        fetchAdminNotices();
+        showFeedback("success", "Admin notice deleted successfully!");
       } else {
-        showFeedback("error", result.message || "Error deleting requirement");
+        showFeedback("error", result.message || "Error deleting admin notice");
       }
     } catch (error) {
-      console.error("Error deleting requirement:", error);
-      showFeedback("error", "Error deleting requirement");
+      console.error("Error deleting admin notice:", error);
+      showFeedback("error", "Error deleting admin notice");
     }
     setDeleteModalOpen(false);
-    setRequirementToDelete(null);
+    setAdminNoticeToDelete(null);
     setActionDropdown(null);
   };
 
   // Open delete confirmation modal
-  const confirmDelete = (requirementId) => {
-    setRequirementToDelete(requirementId);
+  const confirmDelete = (noticeId) => {
+    setAdminNoticeToDelete(noticeId);
     setDeleteModalOpen(true);
   };
 
   // Calculate stats
-  const requirementStats = {
-    total: Array.isArray(requirements) ? requirements.length : 0,
-    allFiles: Array.isArray(requirements) ? requirements.filter(req => req.document_type === 'all-files').length : 0
+  const adminNoticeStats = {
+    total: Array.isArray(adminNotices) ? adminNotices.length : 0,
+    allFiles: Array.isArray(adminNotices) ? adminNotices.filter(notice => notice.document_type === 'all-files').length : 0
   };
 
   // Search filter
-  const filteredRequirements = (Array.isArray(requirements) ? requirements : [])
-    .filter((req) =>
-      [req.requirement_id, req.prof_name, req.document_type]
+  const filteredAdminNotices = (Array.isArray(adminNotices) ? adminNotices : [])
+    .filter((notice) =>
+      [notice.notice_id, notice.prof_name, notice.document_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -231,9 +231,9 @@ export default function RequirementManagement() {
   };
 
   // Pagination
-  const totalPages = Math.ceil(filteredRequirements.length / requirementsPerPage);
-  const startIndex = (currentPage - 1) * requirementsPerPage;
-  const currentRequirements = filteredRequirements.slice(startIndex, startIndex + requirementsPerPage);
+  const totalPages = Math.ceil(filteredAdminNotices.length / adminNoticesPerPage);
+  const startIndex = (currentPage - 1) * adminNoticesPerPage;
+  const currentAdminNotices = filteredAdminNotices.slice(startIndex, startIndex + adminNoticesPerPage);
 
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
@@ -245,15 +245,15 @@ export default function RequirementManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Requirement</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Admin Notice</h1>
             <p className="text-sm text-gray-500">
-              Manage and track academic requirements and deadlines
+              Manage and track administrative notices and deadlines
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
             <input
               type="text"
-              placeholder="Search requirements..."
+              placeholder="Search admin notices..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
@@ -264,7 +264,7 @@ export default function RequirementManagement() {
                 setShowModal(true);
               }}
               className="bg-black text-white p-2 rounded-md hover:bg-yellow-400 hover:text-black transition-colors duration-200 flex items-center justify-center w-10 h-10"
-              title="Add New Requirement"
+              title="Add New Admin Notice"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -278,7 +278,7 @@ export default function RequirementManagement() {
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Req ID</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Notice ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>
@@ -287,23 +287,23 @@ export default function RequirementManagement() {
               </tr>
             </thead>
             <tbody>
-              {currentRequirements.length > 0 ? (
-                currentRequirements.map((requirement) => (
-                  <tr key={requirement._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{requirement.requirement_id}</td>
-                    <td className="px-4 py-3 text-gray-700">{requirement.prof_name}</td>
+              {currentAdminNotices.length > 0 ? (
+                currentAdminNotices.map((adminNotice) => (
+                  <tr key={adminNotice._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
+                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{adminNotice.notice_id}</td>
+                    <td className="px-4 py-3 text-gray-700">{adminNotice.prof_name}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(requirement.document_type)}`}>
-                        {requirement.document_type === 'all-files' ? 'All Files' : requirement.document_type}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(adminNotice.document_type)}`}>
+                        {adminNotice.document_type === 'all-files' ? 'All Files' : adminNotice.document_type}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`font-medium ${
-                        new Date(requirement.due_date) < new Date() 
+                        new Date(adminNotice.due_date) < new Date() 
                           ? 'text-red-600' 
                           : 'text-gray-700'
                       }`}>
-                        {new Date(requirement.due_date).toLocaleDateString('en-US', {
+                        {new Date(adminNotice.due_date).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
@@ -311,7 +311,7 @@ export default function RequirementManagement() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      {new Date(requirement.created_at).toLocaleDateString('en-US', {
+                      {new Date(adminNotice.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
@@ -323,24 +323,24 @@ export default function RequirementManagement() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionDropdown(actionDropdown === requirement.requirement_id ? null : requirement.requirement_id);
+                          setActionDropdown(actionDropdown === adminNotice.notice_id ? null : adminNotice.notice_id);
                         }}
                         className="p-1 rounded hover:bg-gray-200 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       
-                      {actionDropdown === requirement.requirement_id && (
+                      {actionDropdown === adminNotice.notice_id && (
                         <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                           <button
-                            onClick={() => handleEdit(requirement.requirement_id)}
+                            onClick={() => handleEdit(adminNotice.notice_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Update
                           </button>
                           <button
-                            onClick={() => confirmDelete(requirement.requirement_id)}
+                            onClick={() => confirmDelete(adminNotice.notice_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
@@ -354,7 +354,7 @@ export default function RequirementManagement() {
               ) : (
                 <tr>
                   <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
-                    No requirements found.
+                    No admin notices found.
                   </td>
                 </tr>
               )}
@@ -364,41 +364,41 @@ export default function RequirementManagement() {
 
         {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
-          {currentRequirements.length > 0 ? (
-            currentRequirements.map((requirement) => (
-              <div key={requirement._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+          {currentAdminNotices.length > 0 ? (
+            currentAdminNotices.map((adminNotice) => (
+              <div key={adminNotice._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800">Document Requirement</h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {requirement.requirement_id}</p>
+                    <h2 className="font-semibold text-gray-800">Admin Notice</h2>
+                    <p className="text-sm text-gray-600 font-mono">ID: {adminNotice.notice_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(requirement.document_type)}`}>
-                      {requirement.document_type === 'all-files' ? 'All Files' : requirement.document_type}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(adminNotice.document_type)}`}>
+                      {adminNotice.document_type === 'all-files' ? 'All Files' : adminNotice.document_type}
                     </span>
                     
                     <div className="relative">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionDropdown(actionDropdown === requirement.requirement_id ? null : requirement.requirement_id);
+                          setActionDropdown(actionDropdown === adminNotice.notice_id ? null : adminNotice.notice_id);
                         }}
                         className="p-1 rounded hover:bg-gray-200 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       
-                      {actionDropdown === requirement.requirement_id && (
+                      {actionDropdown === adminNotice.notice_id && (
                         <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                           <button
-                            onClick={() => handleEdit(requirement.requirement_id)}
+                            onClick={() => handleEdit(adminNotice.notice_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Update
                           </button>
                           <button
-                            onClick={() => confirmDelete(requirement.requirement_id)}
+                            onClick={() => confirmDelete(adminNotice.notice_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
@@ -413,26 +413,26 @@ export default function RequirementManagement() {
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div>
                     <span className="text-gray-500">Professor:</span>
-                    <p className="font-medium">{requirement.prof_name}</p>
+                    <p className="font-medium">{adminNotice.prof_name}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Due Date:</span>
                     <p className={`font-medium ${
-                      new Date(requirement.due_date) < new Date() ? 'text-red-600' : 'text-gray-700'
+                      new Date(adminNotice.due_date) < new Date() ? 'text-red-600' : 'text-gray-700'
                     }`}>
-                      {new Date(requirement.due_date).toLocaleDateString()}
+                      {new Date(adminNotice.due_date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-3">
-                  Created: {new Date(requirement.created_at).toLocaleDateString()}
+                  Created: {new Date(adminNotice.created_at).toLocaleDateString()}
                 </p>
               </div>
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              No requirements found.
+              No admin notices found.
             </div>
           )}
         </div>
@@ -440,7 +440,7 @@ export default function RequirementManagement() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentRequirements.length} of {filteredRequirements.length} requirements
+            Showing {currentAdminNotices.length} of {filteredAdminNotices.length} admin notices
           </div>
           
           <div className="flex items-center gap-3">
@@ -472,7 +472,7 @@ export default function RequirementManagement() {
           </div>
         </div>
 
-        {/* Add/Edit Requirement Modal */}
+        {/* Add/Edit Admin Notice Modal */}
         <Modal
           isOpen={showModal}
           onRequestClose={() => {
@@ -485,7 +485,7 @@ export default function RequirementManagement() {
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">
-                {isEditMode ? "Update Requirement" : "Add New Requirement"}
+                {isEditMode ? "Update Admin Notice" : "Add New Admin Notice"}
               </h3>
               <button
                 onClick={() => {
@@ -501,16 +501,16 @@ export default function RequirementManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Requirement ID (readonly in edit mode) */}
+              {/* Notice ID (readonly in edit mode) */}
               {isEditMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Requirement ID
+                    Notice ID
                   </label>
                   <input
                     type="text"
-                    name="requirement_id"
-                    value={formData.requirement_id}
+                    name="notice_id"
+                    value={formData.notice_id}
                     readOnly
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
                   />
@@ -534,7 +534,7 @@ export default function RequirementManagement() {
                 </select>
                 {formData.prof_name === "ALL" && (
                   <p className="text-xs text-blue-600 mt-1">
-                    This requirement will be sent to ALL faculty members.
+                    This admin notice will be sent to ALL faculty members.
                   </p>
                 )}
               </div>
@@ -560,7 +560,7 @@ export default function RequirementManagement() {
                 </select>
                 {formData.document_type === "all-files" && (
                   <p className="text-xs text-blue-600 mt-1">
-                    This requirement includes ALL file types.
+                    This admin notice includes ALL file types.
                   </p>
                 )}
               </div>
@@ -597,7 +597,7 @@ export default function RequirementManagement() {
                   disabled={loading}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Requirement" : "Add Requirement")}
+                  {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Notice" : "Add Notice")}
                 </button>
               </div>
             </form>
@@ -615,7 +615,7 @@ export default function RequirementManagement() {
             <XCircle className="text-red-500 w-12 h-12 mb-4" />
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this requirement? This action cannot be undone.
+              Are you sure you want to delete this admin notice? This action cannot be undone.
             </p>
             <div className="flex gap-3 w-full">
               <button
@@ -625,7 +625,7 @@ export default function RequirementManagement() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDelete(requirementToDelete)}
+                onClick={() => handleDelete(adminNoticeToDelete)}
                 className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
               >
                 Delete

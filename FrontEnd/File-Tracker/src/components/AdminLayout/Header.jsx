@@ -93,11 +93,11 @@ export default function Header() {
           File Management
         </Link>
         <Link
-          to="/admin/requirement"
+          to="/admin/admin-notice"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
           <BellRing className="w-4 h-4" />
-          Requirement
+          Admin Notice
         </Link>
         <Link
           to="/admin/system-variables"
@@ -174,14 +174,14 @@ export default function Header() {
             File Management
           </Link>
           <Link
-            to="/admin/requirement"
+            to="/admin/admin-notice"
             onClick={() => setIsOpen(false)}
             className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
-              "/admin/requirement"
+              "/admin/admin-notice"
             )}`}
           >
             <BellRing className="w-5 h-5" />
-            Requirement
+            Admin Notice
           </Link>
           <Link
             to="/admin/system-variables"

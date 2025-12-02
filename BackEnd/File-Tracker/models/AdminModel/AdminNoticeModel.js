@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-const requirementSchema = new mongoose.Schema(
+const adminNoticeSchema = new mongoose.Schema(
   {
-    requirement_id: { type: String, required: true, unique: true },
+    notice_id: { type: String, required: true, unique: true },
     prof_name: { type: String, required: true },
     document_type: { type: String, required: true },
     due_date: { type: Date, required: true },
@@ -12,5 +12,5 @@ const requirementSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-const Requirement = mongoose.model("Requirement", requirementSchema);
-export default Requirement;
+const AdminNotice = mongoose.model("AdminNotice", adminNoticeSchema);
+export default AdminNotice;

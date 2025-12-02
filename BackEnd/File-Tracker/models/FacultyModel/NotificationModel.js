@@ -27,7 +27,7 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  related_requirement_id: {
+  related_notice_id: {
     type: String,
     default: "",
   },

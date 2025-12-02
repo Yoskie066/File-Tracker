@@ -21,7 +21,7 @@ export default function NotificationPage() {
           <div className="p-8 text-center">
             <p className="text-gray-500 text-lg">No notifications found.</p>
             <p className="text-gray-400 text-sm mt-2">
-              Notifications will appear here when admin assigns you requirements.
+              Notifications will appear here when admin assigns.
             </p>
           </div>
         ) : (
@@ -59,7 +59,7 @@ export default function NotificationPage() {
           className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-auto mt-20 outline-none"
           overlayClassName="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center overflow-y-auto"
         >
-          <h2 className="text-xl font-bold mb-4 text-gray-800">Requirement Details</h2>
+          <h2 className="text-xl font-bold mb-4 text-gray-800">Admin Notice Details</h2>
           <div className="space-y-2 text-gray-700">
             <p>
               <span className="font-semibold">Document Type:</span> {selectedNote.document_type === 'all-files' ? 'All Files' : selectedNote.document_type || "N/A"}

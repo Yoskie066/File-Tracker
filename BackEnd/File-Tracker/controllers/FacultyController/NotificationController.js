@@ -8,7 +8,7 @@ const generateNotificationId = () => {
 // Create notification
 export const createNotification = async (req, res) => {
   try {
-    const { recipient_id, recipient_type, recipient_name, title, message, related_requirement_id } = req.body;
+    const { recipient_id, recipient_type, recipient_name, title, message, related_notice_id } = req.body;
 
     if (!recipient_id || !recipient_type || !recipient_name || !title || !message) {
       return res.status(400).json({ success: false, message: "All required fields must be filled." });
@@ -21,7 +21,7 @@ export const createNotification = async (req, res) => {
       recipient_name,
       title,
       message,
-      related_requirement_id: related_requirement_id || "",
+      related_notice_id: related_notice_id || "",
     });
 
     const savedNotification = await notification.save();

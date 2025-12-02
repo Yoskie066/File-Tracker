@@ -1,9 +1,9 @@
-import Requirement from "../../models/AdminModel/RequirementModel.js";
+import AdminNotice from "../../models/AdminModel/AdminNoticeModel.js";
 import Notification from "../../models/FacultyModel/NotificationModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 
-// Generate 10-digit unique requirement_id
-const generateRequirementId = () => {
+// Generate 10-digit unique notice_id
+const generateNoticeId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
@@ -12,8 +12,8 @@ const generateNotificationId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Create requirement
-export const createRequirement = async (req, res) => {
+// Create admin notice
+export const createAdminNotice = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
@@ -32,22 +32,22 @@ export const createRequirement = async (req, res) => {
       });
     }
 
-    const requirement_id = generateRequirementId();
+    const notice_id = generateNoticeId();
 
-    console.log("Creating requirement with ID:", requirement_id);
+    console.log("Creating admin notice with ID:", notice_id);
 
-    const newRequirement = new Requirement({
-      requirement_id,
+    const newAdminNotice = new AdminNotice({
+      notice_id,
       prof_name,
       document_type,
       due_date: new Date(due_date),
     });
 
-    const savedRequirement = await newRequirement.save();
-    console.log("Requirement saved successfully:", savedRequirement._id);
+    const savedAdminNotice = await newAdminNotice.save();
+    console.log("Admin notice saved successfully:", savedAdminNotice._id);
 
     // Create notification message
-    const notificationMessage = `You have a new requirement for document submission`;
+    const notificationMessage = `You have a new admin notice for document submission`;
 
     // Create notifications based on professor selection
     try {
@@ -65,11 +65,11 @@ export const createRequirement = async (req, res) => {
             recipient_id: faculty.facultyId,
             recipient_type: "Faculty",
             recipient_name: faculty.facultyName,
-            title: "New Requirement Assigned",
+            title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
             due_date: new Date(due_date),
-            related_requirement_id: savedRequirement.requirement_id,
+            related_notice_id: savedAdminNotice.notice_id,
             is_read: false,
           });
           return notification.save();
@@ -93,11 +93,11 @@ export const createRequirement = async (req, res) => {
             recipient_id: faculty.facultyId,
             recipient_type: "Faculty",
             recipient_name: faculty.facultyName,
-            title: "New Requirement Assigned",
+            title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
             due_date: new Date(due_date),
-            related_requirement_id: savedRequirement.requirement_id,
+            related_notice_id: savedAdminNotice.notice_id,
             is_read: false,
           });
           
@@ -112,11 +112,11 @@ export const createRequirement = async (req, res) => {
             recipient_id: "unknown",
             recipient_type: "Faculty",
             recipient_name: prof_name,
-            title: "New Requirement Assigned",
+            title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
             due_date: new Date(due_date),
-            related_requirement_id: savedRequirement.requirement_id,
+            related_notice_id: savedAdminNotice.notice_id,
             is_read: false,
           });
           
@@ -130,12 +130,12 @@ export const createRequirement = async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: "Requirement created successfully",
-      data: savedRequirement,
+      message: "Admin notice created successfully",
+      data: savedAdminNotice,
     });
 
   } catch (error) {
-    console.error("Error creating requirement:", error);
+    console.error("Error creating admin notice:", error);
     
     // More specific error messages
     if (error.name === 'ValidationError') {
@@ -149,8 +149,8 @@ export const createRequirement = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ 
         success: false, 
-        message: "Duplicate requirement ID", 
-        error: "Requirement ID already exists" 
+        message: "Duplicate notice ID", 
+        error: "Notice ID already exists" 
       });
     }
 
@@ -163,34 +163,34 @@ export const createRequirement = async (req, res) => {
   }
 };
 
-// Get all requirements
-export const getRequirements = async (req, res) => {
+// Get all admin notices
+export const getAdminNotices = async (req, res) => {
   try {
-    const requirements = await Requirement.find().sort({ created_at: -1 });
-    res.status(200).json({ success: true, data: requirements });
+    const adminNotices = await AdminNotice.find().sort({ created_at: -1 });
+    res.status(200).json({ success: true, data: adminNotices });
   } catch (error) {
-    console.error("Error fetching requirements:", error);
+    console.error("Error fetching admin notices:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// Get single requirement
-export const getRequirementById = async (req, res) => {
+// Get single admin notice
+export const getAdminNoticeById = async (req, res) => {
   try {
     const { id } = req.params;
-    const requirement = await Requirement.findOne({ requirement_id: id });
+    const adminNotice = await AdminNotice.findOne({ notice_id: id });
 
-    if (!requirement) return res.status(404).json({ success: false, message: "Requirement not found" });
+    if (!adminNotice) return res.status(404).json({ success: false, message: "Admin notice not found" });
 
-    res.status(200).json({ success: true, data: requirement });
+    res.status(200).json({ success: true, data: adminNotice });
   } catch (error) {
-    console.error("Error fetching requirement:", error);
+    console.error("Error fetching admin notice:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// Update requirement
-export const updateRequirement = async (req, res) => {
+// Update admin notice
+export const updateAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
     const { prof_name, document_type, due_date } = req.body;
@@ -202,20 +202,20 @@ export const updateRequirement = async (req, res) => {
       updated_at: new Date()
     };
 
-    const updated = await Requirement.findOneAndUpdate(
-      { requirement_id: id },
+    const updated = await AdminNotice.findOneAndUpdate(
+      { notice_id: id },
       updateData,
       { new: true, runValidators: true }
     );
 
-    if (!updated) return res.status(404).json({ success: false, message: "Requirement not found" });
+    if (!updated) return res.status(404).json({ success: false, message: "Admin notice not found" });
 
     // Update notification message
-    const notificationMessage = `You have an updated requirement for document submission`;
+    const notificationMessage = `You have an updated admin notice for document submission`;
 
     // Update notifications
     await Notification.updateMany(
-      { related_requirement_id: id },
+      { related_notice_id: id },
       {
         message: notificationMessage,
         document_type,
@@ -223,27 +223,27 @@ export const updateRequirement = async (req, res) => {
       }
     );
     
-    res.status(200).json({ success: true, message: "Requirement updated successfully", data: updated });
+    res.status(200).json({ success: true, message: "Admin notice updated successfully", data: updated });
   } catch (error) {
-    console.error("Error updating requirement:", error);
+    console.error("Error updating admin notice:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
-// Delete requirement
-export const deleteRequirement = async (req, res) => {
+// Delete admin notice
+export const deleteAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Requirement.findOneAndDelete({ requirement_id: id });
+    const deleted = await AdminNotice.findOneAndDelete({ notice_id: id });
 
-    if (!deleted) return res.status(404).json({ success: false, message: "Requirement not found" });
+    if (!deleted) return res.status(404).json({ success: false, message: "Admin notice not found" });
 
     // Delete linked notification
-    await Notification.deleteMany({ related_requirement_id: id });
+    await Notification.deleteMany({ related_notice_id: id });
 
-    res.status(200).json({ success: true, message: "Requirement deleted successfully", data: deleted });
+    res.status(200).json({ success: true, message: "Admin notice deleted successfully", data: deleted });
   } catch (error) {
-    console.error("Error deleting requirement:", error);
+    console.error("Error deleting admin notice:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

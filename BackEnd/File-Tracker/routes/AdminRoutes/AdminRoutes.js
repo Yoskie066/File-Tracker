@@ -4,7 +4,7 @@ import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLo
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
 import { getFiles, getFileById, downloadFile, deleteFile, updateFileStatus, bulkCompleteAllFiles } from "../../controllers/FacultyController/FileUploadController.js";
-import { createRequirement, getRequirements, getRequirementById, updateRequirement,  deleteRequirement } from "../../controllers/AdminController/RequirementController.js";
+import { getAdminNotices, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
 import { getAnalyticsData, getFacultyPerformance } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
 
@@ -29,12 +29,12 @@ router.delete("/file-management/:id", deleteFile);
 router.put("/file-management/:id/status", updateFileStatus);
 router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
 
-// Requirement Routes
-router.get("/requirement", getRequirements);
-router.post("/requirement", createRequirement);
-router.get("/requirement/:id", getRequirementById);
-router.put("/requirement/:id", updateRequirement);
-router.delete("/requirement/:id", deleteRequirement);
+// Admin Notice Routes
+router.get("/admin-notice", getAdminNotices);
+router.post("/admin-notice", createAdminNotice);
+router.get("/admin-notice/:id", getAdminNoticeById);
+router.put("/admin-notice/:id", updateAdminNotice);
+router.delete("/admin-notice/:id", deleteAdminNotice);
 
 // Analytics Routes 
 router.get("/analytics", getAnalyticsData);
