@@ -1,5 +1,2 @@
 node_modules/
 .env
-
-# Ignore Google service account credentials
-BackEnd/File-Tracker/config/service-account.json

@@ -97,41 +97,27 @@ export default function FileManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // In the FileManagement component, update the handleDownload function:
+  // Handle download file
   const handleDownload = async (fileId, fileName) => {
     try {
       console.log(`Downloading file: ${fileId} - ${fileName}`);
       
-      // First, get file details to get Google Drive link
-      const fileResponse = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}`);
-      
-      if (!fileResponse.ok) {
-        throw new Error("Failed to get file details");
-      }
-      
-      const fileData = await fileResponse.json();
-      
-      if (!fileData.success || !fileData.data) {
-        throw new Error("File not found");
-      }
-      
-      const file = fileData.data;
-      
-      // Check if file has Google Drive download link
-      if (file.google_drive_download_link) {
-        // Open Google Drive download link in new tab
-        window.open(file.google_drive_download_link, '_blank');
-        showFeedback("success", "File download started from Google Drive!");
-        return;
-      }
-      
-      // Fallback to traditional download
       const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}/download`);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.message || `Download failed with status: ${response.status}`);
       }
+  
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      console.log('Download response:', {
+        status: response.status,
+        contentType,
+        contentLength,
+        ok: response.ok
+      });
   
       const blob = await response.blob();
       
@@ -972,73 +958,124 @@ export default function FileManagement() {
                   </div>
                 </div>
 
-                {/* Google Drive Storage Info */}
-                {fileToPreview.google_drive_view_link && (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5M6.29 7.5l3.43 6-6.55 11.5-3.43-6 6.55-11.5m8.56-4l-6.55 11.5 3.43 6 6.55-11.5-3.43-6m0 4l3.43 6-6.55 11.5-3.43-6 6.55-11.5m8.56-4l-6.55 11.5 3.43 6 6.55-11.5-3.43-6m0 4l3.43 6-6.55 11.5-3.43-6 6.55-11.5z"/>
-                      </svg>
-                      <label className="block text-sm font-medium text-green-700">Google Drive Storage</label>
-                    </div>
-                    <p className="text-xs text-green-600 truncate">
-                      Stored in Google Drive
-                    </p>
-                    <a 
-                      href={fileToPreview.google_drive_view_link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-500 hover:text-blue-700 mt-1 inline-block"
-                    >
-                      View in Google Drive →
-                    </a>
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
-                </div>
+                    <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
+                  </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
-                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download File
-                  </button>
-                  {!historyView && (
+                  <div className="flex gap-3 pt-4">
                     <button
-                      onClick={() => openStatusModal(fileToPreview)}
-                      className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
+                      className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                     >
-                      <Edit className="w-4 h-4" />
-                      Update Status
+                      <Download className="w-4 h-4" />
+                      Download File
                     </button>
-                  )}
+                    {!historyView && (
+                      <button
+                        onClick={() => openStatusModal(fileToPreview)}
+                        className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Update Status
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </Modal>
+            )}
+          </Modal>
 
-        {/* Status Update Modal */}
-        <Modal
-          isOpen={statusModalOpen}
-          onRequestClose={() => setStatusModalOpen(false)}
-          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        >
-          {fileToUpdate && (
+          {/* Status Update Modal */}
+          <Modal
+            isOpen={statusModalOpen}
+            onRequestClose={() => setStatusModalOpen(false)}
+            className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          >
+            {fileToUpdate && (
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Update File Status
+                  </h3>
+                  <button
+                    onClick={() => setStatusModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      File: <span className="font-semibold">{fileToUpdate.file_name}</span>
+                    </label>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
+                      {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Status
+                    </label>
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => setStatusModalOpen(false)}
+                      className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpdateStatus}
+                      className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
+                    >
+                      Update Status
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
+
+          {/* Bulk Complete Confirmation Modal */}
+          <Modal
+            isOpen={bulkCompleteModalOpen}
+            onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+            className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          >
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  Update File Status
+                  Mark All Files as Completed
                 </h3>
                 <button
-                  onClick={() => setStatusModalOpen(false)}
+                  onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={bulkCompleteLoading}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1047,180 +1084,106 @@ export default function FileManagement() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File: <span className="font-semibold">{fileToUpdate.file_name}</span>
-                  </label>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
-                    {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                  </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                  <div className="flex items-center">
+                    <CheckCheck className="w-5 h-5 text-yellow-600 mr-2" />
+                    <p className="text-yellow-800 font-medium">Important Information:</p>
+                  </div>
+                  <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                    <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
+                    <li>• Affects files with status: "pending" or "rejected"</li>
+                    <li>• Task Deliverables will be automatically updated to "completed"</li>
+                    <li>• This action cannot be undone</li>
+                  </ul>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Status
-                  </label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </div>
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables.
+                </p>
 
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => setStatusModalOpen(false)}
-                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                    onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+                    disabled={bulkCompleteLoading}
+                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleUpdateStatus}
-                    className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
+                    onClick={handleBulkComplete}
+                    disabled={bulkCompleteLoading}
+                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    Update Status
+                    {bulkCompleteLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCheck className="w-4 h-4" />
+                        Mark All as Completed
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             </div>
-          )}
-        </Modal>
+          </Modal>
 
-        {/* Bulk Complete Confirmation Modal */}
-        <Modal
-          isOpen={bulkCompleteModalOpen}
-          onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
-          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        >
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Mark All Files as Completed
-              </h3>
-              <button
-                onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                disabled={bulkCompleteLoading}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                <div className="flex items-center">
-                  <CheckCheck className="w-5 h-5 text-yellow-600 mr-2" />
-                  <p className="text-yellow-800 font-medium">Important Information:</p>
-                </div>
-                <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                  <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
-                  <li>• Affects files with status: "pending" or "rejected"</li>
-                  <li>• Task Deliverables will be automatically updated to "completed"</li>
-                  <li>• This action cannot be undone</li>
-                </ul>
-              </div>
-
-              <p className="text-sm text-gray-600">
-                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables.
+          {/* Delete Confirmation Modal */}
+          <Modal
+            isOpen={deleteModalOpen}
+            onRequestClose={() => setDeleteModalOpen(false)}
+            className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <div className="flex flex-col items-center text-center">
+              <XCircle className="text-red-500 w-12 h-12 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
               </p>
-
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 w-full">
                 <button
-                  onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
-                  disabled={bulkCompleteLoading}
-                  className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleBulkComplete}
-                  disabled={bulkCompleteLoading}
-                  className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  onClick={() => handleDelete(fileToDelete)}
+                  className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
                 >
-                  {bulkCompleteLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCheck className="w-4 h-4" />
-                      Mark All as Completed
-                    </>
-                  )}
+                  Delete
                 </button>
               </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
 
-        {/* Delete Confirmation Modal */}
-        <Modal
-          isOpen={deleteModalOpen}
-          onRequestClose={() => setDeleteModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        >
-          <div className="flex flex-col items-center text-center">
-            <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 w-full">
+          {/* Feedback Modal */}
+          <Modal
+            isOpen={feedbackModalOpen}
+            onRequestClose={() => setFeedbackModalOpen(false)}
+            className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <div className="flex flex-col items-center text-center">
+              {feedbackType === "success" ? (
+                <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
+              ) : (
+                <XCircle className="text-red-500 w-12 h-12 mb-4" />
+              )}
+              <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
               <button
-                onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => setFeedbackModalOpen(false)}
+                className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
               >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(fileToDelete)}
-                className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
-              >
-                Delete
+                Close
               </button>
             </div>
-          </div>
-        </Modal>
-
-        {/* Feedback Modal */}
-        <Modal
-          isOpen={feedbackModalOpen}
-          onRequestClose={() => setFeedbackModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-        >
-          <div className="flex flex-col items-center text-center">
-            {feedbackType === "success" ? (
-              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
-            ) : (
-              <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            )}
-            <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
-            <button
-              onClick={() => setFeedbackModalOpen(false)}
-              className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
+          </Modal>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
