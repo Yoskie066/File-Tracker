@@ -17,7 +17,7 @@ export const createAdminNotice = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { prof_name, document_type, due_date } = req.body;
+    const { prof_name, document_type, due_date, notes } = req.body; // Added notes
 
     // Validation
     if (!prof_name || !document_type || !due_date) {
@@ -41,13 +41,19 @@ export const createAdminNotice = async (req, res) => {
       prof_name,
       document_type,
       due_date: new Date(due_date),
+      notes: notes || "", // NEW: Include notes
     });
 
     const savedAdminNotice = await newAdminNotice.save();
     console.log("Admin notice saved successfully:", savedAdminNotice._id);
 
-    // Create notification message
-    const notificationMessage = `You have a new admin notice for document submission`;
+    // Create notification message with notes
+    let notificationMessage = `You have a new admin notice for document submission`;
+    
+    // Add notes to notification message if provided
+    if (notes && notes.trim().length > 0) {
+      notificationMessage += `\n\nNotes: ${notes}`;
+    }
 
     // Create notifications based on professor selection
     try {
@@ -66,7 +72,7 @@ export const createAdminNotice = async (req, res) => {
             recipient_type: "Faculty",
             recipient_name: faculty.facultyName,
             title: "New Admin Notice",
-            message: notificationMessage,
+            message: notificationMessage, // Updated with notes
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
@@ -94,7 +100,7 @@ export const createAdminNotice = async (req, res) => {
             recipient_type: "Faculty",
             recipient_name: faculty.facultyName,
             title: "New Admin Notice",
-            message: notificationMessage,
+            message: notificationMessage, // Updated with notes
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
@@ -113,7 +119,7 @@ export const createAdminNotice = async (req, res) => {
             recipient_type: "Faculty",
             recipient_name: prof_name,
             title: "New Admin Notice",
-            message: notificationMessage,
+            message: notificationMessage, // Updated with notes
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
@@ -193,12 +199,13 @@ export const getAdminNoticeById = async (req, res) => {
 export const updateAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { prof_name, document_type, due_date } = req.body;
+    const { prof_name, document_type, due_date, notes } = req.body; // Added notes
 
     const updateData = {
       prof_name,
       document_type,
       due_date,
+      notes: notes || "", // NEW: Include notes
       updated_at: new Date()
     };
 
@@ -210,14 +217,19 @@ export const updateAdminNotice = async (req, res) => {
 
     if (!updated) return res.status(404).json({ success: false, message: "Admin notice not found" });
 
-    // Update notification message
-    const notificationMessage = `You have an updated admin notice for document submission`;
+    // Update notification message with notes
+    let notificationMessage = `You have an updated admin notice for document submission`;
+    
+    // Add notes to notification message if provided
+    if (notes && notes.trim().length > 0) {
+      notificationMessage += `\n\nNotes: ${notes}`;
+    }
 
     // Update notifications
     await Notification.updateMany(
       { related_notice_id: id },
       {
-        message: notificationMessage,
+        message: notificationMessage, // Updated with notes
         document_type,
         due_date,
       }

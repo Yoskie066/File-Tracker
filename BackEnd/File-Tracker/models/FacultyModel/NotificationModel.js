@@ -1,52 +1,21 @@
 import mongoose from "mongoose";
 
-const notificationSchema = new mongoose.Schema({
-  notification_id: {
-    type: String,
-    required: true,
-    unique: true,
+const adminNoticeSchema = new mongoose.Schema(
+  {
+    notice_id: { type: String, required: true, unique: true },
+    prof_name: { type: String, required: true },
+    document_type: { type: String, required: true },
+    due_date: { type: Date, required: true },
+    notes: { // NEW FIELD - Optional notes
+      type: String,
+      default: "",
+      maxlength: 2000 // Optional: Limit length if needed
+    },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now },
   },
-  recipient_id: {
-    type: String,
-    required: true,
-  },
-  recipient_type: {
-    type: String,
-    required: true,
-    enum: ["Admin", "Faculty"], 
-  },
-  recipient_name: {
-    type: String,
-    required: true,
-  },
-  title: {
-    type: String,
-    required: true,
-  },
-  message: {
-    type: String,
-    required: true,
-  },
-  related_notice_id: {
-    type: String,
-    default: "",
-  },
-  document_type: {
-    type: String,
-    default: "",
-  },
-  due_date: {
-    type: Date,
-    default: null,
-  },
-  is_read: {
-    type: Boolean,
-    default: false,
-  },
-  created_at: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  { versionKey: false }
+);
 
-export default mongoose.model("Notification", notificationSchema);
+const AdminNotice = mongoose.model("AdminNotice", adminNoticeSchema);
+export default AdminNotice;
