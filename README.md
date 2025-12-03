@@ -16,7 +16,7 @@ The system supports two user access levels:
 
 ## 👨‍🏫 Faculty (Teacher) Features
 
-### 1. Faculty Loaded
+### 1. Faculty Load
 Provides comprehensive details including:
 - Subject codes  
 - Assigned instructors  
@@ -43,7 +43,7 @@ Displays a personalized view of submission statuses for:
 
 ### 5. Notification
 Sends automated reminders about requirements and deadlines.  
-These notifications are managed by the **Requirement module**.
+These notifications are managed by the **Admin Notice module**.
 
 ---
 
@@ -58,14 +58,10 @@ Handles user accounts and manages access levels across the system.
 ### 3. File Management
 Provides visibility and control over all files uploaded by faculty members.
 
-### 4. Admin Deliverables
-Centralized repository combining data from Faculty Loaded and Task Deliverables.  
-Used to monitor the overall academic submission progress of all faculty members.
-
-### 5. Requirement 
+### 4. Admin Notice 
 Establishes, updates, and issues reminders for pending academic requirements and upcoming deadlines.
 
-### 6.System Variables
+### 5.System Variables
 
 Manages global configurations and system-wide variables used by the application.
 

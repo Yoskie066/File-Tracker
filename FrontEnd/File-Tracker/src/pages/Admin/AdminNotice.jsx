@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, FileText } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -28,8 +28,7 @@ export default function AdminNoticeManagement() {
     notice_id: "",
     prof_name: "",
     document_type: "",
-    due_date: "",
-    notes: "" // NEW FIELD
+    due_date: ""
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -94,8 +93,7 @@ export default function AdminNoticeManagement() {
       notice_id: "",
       prof_name: "",
       document_type: "",
-      due_date: "",
-      notes: "" // Reset notes
+      due_date: ""
     });
     setIsEditMode(false);
   };
@@ -115,8 +113,7 @@ export default function AdminNoticeManagement() {
       const requestData = {
         prof_name: formData.prof_name,
         document_type: formData.document_type,
-        due_date: formData.due_date,
-        notes: formData.notes || "" // NEW: Include notes
+        due_date: formData.due_date
       };
   
       console.log("Sending request to:", url);
@@ -168,8 +165,7 @@ export default function AdminNoticeManagement() {
           notice_id: adminNotice.notice_id,
           prof_name: adminNotice.prof_name,
           document_type: adminNotice.document_type,
-          due_date: adminNotice.due_date ? adminNotice.due_date.split('T')[0] : "",
-          notes: adminNotice.notes || "" // NEW: Load notes
+          due_date: adminNotice.due_date ? adminNotice.due_date.split('T')[0] : ""
         });
         setIsEditMode(true);
         setShowModal(true);
@@ -222,7 +218,7 @@ export default function AdminNoticeManagement() {
   // Search filter
   const filteredAdminNotices = (Array.isArray(adminNotices) ? adminNotices : [])
     .filter((notice) =>
-      [notice.notice_id, notice.prof_name, notice.document_type, notice.notes]
+      [notice.notice_id, notice.prof_name, notice.document_type]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -286,7 +282,6 @@ export default function AdminNoticeManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Notes</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
@@ -314,20 +309,6 @@ export default function AdminNoticeManagement() {
                           day: 'numeric'
                         })}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {adminNotice.notes ? (
-                        <div className="flex items-center">
-                          <FileText className="w-4 h-4 mr-1 text-gray-500" />
-                          <span className="text-xs text-gray-600 truncate max-w-[200px]" title={adminNotice.notes}>
-                            {adminNotice.notes.length > 50 
-                              ? `${adminNotice.notes.substring(0, 50)}...` 
-                              : adminNotice.notes}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">No notes</span>
-                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {new Date(adminNotice.created_at).toLocaleDateString('en-US', {
@@ -372,7 +353,7 @@ export default function AdminNoticeManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
                     No admin notices found.
                   </td>
                 </tr>
@@ -443,17 +424,6 @@ export default function AdminNoticeManagement() {
                     </p>
                   </div>
                 </div>
-
-                {adminNotice.notes && (
-                  <div className="mb-3">
-                    <span className="text-gray-500 text-sm">Notes:</span>
-                    <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
-                      {adminNotice.notes.length > 100 
-                        ? `${adminNotice.notes.substring(0, 100)}...` 
-                        : adminNotice.notes}
-                    </p>
-                  </div>
-                )}
 
                 <p className="text-xs text-gray-500 mt-3">
                   Created: {new Date(adminNotice.created_at).toLocaleDateString()}
@@ -608,24 +578,6 @@ export default function AdminNoticeManagement() {
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
                 />
-              </div>
-
-              {/* Notes Textarea (Optional) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Additional Notes (Optional)
-                </label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  placeholder="Enter any additional notes for the faculty..."
-                  rows="4"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors resize-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  These notes will be included in the notification sent to faculty.
-                </p>
               </div>
 
               {/* Form Actions */}

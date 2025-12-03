@@ -17,7 +17,7 @@ export const createAdminNotice = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { prof_name, document_type, due_date, notes } = req.body;
+    const { prof_name, document_type, due_date } = req.body;
 
     // Validation
     if (!prof_name || !document_type || !due_date) {
@@ -41,7 +41,6 @@ export const createAdminNotice = async (req, res) => {
       prof_name,
       document_type,
       due_date: new Date(due_date),
-      notes: notes || "",
     });
 
     const savedAdminNotice = await newAdminNotice.save();
@@ -68,7 +67,6 @@ export const createAdminNotice = async (req, res) => {
             recipient_name: faculty.facultyName,
             title: "New Admin Notice",
             message: notificationMessage,
-            notes: notes || "",
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
@@ -97,7 +95,6 @@ export const createAdminNotice = async (req, res) => {
             recipient_name: faculty.facultyName,
             title: "New Admin Notice",
             message: notificationMessage,
-            notes: notes || "",
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
@@ -117,7 +114,6 @@ export const createAdminNotice = async (req, res) => {
             recipient_name: prof_name,
             title: "New Admin Notice",
             message: notificationMessage,
-            notes: notes || "",
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
@@ -197,13 +193,12 @@ export const getAdminNoticeById = async (req, res) => {
 export const updateAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { prof_name, document_type, due_date, notes } = req.body;
+    const { prof_name, document_type, due_date } = req.body;
 
     const updateData = {
       prof_name,
       document_type,
       due_date,
-      notes: notes || "",
       updated_at: new Date()
     };
 
@@ -223,7 +218,6 @@ export const updateAdminNotice = async (req, res) => {
       { related_notice_id: id },
       {
         message: notificationMessage,
-        notes: notes || "",
         document_type,
         due_date,
       }
