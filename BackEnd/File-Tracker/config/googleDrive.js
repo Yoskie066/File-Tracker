@@ -3,10 +3,13 @@ import stream from 'stream';
 
 class GoogleDriveService {
   constructor() {
+    // Fix for multi-line private key
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+    
     this.auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: privateKey,
       },
       scopes: ['https://www.googleapis.com/auth/drive'],
     });
@@ -37,6 +40,7 @@ class GoogleDriveService {
         resource: fileMetadata,
         media: media,
         fields: 'id, name, webViewLink, webContentLink, size, mimeType',
+        supportsAllDrives: true, // ADD THIS
       });
 
       console.log('File uploaded successfully:', response.data);
@@ -60,7 +64,11 @@ class GoogleDriveService {
       console.log(`Downloading file from Google Drive: ${fileId}`);
       
       const response = await this.drive.files.get(
-        { fileId: fileId, alt: 'media' },
+        { 
+          fileId: fileId, 
+          alt: 'media',
+          supportsAllDrives: true // ADD THIS
+        },
         { responseType: 'stream' }
       );
 
@@ -75,7 +83,10 @@ class GoogleDriveService {
   async deleteFile(fileId) {
     try {
       console.log(`Deleting file from Google Drive: ${fileId}`);
-      await this.drive.files.delete({ fileId: fileId });
+      await this.drive.files.delete({ 
+        fileId: fileId,
+        supportsAllDrives: true // ADD THIS
+      });
       console.log(`File deleted successfully: ${fileId}`);
       return true;
     } catch (error) {
@@ -90,6 +101,7 @@ class GoogleDriveService {
       const response = await this.drive.files.get({
         fileId: fileId,
         fields: 'id, name, webViewLink, webContentLink, size, mimeType, createdTime',
+        supportsAllDrives: true, // ADD THIS
       });
       return response.data;
     } catch (error) {
@@ -104,6 +116,7 @@ class GoogleDriveService {
       const response = await this.drive.files.get({
         fileId: fileId,
         fields: 'webContentLink',
+        supportsAllDrives: true, // ADD THIS
       });
       return response.data.webContentLink;
     } catch (error) {
