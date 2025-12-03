@@ -17,7 +17,7 @@ export const createAdminNotice = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { prof_name, document_type, due_date } = req.body;
+    const { prof_name, document_type, due_date, notes } = req.body; 
 
     // Validation
     if (!prof_name || !document_type || !due_date) {
@@ -41,6 +41,7 @@ export const createAdminNotice = async (req, res) => {
       prof_name,
       document_type,
       due_date: new Date(due_date),
+      notes: notes || "", 
     });
 
     const savedAdminNotice = await newAdminNotice.save();
@@ -70,6 +71,7 @@ export const createAdminNotice = async (req, res) => {
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
+            notes: notes || "", 
             is_read: false,
           });
           return notification.save();
@@ -98,6 +100,7 @@ export const createAdminNotice = async (req, res) => {
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
+            notes: notes || "", 
             is_read: false,
           });
           
@@ -117,6 +120,7 @@ export const createAdminNotice = async (req, res) => {
             document_type: document_type,
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
+            notes: notes || "", 
             is_read: false,
           });
           
@@ -193,12 +197,13 @@ export const getAdminNoticeById = async (req, res) => {
 export const updateAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { prof_name, document_type, due_date } = req.body;
+    const { prof_name, document_type, due_date, notes } = req.body; 
 
     const updateData = {
       prof_name,
       document_type,
       due_date,
+      notes: notes || "", 
       updated_at: new Date()
     };
 
@@ -220,6 +225,7 @@ export const updateAdminNotice = async (req, res) => {
         message: notificationMessage,
         document_type,
         due_date,
+        notes: notes || "", 
       }
     );
     

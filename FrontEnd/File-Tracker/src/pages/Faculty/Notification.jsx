@@ -70,6 +70,17 @@ export default function NotificationPage() {
                 ? new Date(selectedNote.due_date).toLocaleDateString()
                 : "No due date"}
             </p>
+            
+            {/* ADDED: Display notes if available */}
+            {selectedNote.notes && selectedNote.notes.trim() !== "" && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <span className="font-semibold block mb-2">Instructions/Notes:</span>
+                <p className="text-gray-700 bg-gray-50 p-3 rounded-md text-sm">
+                  {selectedNote.notes}
+                </p>
+              </div>
+            )}
+            
             <p className="text-sm text-gray-500 mt-3">
               Created: {new Date(selectedNote.created_at).toLocaleString()}
             </p>

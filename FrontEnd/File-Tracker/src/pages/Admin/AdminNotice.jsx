@@ -28,7 +28,8 @@ export default function AdminNoticeManagement() {
     notice_id: "",
     prof_name: "",
     document_type: "",
-    due_date: ""
+    due_date: "",
+    notes: "" // ADDED: Notes field
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -93,7 +94,8 @@ export default function AdminNoticeManagement() {
       notice_id: "",
       prof_name: "",
       document_type: "",
-      due_date: ""
+      due_date: "",
+      notes: "" // ADDED: Reset notes
     });
     setIsEditMode(false);
   };
@@ -113,7 +115,8 @@ export default function AdminNoticeManagement() {
       const requestData = {
         prof_name: formData.prof_name,
         document_type: formData.document_type,
-        due_date: formData.due_date
+        due_date: formData.due_date,
+        notes: formData.notes // ADDED: Include notes in request
       };
   
       console.log("Sending request to:", url);
@@ -165,7 +168,8 @@ export default function AdminNoticeManagement() {
           notice_id: adminNotice.notice_id,
           prof_name: adminNotice.prof_name,
           document_type: adminNotice.document_type,
-          due_date: adminNotice.due_date ? adminNotice.due_date.split('T')[0] : ""
+          due_date: adminNotice.due_date ? adminNotice.due_date.split('T')[0] : "",
+          notes: adminNotice.notes || "" // ADDED: Load notes
         });
         setIsEditMode(true);
         setShowModal(true);
@@ -218,7 +222,7 @@ export default function AdminNoticeManagement() {
   // Search filter
   const filteredAdminNotices = (Array.isArray(adminNotices) ? adminNotices : [])
     .filter((notice) =>
-      [notice.notice_id, notice.prof_name, notice.document_type]
+      [notice.notice_id, notice.prof_name, notice.document_type, notice.notes] // ADDED: Include notes in search
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -282,6 +286,7 @@ export default function AdminNoticeManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Notes</th> {/* ADDED: Notes column */}
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
@@ -309,6 +314,9 @@ export default function AdminNoticeManagement() {
                           day: 'numeric'
                         })}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={adminNotice.notes || "No notes"}>
+                      {adminNotice.notes ? adminNotice.notes.substring(0, 30) + (adminNotice.notes.length > 30 ? "..." : "") : "No notes"}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {new Date(adminNotice.created_at).toLocaleDateString('en-US', {
@@ -353,7 +361,7 @@ export default function AdminNoticeManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No admin notices found.
                   </td>
                 </tr>
@@ -423,6 +431,14 @@ export default function AdminNoticeManagement() {
                       {new Date(adminNotice.due_date).toLocaleDateString()}
                     </p>
                   </div>
+                </div>
+
+                {/* ADDED: Notes in mobile view */}
+                <div className="mt-2">
+                  <span className="text-gray-500 text-sm">Notes:</span>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {adminNotice.notes || "No notes provided"}
+                  </p>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-3">
@@ -578,6 +594,24 @@ export default function AdminNoticeManagement() {
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
                 />
+              </div>
+
+              {/* ADDED: Notes Textarea */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Instructions/Notes (Optional)
+                </label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  rows="3"
+                  placeholder="Enter additional instructions or notes for this admin notice..."
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This will be displayed in the faculty notification.
+                </p>
               </div>
 
               {/* Form Actions */}
