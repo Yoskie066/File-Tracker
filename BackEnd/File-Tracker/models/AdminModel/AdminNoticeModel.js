@@ -6,6 +6,10 @@ const adminNoticeSchema = new mongoose.Schema(
     prof_name: { type: String, required: true },
     document_type: { type: String, required: true },
     due_date: { type: Date, required: true },
+    notes: { 
+      type: String, 
+      default: "" 
+    },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
   },
