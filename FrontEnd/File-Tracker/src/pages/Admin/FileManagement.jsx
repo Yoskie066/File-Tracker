@@ -99,51 +99,37 @@ export default function FileManagement() {
 
   // Handle download file
   const handleDownload = async (fileId, fileName) => {
-    try {
-      console.log(`Downloading file: ${fileId} - ${fileName}`);
-      
-      const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}/download`);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || `Download failed with status: ${response.status}`);
-      }
-  
-      const contentType = response.headers.get('content-type');
-      const contentLength = response.headers.get('content-length');
-      
-      console.log('Download response:', {
-        status: response.status,
-        contentType,
-        contentLength,
-        ok: response.ok
-      });
-  
-      const blob = await response.blob();
-      
-      if (blob.size === 0) {
-        throw new Error('Downloaded file is empty');
-      }
-  
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName || 'download';
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      window.URL.revokeObjectURL(url);
-      
-      showFeedback("success", "File downloaded successfully!");
-      
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      showFeedback("error", error.message || "Error downloading file");
-    }
-  };
+  try {
+    console.log(`📥 Downloading file: ${fileId} - ${fileName}`);
+    
+    // Create download URL with timestamp to prevent caching
+    const timestamp = Date.now();
+    const downloadUrl = `${API_BASE_URL}/api/admin/file-management/${fileId}/download?t=${timestamp}`;
+    
+    console.log('🔗 Download URL:', downloadUrl);
+    
+    // Create a hidden anchor element
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.target = '_blank';
+    link.download = fileName || 'download';
+    link.style.display = 'none';
+    
+    // Add to document and trigger click
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Show success message after a short delay
+    setTimeout(() => {
+      showFeedback("success", "Download started! Check your downloads folder.");
+    }, 500);
+    
+  } catch (error) {
+    console.error("❌ Error downloading file:", error);
+    showFeedback("error", error.message || "Error downloading file. Please try again.");
+  }
+};
   
   // Handle preview file
   const handlePreview = (file) => {

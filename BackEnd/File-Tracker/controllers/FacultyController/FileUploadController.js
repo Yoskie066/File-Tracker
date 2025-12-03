@@ -2,27 +2,15 @@ import FileManagement from "../../models/AdminModel/FileManagementModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { 
+  uploadToCloudinary, 
+  deleteFromCloudinary,
+  getCloudinaryUrl 
+} from "../../config/cloudinary.js";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const facultyId = req.faculty?.facultyId || 'unknown';
-    const uploadDir = `uploads/${facultyId}/`;
-    
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const originalName = file.originalname.replace(/\s+/g, '_');
-    cb(null, "file-" + uniqueSuffix + path.extname(originalName));
-  },
-});
+// Multer Memory Storage Configuration (for Cloudinary)
+const storage = multer.memoryStorage();
 
 // File Filter
 const fileFilter = (req, file, cb) => {
@@ -46,7 +34,7 @@ const fileFilter = (req, file, cb) => {
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 // Generate Unique File ID
@@ -67,22 +55,7 @@ const mapDocumentTypeToField = (documentType) => {
   return mapping[documentType] || null;
 };
 
-// Get subject title from FacultyLoaded
-const getSubjectTitle = async (facultyId, subjectCode) => {
-  try {
-    const facultyLoaded = await FacultyLoaded.findOne({
-      faculty_id: facultyId,
-      subject_code: subjectCode
-    });
-    
-    return facultyLoaded ? facultyLoaded.subject_title : 'Unknown Subject';
-  } catch (error) {
-    console.error("Error fetching subject title:", error);
-    return 'Unknown Subject';
-  }
-};
-
-// Update Task Deliverables when file status changes - UPDATED FOR MULTIPLE SECTIONS
+// Update Task Deliverables when file status changes
 const updateTaskDeliverables = async (fileData) => {
   try {
     const { faculty_id, faculty_name, subject_code, course_sections, document_type, status } = fileData;
@@ -99,7 +72,6 @@ const updateTaskDeliverables = async (fileData) => {
 
     // Update Task Deliverables for EACH course section
     const updatePromises = course_sections.map(async (course_section) => {
-      // Find the corresponding TaskDeliverables
       let taskDeliverables = await TaskDeliverables.findOne({
         faculty_id,
         subject_code,
@@ -107,7 +79,6 @@ const updateTaskDeliverables = async (fileData) => {
       });
 
       if (taskDeliverables) {
-        // Update ONLY the specific field based on document type and status
         const updateData = { 
           [fieldName]: status,
           updated_at: new Date()
@@ -120,7 +91,6 @@ const updateTaskDeliverables = async (fileData) => {
         );
         
         console.log(`Updated TaskDeliverables: ${subject_code}-${course_section}`);
-        console.log(`Field: ${fieldName} = ${status}`);
         return updatedTask;
       } else {
         console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
@@ -136,32 +106,37 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED FOR MULTIPLE COURSE SECTIONS
+// File Upload Controller - UPDATED FOR CLOUDINARY
 export const uploadFile = async (req, res) => {
   try {
-    console.log("Upload request body:", req.body);
-    console.log("Upload request file:", req.file);
-    console.log("Faculty user:", req.faculty);
+    console.log("📤 Upload request received");
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file ? {
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      bufferLength: req.file.buffer.length
+    } : 'No file');
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file uploaded" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "No file uploaded. Please select a file." 
+      });
     }
 
     if (!req.faculty || !req.faculty.facultyId || !req.faculty.facultyName) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(401).json({
         success: false,
-        message: "Faculty authentication required",
+        message: "Faculty authentication required. Please log in again.",
       });
     }
 
     const { file_name, document_type, subject_code, tos_type } = req.body;
-
-    console.log("Parsed form data:", { file_name, document_type, subject_code, tos_type });
+    console.log("📝 Form data:", { file_name, document_type, subject_code, tos_type });
 
     // Basic validation
     if (!document_type || !subject_code) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
         message: "Document type and subject code are required",
@@ -170,24 +145,22 @@ export const uploadFile = async (req, res) => {
 
     // Validate TOS type only if document type is 'tos'
     if (document_type === 'tos' && !tos_type) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message: "TOS type is required for TOS files",
+        message: "TOS type is required for TOS files. Please select Midterm or Final.",
       });
     }
 
-    // Get faculty loaded data to get course sections and subject title
+    // Get faculty loaded data
     const facultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
       subject_code: subject_code
     });
 
     if (!facultyLoaded) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message: "Subject not found in your faculty loads",
+        message: "Subject not found in your faculty loads. Please check the subject code.",
       });
     }
 
@@ -195,31 +168,38 @@ export const uploadFile = async (req, res) => {
     const course_sections = facultyLoaded.course_sections || [];
 
     if (course_sections.length === 0) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         success: false,
-        message: "No course sections found for this subject",
+        message: "No course sections found for this subject. Please update your faculty load.",
       });
     }
 
-    const file_id = generateFileId();
+    console.log("☁️ Uploading to Cloudinary...");
+    
+    // Upload to Cloudinary with specific folder
+    const cloudinaryResult = await uploadToCloudinary(
+      req.file.buffer,
+      req.file.originalname,
+      `File-Tracker/faculty_${req.faculty.facultyId}`
+    );
+
+    if (!cloudinaryResult || !cloudinaryResult.secure_url) {
+      throw new Error("Cloudinary upload failed - no URL returned");
+    }
+
+    console.log("✅ Cloudinary upload successful:", {
+      url: cloudinaryResult.secure_url,
+      public_id: cloudinaryResult.public_id,
+      bytes: cloudinaryResult.bytes,
+      format: cloudinaryResult.format,
+      folder: cloudinaryResult.folder
+    });
 
     // Determine the final document type
     let finalDocumentType = document_type;
-    let finalTosType = null;
-
-    // If document_type is 'tos', convert to specific TOS type
     if (document_type === 'tos' && tos_type) {
       finalDocumentType = `tos-${tos_type}`;
-      finalTosType = tos_type;
     }
-
-    console.log("Creating file with:", { 
-      finalDocumentType, 
-      finalTosType, 
-      course_sections: course_sections.join(', '), 
-      subject_title 
-    });
 
     // Create file records for EACH course section
     const fileCreationPromises = course_sections.map(async (course_section) => {
@@ -229,23 +209,26 @@ export const uploadFile = async (req, res) => {
         file_id: sectionFileId,
         faculty_id: req.faculty.facultyId,
         faculty_name: req.faculty.facultyName,
-        file_name: `${file_name} - ${course_section}`,
+        file_name: `${file_name || req.file.originalname} - ${course_section}`,
         document_type: finalDocumentType,
-        tos_type: finalTosType,
+        tos_type: document_type === 'tos' ? tos_type : null,
         subject_code,
         course_section,
         subject_title,
         status: "pending", 
-        file_path: req.file.path,
+        file_path: cloudinaryResult.secure_url,
+        cloudinary_url: cloudinaryResult.secure_url,
+        cloudinary_public_id: cloudinaryResult.public_id,
         original_name: req.file.originalname,
-        file_size: req.file.size,
+        file_size: cloudinaryResult.bytes || req.file.size,
+        uploaded_at: new Date()
       });
 
       return newFile.save();
     });
 
     const savedFiles = await Promise.all(fileCreationPromises);
-    console.log(`Created ${savedFiles.length} file records for sections: ${course_sections.join(', ')}`);
+    console.log(`✅ Created ${savedFiles.length} file records for sections: ${course_sections.join(', ')}`);
 
     // Create file history records
     try {
@@ -261,9 +244,9 @@ export const uploadFile = async (req, res) => {
         });
       });
       await Promise.all(historyPromises);
-      console.log("File history created for all sections");
+      console.log("✅ File history created for all sections");
     } catch (historyError) {
-      console.error("Error creating file history:", historyError);
+      console.error("⚠️ Error creating file history:", historyError);
     }
 
     // Update Task Deliverables for ALL sections
@@ -276,25 +259,32 @@ export const uploadFile = async (req, res) => {
         document_type: finalDocumentType,
         status: "pending"
       });
-      console.log("Task deliverables updated for all sections");
+      console.log("✅ Task deliverables updated for all sections");
     } catch (taskError) {
-      console.error("Error updating task deliverables:", taskError);
+      console.error("⚠️ Error updating task deliverables:", taskError);
     }
 
     res.status(201).json({
       success: true,
-      message: `File uploaded successfully for ${course_sections.length} course section(s) and pending admin approval`,
-      data: savedFiles,
+      message: `File uploaded successfully to Cloudinary for ${course_sections.length} course section(s). Status: Pending admin approval.`,
+      data: savedFiles.map(file => ({
+        file_id: file.file_id,
+        file_name: file.file_name,
+        document_type: file.document_type,
+        subject_code: file.subject_code,
+        course_section: file.course_section,
+        status: file.status,
+        uploaded_at: file.uploaded_at
+      })),
     });
+
   } catch (error) {
-    console.error("Error uploading file:", error);
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
+    console.error("❌ Error uploading file:", error);
     res.status(500).json({
       success: false,
-      message: "Server error during file upload",
+      message: "Server error during file upload to Cloudinary",
       error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
@@ -362,50 +352,57 @@ export const getFileById = async (req, res) => {
   }
 };
 
-// DOWNLOAD FILE
+// DOWNLOAD FILE - UPDATED FOR CLOUDINARY
 export const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('📥 Download request for file ID:', id);
+
     const file = await FileManagement.findOne({ file_id: id });
 
     if (!file) {
-      return res.status(404).json({ success: false, message: "File not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "File not found in database" 
+      });
     }
 
-    if (!fs.existsSync(file.file_path)) {
-      console.error(`File not found at path: ${file.file_path}`);
+    if (!file.cloudinary_url) {
       return res.status(404).json({
         success: false,
-        message: "File not found on server",
+        message: "Cloudinary URL not available for this file",
       });
     }
 
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
-    res.setHeader('Content-Length', file.file_size);
-
-    const fileStream = fs.createReadStream(file.file_path);
-    fileStream.pipe(res);
-
-    fileStream.on('error', (error) => {
-      console.error('Error streaming file:', error);
-      res.status(500).json({
-        success: false,
-        message: "Error downloading file",
-      });
+    console.log('📄 File found:', {
+      file_id: file.file_id,
+      original_name: file.original_name,
+      cloudinary_url: file.cloudinary_url
     });
 
+    // Generate direct Cloudinary download URL with forced attachment
+    const downloadUrl = `${file.cloudinary_url}?fl_attachment=${encodeURIComponent(file.original_name)}`;
+    
+    console.log('🔗 Redirecting to Cloudinary URL:', downloadUrl);
+    
+    // Redirect to Cloudinary with download headers
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
+    // Use 302 redirect for immediate download
+    res.redirect(302, downloadUrl);
+
   } catch (error) {
-    console.error("Error downloading file:", error);
+    console.error("❌ Error downloading file:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Server error during file download",
       error: error.message,
     });
   }
 };
 
-// DELETE FILE
+// DELETE FILE - UPDATED FOR CLOUDINARY
 export const deleteFile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -414,11 +411,23 @@ export const deleteFile = async (req, res) => {
     if (!file)
       return res.status(404).json({ success: false, message: "File not found" });
 
-    if (fs.existsSync(file.file_path)) fs.unlinkSync(file.file_path);
+    // Delete from Cloudinary if public_id exists
+    if (file.cloudinary_public_id) {
+      try {
+        await deleteFromCloudinary(file.cloudinary_public_id);
+        console.log(`Deleted from Cloudinary: ${file.cloudinary_public_id}`);
+      } catch (cloudinaryError) {
+        console.error("Error deleting from Cloudinary:", cloudinaryError);
+        // Continue with database deletion even if Cloudinary fails
+      }
+    }
 
     await FileManagement.findOneAndDelete({ file_id: id });
 
-    res.status(200).json({ success: true, message: "File deleted successfully" });
+    res.status(200).json({ 
+      success: true, 
+      message: "File deleted successfully from both Cloudinary and database" 
+    });
   } catch (error) {
     console.error("Error deleting file:", error);
     res.status(500).json({
@@ -446,7 +455,7 @@ export const updateFileStatus = async (req, res) => {
     if (!updatedFile)
       return res.status(404).json({ success: false, message: "File not found" });
 
-    // Update corresponding TaskDeliverables with the EXACT same status
+    // Update corresponding TaskDeliverables
     await updateTaskDeliverables({
       faculty_id: updatedFile.faculty_id,
       faculty_name: updatedFile.faculty_name,
