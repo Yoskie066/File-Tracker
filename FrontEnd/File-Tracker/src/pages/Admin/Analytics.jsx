@@ -322,7 +322,7 @@ export default function Analytics() {
         {analyticsData?.summary && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-blue-600 text-sm font-medium">System Health</div>
+              <div className="text-blue-600 text-sm font-medium">System Overview</div>
               <div className="text-2xl font-bold text-blue-800">
                 {analyticsData.summary.system_health}%
               </div>
