@@ -4,8 +4,7 @@ import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 import multer from "multer";
 import { 
   uploadToCloudinary, 
-  deleteFromCloudinary,
-  getCloudinaryUrl 
+  deleteFromCloudinary
 } from "../../config/cloudinary.js";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 
@@ -347,56 +346,6 @@ export const getFileById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message,
-    });
-  }
-};
-
-// DOWNLOAD FILE - UPDATED FOR CLOUDINARY
-export const downloadFile = async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log('📥 Download request for file ID:', id);
-
-    const file = await FileManagement.findOne({ file_id: id });
-
-    if (!file) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "File not found in database" 
-      });
-    }
-
-    if (!file.cloudinary_url) {
-      return res.status(404).json({
-        success: false,
-        message: "Cloudinary URL not available for this file",
-      });
-    }
-
-    console.log('📄 File found:', {
-      file_id: file.file_id,
-      original_name: file.original_name,
-      cloudinary_url: file.cloudinary_url
-    });
-
-    // Generate direct Cloudinary download URL with forced attachment
-    const downloadUrl = `${file.cloudinary_url}?fl_attachment=${encodeURIComponent(file.original_name)}`;
-    
-    console.log('🔗 Redirecting to Cloudinary URL:', downloadUrl);
-    
-    // Redirect to Cloudinary with download headers
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    
-    // Use 302 redirect for immediate download
-    res.redirect(302, downloadUrl);
-
-  } catch (error) {
-    console.error("❌ Error downloading file:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error during file download",
       error: error.message,
     });
   }

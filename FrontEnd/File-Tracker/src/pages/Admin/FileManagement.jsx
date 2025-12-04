@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Download, Eye, Edit, Calendar, History, CheckCheck } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
@@ -97,40 +97,6 @@ export default function FileManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // Handle download file
-  const handleDownload = async (fileId, fileName) => {
-  try {
-    console.log(`📥 Downloading file: ${fileId} - ${fileName}`);
-    
-    // Create download URL with timestamp to prevent caching
-    const timestamp = Date.now();
-    const downloadUrl = `${API_BASE_URL}/api/admin/file-management/${fileId}/download?t=${timestamp}`;
-    
-    console.log('🔗 Download URL:', downloadUrl);
-    
-    // Create a hidden anchor element
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.target = '_blank';
-    link.download = fileName || 'download';
-    link.style.display = 'none';
-    
-    // Add to document and trigger click
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Show success message after a short delay
-    setTimeout(() => {
-      showFeedback("success", "Download started! Check your downloads folder.");
-    }, 500);
-    
-  } catch (error) {
-    console.error("❌ Error downloading file:", error);
-    showFeedback("error", error.message || "Error downloading file. Please try again.");
-  }
-};
-  
   // Handle preview file
   const handlePreview = (file) => {
     setFileToPreview(file);
@@ -590,7 +556,6 @@ export default function FileManagement() {
                   onClick={() => handleExportHistory(selectedYear)}
                   className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
                 >
-                  <Download className="w-4 h-4" />
                   Export {selectedYear} History
                 </button>
               </div>
@@ -684,13 +649,6 @@ export default function FileManagement() {
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
                           </button>
-                          <button
-                            onClick={() => handleDownload(file.file_id, file.original_name)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download File
-                          </button>
                           {!historyView && (
                             <>
                               <button
@@ -760,13 +718,6 @@ export default function FileManagement() {
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
-                          </button>
-                          <button
-                            onClick={() => handleDownload(file.file_id, file.original_name)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download File
                           </button>
                           {!historyView && (
                             <>
@@ -950,17 +901,10 @@ export default function FileManagement() {
                   </div>
 
                   <div className="flex gap-3 pt-4">
-                    <button
-                      onClick={() => handleDownload(fileToPreview.file_id, fileToPreview.original_name)}
-                      className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      Download File
-                    </button>
                     {!historyView && (
                       <button
                         onClick={() => openStatusModal(fileToPreview)}
-                        className="flex-1 bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors flex items-center justify-center gap-2"
                       >
                         <Edit className="w-4 h-4" />
                         Update Status
