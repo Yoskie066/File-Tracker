@@ -10,7 +10,6 @@ export default function FileManagement() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [downloadingFileId, setDownloadingFileId] = useState(null);
   const [actionDropdown, setActionDropdown] = useState(null);
   const filesPerPage = 10;
 
@@ -101,33 +100,34 @@ export default function FileManagement() {
   // Handle download file
   const handleDownload = async (fileId, fileName) => {
   try {
-    setDownloadingFileId(fileId);
-    setActionDropdown(null);
-
-    const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}/download`);
-    const result = await response.json();
-
-    if (!result.success || !result.downloadUrl) {
-      throw new Error(result.message || "Failed to get download URL");
-    }
-
-    // Create anchor element to trigger download
+    console.log(`📥 Downloading file: ${fileId} - ${fileName}`);
+    
+    // Create download URL with timestamp to prevent caching
+    const timestamp = Date.now();
+    const downloadUrl = `${API_BASE_URL}/api/admin/file-management/${fileId}/download?t=${timestamp}`;
+    
+    console.log('🔗 Download URL:', downloadUrl);
+    
+    // Create a hidden anchor element
     const link = document.createElement('a');
-    link.href = result.downloadUrl;
-    link.download = result.fileName || fileName;
+    link.href = downloadUrl;
     link.target = '_blank';
+    link.download = fileName || 'download';
+    link.style.display = 'none';
+    
+    // Add to document and trigger click
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
+    
+    // Show success message after a short delay
     setTimeout(() => {
-      showFeedback("success", `Download started! File: ${result.fileName}`);
+      showFeedback("success", "Download started! Check your downloads folder.");
     }, 500);
-
+    
   } catch (error) {
-    showFeedback("error", error.message || "Error downloading file");
-  } finally {
-    setDownloadingFileId(null);
+    console.error("❌ Error downloading file:", error);
+    showFeedback("error", error.message || "Error downloading file. Please try again.");
   }
 };
   

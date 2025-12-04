@@ -356,37 +356,48 @@ export const getFileById = async (req, res) => {
 export const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('📥 Download request for file ID:', id);
+
     const file = await FileManagement.findOne({ file_id: id });
 
-    if (!file || !file.cloudinary_public_id) {
-      return res.status(404).json({
-        success: false,
-        message: "File not found"
+    if (!file) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "File not found in database" 
       });
     }
 
-    // Determine resource type based on file extension
-    const fileExtension = file.original_name.split('.').pop().toLowerCase();
-    let resourceType = 'raw';
-    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension)) {
-      resourceType = 'image';
+    if (!file.cloudinary_url) {
+      return res.status(404).json({
+        success: false,
+        message: "Cloudinary URL not available for this file",
+      });
     }
 
-    // Generate Cloudinary download URL with attachment flag
-    const downloadUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/fl_attachment:${encodeURIComponent(file.original_name)}/${file.cloudinary_public_id}`;
-
-    res.status(200).json({
-      success: true,
-      downloadUrl: downloadUrl,
-      fileName: file.original_name,
-      fileSize: file.file_size
+    console.log('📄 File found:', {
+      file_id: file.file_id,
+      original_name: file.original_name,
+      cloudinary_url: file.cloudinary_url
     });
+
+    // Generate direct Cloudinary download URL with forced attachment
+    const downloadUrl = `${file.cloudinary_url}?fl_attachment=${encodeURIComponent(file.original_name)}`;
+    
+    console.log('🔗 Redirecting to Cloudinary URL:', downloadUrl);
+    
+    // Redirect to Cloudinary with download headers
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
+    // Use 302 redirect for immediate download
+    res.redirect(302, downloadUrl);
+
   } catch (error) {
-    console.error("Error:", error);
+    console.error("❌ Error downloading file:", error);
     res.status(500).json({
       success: false,
-      message: "Error generating download URL",
-      error: error.message
+      message: "Server error during file download",
+      error: error.message,
     });
   }
 };
