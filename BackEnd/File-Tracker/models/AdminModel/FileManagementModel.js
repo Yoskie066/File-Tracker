@@ -25,8 +25,6 @@ const fileManagementSchema = new mongoose.Schema(
     course_section: { type: String, required: true },
     subject_title: { type: String, required: true },
     file_path: { type: String, required: true },
-    cloudinary_url: { type: String, required: true }, // NEW: Store Cloudinary URL
-    cloudinary_public_id: { type: String, required: true }, // NEW: Store Cloudinary public ID
     original_name: { type: String, required: true },
     file_size: { type: Number, required: true },
     uploaded_at: { type: Date, default: Date.now },

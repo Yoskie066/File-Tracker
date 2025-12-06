@@ -5,12 +5,23 @@ const generateNotificationId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Create notification
+// Update the createNotification function to handle document_type and tos_type
 export const createNotification = async (req, res) => {
   try {
-    const { recipient_id, recipient_type, recipient_name, title, message, related_notice_id } = req.body;
+    const { 
+      recipient_id, 
+      recipient_type, 
+      recipient_name, 
+      title, 
+      message, 
+      related_notice_id,
+      document_type,
+      tos_type,
+      due_date,
+      notes 
+    } = req.body;
 
-    if (!recipient_id || !recipient_type || !recipient_name || !title || !message) {
+    if (!recipient_id || !recipient_type || !recipient_name || !title || !message || !document_type || !due_date) {
       return res.status(400).json({ success: false, message: "All required fields must be filled." });
     }
 
@@ -22,6 +33,10 @@ export const createNotification = async (req, res) => {
       title,
       message,
       related_notice_id: related_notice_id || "",
+      document_type,
+      tos_type: tos_type || null,
+      due_date,
+      notes: notes || "",
     });
 
     const savedNotification = await notification.save();

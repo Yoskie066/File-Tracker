@@ -2,14 +2,24 @@ import FileManagement from "../../models/AdminModel/FileManagementModel.js";
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
 import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 import multer from "multer";
-import { 
-  uploadToCloudinary, 
-  deleteFromCloudinary
-} from "../../config/cloudinary.js";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
+import path from "path";
+import fs from "fs";
 
-// Multer Memory Storage Configuration (for Cloudinary)
-const storage = multer.memoryStorage();
+// Multer Disk Storage Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = './uploads';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
 
 // File Filter
 const fileFilter = (req, file, cb) => {
@@ -105,7 +115,7 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED FOR CLOUDINARY
+// File Upload Controller - UPDATED WITHOUT CLOUDINARY
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
@@ -114,7 +124,8 @@ export const uploadFile = async (req, res) => {
       originalname: req.file.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype,
-      bufferLength: req.file.buffer.length
+      path: req.file.path,
+      filename: req.file.filename
     } : 'No file');
 
     if (!req.file) {
@@ -173,27 +184,8 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    console.log("☁️ Uploading to Cloudinary...");
+    console.log("💾 Saving file locally...");
     
-    // Upload to Cloudinary with specific folder
-    const cloudinaryResult = await uploadToCloudinary(
-      req.file.buffer,
-      req.file.originalname,
-      `File-Tracker/faculty_${req.faculty.facultyId}`
-    );
-
-    if (!cloudinaryResult || !cloudinaryResult.secure_url) {
-      throw new Error("Cloudinary upload failed - no URL returned");
-    }
-
-    console.log("✅ Cloudinary upload successful:", {
-      url: cloudinaryResult.secure_url,
-      public_id: cloudinaryResult.public_id,
-      bytes: cloudinaryResult.bytes,
-      format: cloudinaryResult.format,
-      folder: cloudinaryResult.folder
-    });
-
     // Determine the final document type
     let finalDocumentType = document_type;
     if (document_type === 'tos' && tos_type) {
@@ -215,11 +207,9 @@ export const uploadFile = async (req, res) => {
         course_section,
         subject_title,
         status: "pending", 
-        file_path: cloudinaryResult.secure_url,
-        cloudinary_url: cloudinaryResult.secure_url,
-        cloudinary_public_id: cloudinaryResult.public_id,
+        file_path: `/uploads/${req.file.filename}`,
         original_name: req.file.originalname,
-        file_size: cloudinaryResult.bytes || req.file.size,
+        file_size: req.file.size,
         uploaded_at: new Date()
       });
 
@@ -265,7 +255,7 @@ export const uploadFile = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `File uploaded successfully to Cloudinary for ${course_sections.length} course section(s). Status: Pending admin approval.`,
+      message: `File uploaded successfully for ${course_sections.length} course section(s). Status: Pending admin approval.`,
       data: savedFiles.map(file => ({
         file_id: file.file_id,
         file_name: file.file_name,
@@ -279,9 +269,20 @@ export const uploadFile = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error uploading file:", error);
+    
+    // Clean up uploaded file if there's an error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+        console.log("🧹 Cleaned up uploaded file after error");
+      } catch (cleanupError) {
+        console.error("Error cleaning up file:", cleanupError);
+      }
+    }
+    
     res.status(500).json({
       success: false,
-      message: "Server error during file upload to Cloudinary",
+      message: "Server error during file upload",
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -351,7 +352,7 @@ export const getFileById = async (req, res) => {
   }
 };
 
-// DELETE FILE - UPDATED FOR CLOUDINARY
+// DELETE FILE - UPDATED FOR LOCAL FILE SYSTEM
 export const deleteFile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -360,14 +361,17 @@ export const deleteFile = async (req, res) => {
     if (!file)
       return res.status(404).json({ success: false, message: "File not found" });
 
-    // Delete from Cloudinary if public_id exists
-    if (file.cloudinary_public_id) {
+    // Delete file from local storage if it exists
+    if (file.file_path) {
       try {
-        await deleteFromCloudinary(file.cloudinary_public_id);
-        console.log(`Deleted from Cloudinary: ${file.cloudinary_public_id}`);
-      } catch (cloudinaryError) {
-        console.error("Error deleting from Cloudinary:", cloudinaryError);
-        // Continue with database deletion even if Cloudinary fails
+        const fullPath = path.join('.', file.file_path);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+          console.log(`Deleted file from local storage: ${fullPath}`);
+        }
+      } catch (fileError) {
+        console.error("Error deleting file from local storage:", fileError);
+        // Continue with database deletion even if file deletion fails
       }
     }
 
@@ -375,7 +379,7 @@ export const deleteFile = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      message: "File deleted successfully from both Cloudinary and database" 
+      message: "File deleted successfully from both storage and database" 
     });
   } catch (error) {
     console.error("Error deleting file:", error);
