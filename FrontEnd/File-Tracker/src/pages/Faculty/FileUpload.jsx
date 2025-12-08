@@ -438,7 +438,7 @@ export default function FileUpload() {
               {/* File Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File Name (Optional - Defaults to first file's name)
+                  File Name * 
                 </label>
                 <input
                   type="text"
@@ -496,7 +496,7 @@ export default function FileUpload() {
               {/* File Upload - MULTIPLE */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Files * (Multiple allowed, no limit)
+                  Select Files *
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors">
                   <input

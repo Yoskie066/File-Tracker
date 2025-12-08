@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
@@ -15,8 +15,6 @@ export default function FileManagement() {
 
   // History of Records states
   const [historyView, setHistoryView] = useState(false);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [availableYears, setAvailableYears] = useState([]);
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -40,6 +38,17 @@ export default function FileManagement() {
   const [bulkCompleteModalOpen, setBulkCompleteModalOpen] = useState(false);
   const [bulkCompleteLoading, setBulkCompleteLoading] = useState(false);
 
+  // Filtering and Sorting states
+  const [facultyFilter, setFacultyFilter] = useState("");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState("");
+  const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
+  const [courseSectionFilter, setCourseSectionFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+  const [sortOption, setSortOption] = useState("most_recent");
+  const [showFilters, setShowFilters] = useState(false);
+
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   // Fetch files from backend
@@ -52,28 +61,14 @@ export default function FileManagement() {
       console.log("Fetched files:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        const filesData = result.data;
-        setFiles(filesData);
-        
-        // Extract available years from files
-        const years = [...new Set(filesData.map(f => {
-          const date = new Date(f.uploaded_at);
-          return date.getFullYear();
-        }))].sort((a, b) => b - a);
-        
-        setAvailableYears(years);
-        if (years.length > 0 && !years.includes(selectedYear)) {
-          setSelectedYear(years[0]);
-        }
+        setFiles(result.data);
       } else {
         console.error("Unexpected API response format:", result);
         setFiles([]);
-        setAvailableYears([]);
       }
     } catch (err) {
       console.error("Error fetching files:", err);
       setFiles([]);
-      setAvailableYears([]);
     } finally {
       setLoading(false);
     }
@@ -186,7 +181,7 @@ export default function FileManagement() {
       const result = await response.json();
 
       if (result.success) {
-        fetchFiles(); // Refresh the files list
+        fetchFiles();
         setBulkCompleteModalOpen(false);
         showFeedback("success", `Successfully marked ${result.data.completed} files as completed! Task deliverables have been automatically updated.`);
       } else {
@@ -264,6 +259,68 @@ export default function FileManagement() {
     return sections.join(', ');
   };
 
+  // Get unique values for filters
+  const getUniqueValues = (key) => {
+    let filtered = (Array.isArray(files) ? files : []);
+
+    const values = new Set();
+    
+    filtered.forEach(file => {
+      if (key === 'faculty_name' && file.faculty_name) {
+        values.add(file.faculty_name);
+      } else if (key === 'document_type') {
+        values.add(getDocumentTypeLabel(file.document_type, file.tos_type));
+      } else if (key === 'subject_code' && file.subject_code) {
+        values.add(file.subject_code);
+      } else if (key === 'course_sections' && Array.isArray(file.course_sections)) {
+        file.course_sections.forEach(section => values.add(section));
+      } else if (key === 'status' && file.status) {
+        values.add(file.status);
+      } else if (key === 'months') {
+        if (file.uploaded_at) {
+          const month = new Date(file.uploaded_at).getMonth();
+          const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          values.add(monthNames[month]);
+        }
+      } else if (key === 'years') {
+        if (file.uploaded_at) {
+          const year = new Date(file.uploaded_at).getFullYear();
+          values.add(year);
+        }
+      }
+    });
+
+    return Array.from(values).sort();
+  };
+
+  // Get unique years for filter
+  const getUniqueYears = () => {
+    const years = new Set();
+    files.forEach(file => {
+      if (file.uploaded_at) {
+        const year = new Date(file.uploaded_at).getFullYear();
+        years.add(year);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setFacultyFilter("");
+    setDocumentTypeFilter("");
+    setSubjectCodeFilter("");
+    setCourseSectionFilter("");
+    setStatusFilter("");
+    setMonthFilter("");
+    setYearFilter("");
+    setSortOption("most_recent");
+    setCurrentPage(1);
+  };
+
   // Search filter
   const getFilteredFiles = () => {
     let filtered = (Array.isArray(files) ? files : []);
@@ -276,14 +333,71 @@ export default function FileManagement() {
         file.course_sections.some(section => section.toLowerCase().includes(search.toLowerCase())))
     );
 
-    // Apply filters for history view
-    if (historyView) {
-      // Year filter
+    // Apply advanced filters
+    if (facultyFilter) {
+      filtered = filtered.filter(file => file.faculty_name === facultyFilter);
+    }
+    
+    if (documentTypeFilter) {
+      filtered = filtered.filter(file => 
+        getDocumentTypeLabel(file.document_type, file.tos_type) === documentTypeFilter
+      );
+    }
+    
+    if (subjectCodeFilter) {
+      filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
+    }
+    
+    if (courseSectionFilter) {
+      filtered = filtered.filter(file => 
+        file.course_sections && 
+        Array.isArray(file.course_sections) && 
+        file.course_sections.includes(courseSectionFilter)
+      );
+    }
+    
+    if (statusFilter) {
+      filtered = filtered.filter(file => file.status === statusFilter);
+    }
+
+    // Apply month filter
+    if (monthFilter) {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthIndex = monthNames.indexOf(monthFilter);
+      
       filtered = filtered.filter(file => {
-        const fileYear = new Date(file.uploaded_at).getFullYear();
-        return fileYear === selectedYear;
+        if (!file.uploaded_at) return false;
+        const fileMonth = new Date(file.uploaded_at).getMonth();
+        return fileMonth === monthIndex;
       });
     }
+
+    // Apply year filter
+    if (yearFilter) {
+      filtered = filtered.filter(file => {
+        if (!file.uploaded_at) return false;
+        const fileYear = new Date(file.uploaded_at).getFullYear();
+        return fileYear === parseInt(yearFilter);
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.uploaded_at);
+      const dateB = new Date(b.uploaded_at);
+      
+      switch (sortOption) {
+        case "most_recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return dateB - dateA;
+      }
+    });
 
     return filtered;
   };
@@ -336,14 +450,16 @@ export default function FileManagement() {
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
   // History of Records functions - EXCEL EXPORT
-  const handleExportHistory = async (year) => {
+  const handleExportHistory = async () => {
     try {
-      const filesForYear = files.filter(f => 
-        new Date(f.uploaded_at).getFullYear() === year
-      );
+      const filesForExport = filteredFiles;
       
-      // Prepare data for Excel
-      const excelData = filesForYear.map(f => ({
+      if (filesForExport.length === 0) {
+        showFeedback("info", "No records to export with the current filters.");
+        return;
+      }
+      
+      const excelData = filesForExport.map(f => ({
         'File ID': f.file_id,
         'Faculty Name': f.faculty_name,
         'File Name': f.file_name,
@@ -363,35 +479,29 @@ export default function FileManagement() {
         })
       }));
       
-      // Create a new workbook
       const wb = XLSX.utils.book_new();
-      
-      // Create a worksheet
       const ws = XLSX.utils.json_to_sheet(excelData);
       
-      // Set column widths for better readability
       const colWidths = [
-        { wch: 20 }, // File ID
-        { wch: 25 }, // Faculty Name
-        { wch: 30 }, // File Name
-        { wch: 20 }, // Document Type
-        { wch: 15 }, // TOS Type
-        { wch: 15 }, // Subject Code
-        { wch: 25 }, // Course Sections
-        { wch: 30 }, // Subject Title
-        { wch: 15 }, // File Size
-        { wch: 15 }, // Status
-        { wch: 25 }  // Uploaded At
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 25 }
       ];
       ws['!cols'] = colWidths;
       
-      // Add headers with formatting
       const range = XLSX.utils.decode_range(ws['!ref']);
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const cell_address = XLSX.utils.encode_cell({r: 0, c: C});
         if (!ws[cell_address]) continue;
         
-        // Style header cells
         ws[cell_address].s = {
           font: {
             bold: true,
@@ -407,36 +517,41 @@ export default function FileManagement() {
         };
       }
       
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, `History_${year}`);
+      let sheetName = `History`;
+      if (yearFilter) sheetName += `_${yearFilter}`;
+      if (monthFilter) sheetName += `_${monthFilter.substring(0, 3)}`;
+      sheetName = sheetName.substring(0, 31);
       
-      // Generate Excel file with proper formatting
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      
       const wbout = XLSX.write(wb, { 
         bookType: 'xlsx', 
         type: 'array'
       });
       
-      // Create and download file with proper MIME type for Excel
       const blob = new Blob([wbout], { 
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
       });
       
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
+      
+      let filename = `file-management-history`;
+      if (yearFilter) filename += `-${yearFilter}`;
+      if (monthFilter) filename += `-${monthFilter.replace(/\s+/g, '-')}`;
+      filename += '.xlsx';
+      
       link.href = url;
-      link.download = `file-management-history-${year}.xlsx`;
+      link.download = filename;
       link.style.display = 'none';
       
-      // Add to document and trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Clean up
       window.URL.revokeObjectURL(url);
       
-      showFeedback("success", `History of Records for ${year} exported as Excel file successfully!`);
+      showFeedback("success", `Exported ${filesForExport.length} records with current filters as Excel file successfully!`);
     } catch (error) {
       console.error("Error exporting history:", error);
       showFeedback("error", "Error exporting history as Excel file");
@@ -447,56 +562,78 @@ export default function FileManagement() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchFiles();
-    }, 5000); // Refresh every 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
+
+  // Reset filters when switching views
+  useEffect(() => {
+    resetFilters();
+  }, [historyView]);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
-          <div>
+        <div className="flex flex-col justify-between items-start mb-6 gap-3">
+          <div className="w-full">
             <h1 className="text-2xl font-bold text-gray-800">
-              {historyView ? `History of Records - ${selectedYear}` : 'File Management'}
+              {historyView ? 'History of Records' : 'File Management'}
             </h1>
             <p className="text-sm text-gray-500">
               {historyView 
-                ? `Viewing historical file records and submissions for ${selectedYear}`
+                ? 'Viewing historical file records and submissions'
                 : 'One record per file with multiple course sections'
               }
             </p>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            {/* History of Records Filters */}
-            {historyView && (
-              <div className="flex flex-col md:flex-row gap-2">
-                <select
-                  value={selectedYear}
-                  onChange={(e) => {
-                    setSelectedYear(parseInt(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
+          {/* Top Row: Show Filters button and Bulk Complete button */}
+          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3 mb-4">
+            {/* Show Filters Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+              {showFilters && (
+                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </button>
+
+            {/* Bulk Complete Button - Only show in current view */}
+            {!historyView && getPendingCount() > 0 && (
+              <div className="w-full md:w-auto">
+                <button
+                  onClick={confirmBulkComplete}
+                  disabled={getPendingCount() === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-yellow-400 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center"
                 >
-                  {availableYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+                  <CheckCheck className="w-5 h-5" />
+                  Mark All Files as Completed ({getPendingCount()} pending)
+                </button>
+                <p className="text-xs text-gray-500 mt-2 md:hidden">
+                  This will mark all pending and rejected files as "completed" and automatically update Task Deliverables.
+                </p>
               </div>
             )}
-            
+          </div>
+
+          {/* Second Row: View Toggle and Search Bar */}
+          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3 mb-4">
             {/* View Toggle Buttons */}
-            <div className="flex border border-gray-300 rounded-md overflow-hidden">
+            <div className="flex border border-gray-300 rounded-md overflow-hidden w-full md:w-auto">
               <button
                 onClick={() => {
                   setHistoryView(false);
                   setCurrentPage(1);
                 }}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
                   !historyView 
                     ? 'bg-black text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -509,15 +646,15 @@ export default function FileManagement() {
                   setHistoryView(true);
                   setCurrentPage(1);
                 }}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
                   historyView 
                     ? 'bg-black text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-center">
                   <History className="w-4 h-4" />
-                  History of Records
+                  History
                 </div>
               </button>
             </div>
@@ -526,50 +663,254 @@ export default function FileManagement() {
               type="text"
               placeholder={`Search ${historyView ? 'historical records' : 'files'}...`}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
           </div>
-        </div>
 
-        {/* Bulk Complete Button - Only show in current view */}
-        {!historyView && getPendingCount() > 0 && (
-          <div className="mb-6">
-            <button
-              onClick={confirmBulkComplete}
-              disabled={getPendingCount() === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-yellow-400 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <CheckCheck className="w-5 h-5" />
-              Mark All Files as Completed ({getPendingCount()} pending)
-            </button>
-            <p className="text-xs text-gray-500 mt-2">
-              This will mark all pending and rejected files as "completed" and automatically update Task Deliverables.
-            </p>
-          </div>
-        )}
+          {/* Filtering and Sorting Options - 4x4 Grid */}
+          {showFilters && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
+              {/* First Row - 4 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Faculty Name
+                  </label>
+                  <select
+                    value={facultyFilter}
+                    onChange={(e) => {
+                      setFacultyFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Faculty</option>
+                    {getUniqueValues('faculty_name').map(faculty => (
+                      <option key={faculty} value={faculty}>{faculty}</option>
+                    ))}
+                  </select>
+                </div>
 
-        {/* History of Records Management Bar */}
-        {historyView && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-gray-600" />
-                <span className="text-sm text-gray-800">
-                  Viewing {filteredFiles.length} historical file records from {selectedYear}
-                </span>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Document Type
+                  </label>
+                  <select
+                    value={documentTypeFilter}
+                    onChange={(e) => {
+                      setDocumentTypeFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Types</option>
+                    {getUniqueValues('document_type').map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Subject Code
+                  </label>
+                  <select
+                    value={subjectCodeFilter}
+                    onChange={(e) => {
+                      setSubjectCodeFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Subjects</option>
+                    {getUniqueValues('subject_code').map(code => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Course Section
+                  </label>
+                  <select
+                    value={courseSectionFilter}
+                    onChange={(e) => {
+                      setCourseSectionFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Sections</option>
+                    {getUniqueValues('course_sections').map(section => (
+                      <option key={section} value={section}>{section}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleExportHistory(selectedYear)}
-                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
-                >
-                  Export {selectedYear} History
-                </button>
+
+              {/* Second Row - 4 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Month
+                  </label>
+                  <select
+                    value={monthFilter}
+                    onChange={(e) => {
+                      setMonthFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Months</option>
+                    <option value="January">January</option>
+                    <option value="February">February</option>
+                    <option value="March">March</option>
+                    <option value="April">April</option>
+                    <option value="May">May</option>
+                    <option value="June">June</option>
+                    <option value="July">July</option>
+                    <option value="August">August</option>
+                    <option value="September">September</option>
+                    <option value="October">October</option>
+                    <option value="November">November</option>
+                    <option value="December">December</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Year
+                  </label>
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => {
+                      setYearFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Years</option>
+                    {getUniqueYears().map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Sort by:
+                  </label>
+                  <select
+                    value={sortOption}
+                    onChange={(e) => {
+                      setSortOption(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="most_recent">Most Recent</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Third Row - 3 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                <div className="col-span-1">
+                  <span className="text-xs text-gray-500">
+                    {filteredFiles.length} of {files.length} records
+                    {facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || monthFilter || yearFilter ? (
+                      <span className="ml-2 text-blue-600">
+                        ({[
+                          facultyFilter && "Faculty",
+                          documentTypeFilter && "Type",
+                          subjectCodeFilter && "Subject",
+                          courseSectionFilter && "Section",
+                          statusFilter && "Status",
+                          monthFilter && monthFilter,
+                          yearFilter && yearFilter
+                        ].filter(Boolean).join(", ")})
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                
+                <div className="col-span-1">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                  </div>
+                </div>
+                
+                <div className="col-span-1 text-right">
+                  {(facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* History of Records Management Bar */}
+          {historyView && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 w-full">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm text-gray-800">
+                    Viewing {filteredFiles.length} historical file records
+                    {yearFilter && ` from ${yearFilter}`}
+                    {monthFilter && `, ${monthFilter}`}
+                    {facultyFilter && ` • Faculty: ${facultyFilter}`}
+                    {documentTypeFilter && ` • Type: ${documentTypeFilter}`}
+                    {statusFilter && ` • Status: ${statusFilter}`}
+                  </span>
+                </div>
+                <div className="flex gap-2 mt-2 md:mt-0">
+                  <button
+                    onClick={handleExportHistory}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                  >
+                    Export Filtered History
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Export will include only the records matching current filters: {filteredFiles.length} record(s)
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -723,7 +1064,6 @@ export default function FileManagement() {
                       {file.status}
                     </span>
                     
-                    {/* Mobile Actions Dropdown */}
                     <div className="relative">
                       <button
                         onClick={(e) => {
@@ -795,7 +1135,6 @@ export default function FileManagement() {
                   </div>
                 </div>
 
-                {/* Course Sections in Mobile */}
                 <div className="mt-3">
                   <span className="text-gray-500 text-sm">Course Sections:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -826,7 +1165,8 @@ export default function FileManagement() {
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentFiles.length} of {filteredFiles.length} {historyView ? 'historical records' : 'files'}
-            {historyView && ` for ${selectedYear}`}
+            {yearFilter && ` from ${yearFilter}`}
+            {monthFilter && `, ${monthFilter}`}
           </div>
           
           <div className="flex items-center gap-3">
