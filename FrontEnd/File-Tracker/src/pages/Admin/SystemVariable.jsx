@@ -24,12 +24,15 @@ export default function SystemVariableManagement() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [variableToDelete, setVariableToDelete] = useState(null);
 
-  // Form state - added subject_title
+  // Form state
   const [formData, setFormData] = useState({
     variable_id: "",
-    variable_name: "",
     variable_type: "",
+    subject_code: "",
     subject_title: "",
+    course_section: "",
+    semester: "",
+    academic_year: "",
     created_by: ""
   });
 
@@ -94,14 +97,19 @@ export default function SystemVariableManagement() {
     }));
   };
 
-  // Handle variable type change - reset subject_title if not subject_code
+  // Handle variable type change - reset all fields
   const handleVariableTypeChange = (e) => {
     const { value } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    setFormData({
+      variable_id: formData.variable_id,
       variable_type: value,
-      subject_title: value === 'subject_code' ? prev.subject_title : ""
-    }));
+      subject_code: "",
+      subject_title: "",
+      course_section: "",
+      semester: "",
+      academic_year: "",
+      created_by: formData.created_by
+    });
   };
 
   // Show feedback modal
@@ -115,27 +123,41 @@ export default function SystemVariableManagement() {
   const resetForm = () => {
     setFormData({
       variable_id: "",
-      variable_name: "",
       variable_type: "",
+      subject_code: "",
       subject_title: "",
-      created_by: "admin" 
+      course_section: "",
+      semester: "",
+      academic_year: "",
+      created_by: "admin"
     });
     setIsEditMode(false);
   };
 
   // Check for duplicate variable
-  const checkDuplicateVariable = (variableName, variableType, subjectTitle = "") => {
+  const checkDuplicateVariable = () => {
+    const variableName = getVariableNameByType();
     return variables.some(variable => 
       variable.variable_name.toLowerCase() === variableName.toLowerCase() &&
-      variable.variable_type === variableType &&
-      (variableType !== 'subject_code' || variable.subject_title === subjectTitle)
+      variable.variable_type === formData.variable_type
     );
+  };
+
+  // Get variable name based on type
+  const getVariableNameByType = () => {
+    switch(formData.variable_type) {
+      case 'subject_code': return formData.subject_code;
+      case 'course_section': return formData.course_section;
+      case 'semester': return formData.semester;
+      case 'academic_year': return formData.academic_year;
+      default: return "";
+    }
   };
 
   // Handle filter button click
   const handleFilterClick = (filterType) => {
     setActiveFilter(filterType);
-    setCurrentPage(1); // Reset to first page when filter changes
+    setCurrentPage(1);
   };
 
   // Handle form submission 
@@ -144,9 +166,16 @@ export default function SystemVariableManagement() {
     setLoading(true);
 
     try {
-      // Check for duplicates (only when adding new, not when editing)
-      if (!isEditMode && checkDuplicateVariable(formData.variable_name, formData.variable_type, formData.subject_title)) {
-        throw new Error("A variable with this name and type already exists");
+      // Get variable name based on type
+      const variableName = getVariableNameByType();
+      
+      if (!variableName || !formData.variable_type || (!isEditMode && !formData.created_by)) {
+        throw new Error("Please fill in all required fields");
+      }
+
+      // Additional validation for subject_code
+      if (formData.variable_type === 'subject_code' && !formData.subject_title) {
+        throw new Error("Subject Title is required for Subject Code type");
       }
 
       const url = isEditMode 
@@ -155,30 +184,22 @@ export default function SystemVariableManagement() {
       
       const method = isEditMode ? "PUT" : "POST";
 
-      const requestData = isEditMode ? {
-        variable_name: formData.variable_name,
+      // Prepare request data based on variable type
+      const requestData = {
         variable_type: formData.variable_type,
-        subject_title: formData.variable_type === 'subject_code' ? formData.subject_title : undefined
-      } : {
-        variable_name: formData.variable_name,
-        variable_type: formData.variable_type,
-        subject_title: formData.variable_type === 'subject_code' ? formData.subject_title : undefined,
         created_by: formData.created_by
       };
 
-      console.log("Sending request to:", url);
-      console.log("Request method:", method);
-      console.log("Request data:", requestData);
-      console.log("Form data state:", formData);
-
-      // Check if any required field is empty
-      if (!requestData.variable_name || !requestData.variable_type || (!isEditMode && !requestData.created_by)) {
-        throw new Error("Please fill in all required fields");
-      }
-
-      // Additional validation for subject_code
-      if (requestData.variable_type === 'subject_code' && !requestData.subject_title) {
-        throw new Error("Subject Title is required for Subject Code type");
+      // Add type-specific fields
+      if (formData.variable_type === 'subject_code') {
+        requestData.subject_code = formData.subject_code;
+        requestData.subject_title = formData.subject_title;
+      } else if (formData.variable_type === 'course_section') {
+        requestData.course_section = formData.course_section;
+      } else if (formData.variable_type === 'semester') {
+        requestData.semester = formData.semester;
+      } else if (formData.variable_type === 'academic_year') {
+        requestData.academic_year = formData.academic_year;
       }
 
       const response = await fetch(url, { 
@@ -190,7 +211,6 @@ export default function SystemVariableManagement() {
       });
 
       const result = await response.json();
-      console.log("Server response:", result);
 
       if (!response.ok) {
         throw new Error(result.message || `HTTP error! status: ${response.status}`);
@@ -222,13 +242,27 @@ export default function SystemVariableManagement() {
 
       if (result.success && result.data) {
         const variable = result.data;
-        setFormData({
+        
+        // Set form data based on variable type
+        const formDataObj = {
           variable_id: variable.variable_id,
-          variable_name: variable.variable_name,
           variable_type: variable.variable_type,
-          subject_title: variable.subject_title || "",
           created_by: variable.created_by
-        });
+        };
+
+        // Set type-specific fields
+        if (variable.variable_type === 'subject_code') {
+          formDataObj.subject_code = variable.variable_name;
+          formDataObj.subject_title = variable.subject_title || "";
+        } else if (variable.variable_type === 'course_section') {
+          formDataObj.course_section = variable.variable_name;
+        } else if (variable.variable_type === 'semester') {
+          formDataObj.semester = variable.variable_name;
+        } else if (variable.variable_type === 'academic_year') {
+          formDataObj.academic_year = variable.variable_name;
+        }
+
+        setFormData(formDataObj);
         setIsEditMode(true);
         setShowModal(true);
       } else {
@@ -283,11 +317,9 @@ export default function SystemVariableManagement() {
   // Search and type filter
   const filteredVariables = (Array.isArray(variables) ? variables : [])
     .filter((v) => {
-      // First apply search filter
       const searchMatch = [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()));
       
-      // Then apply type filter if not "all"
       const typeMatch = activeFilter === "all" || v.variable_type === activeFilter;
       
       return searchMatch && typeMatch;
@@ -300,6 +332,98 @@ export default function SystemVariableManagement() {
 
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
+
+  // Render form fields based on variable type
+  const renderFormFields = () => {
+    switch(formData.variable_type) {
+      case 'subject_code':
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subject Code *
+              </label>
+              <input
+                type="text"
+                name="subject_code"
+                value={formData.subject_code}
+                onChange={handleInputChange}
+                required
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                placeholder="Enter subject code (e.g., CS101)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subject Title *
+              </label>
+              <input
+                type="text"
+                name="subject_title"
+                value={formData.subject_title}
+                onChange={handleInputChange}
+                required
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                placeholder="Enter subject title (e.g., Introduction to Programming)"
+              />
+            </div>
+          </>
+        );
+      case 'course_section':
+        return (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Course/Section *
+            </label>
+            <input
+              type="text"
+              name="course_section"
+              value={formData.course_section}
+              onChange={handleInputChange}
+              required
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+              placeholder="Enter course/section (e.g., BSCS 3A)"
+            />
+          </div>
+        );
+      case 'semester':
+        return (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Semester *
+            </label>
+            <input
+              type="text"
+              name="semester"
+              value={formData.semester}
+              onChange={handleInputChange}
+              required
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+              placeholder="Enter semester (e.g., 1st Semester)"
+            />
+          </div>
+        );
+      case 'academic_year':
+        return (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Academic Year *
+            </label>
+            <input
+              type="text"
+              name="academic_year"
+              value={formData.academic_year}
+              onChange={handleInputChange}
+              required
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+              placeholder="Enter academic year (e.g., 2023-2024)"
+            />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -404,7 +528,7 @@ export default function SystemVariableManagement() {
                         variable.variable_type === 'academic_year' ? 'bg-yellow-100 text-yellow-800' :
                         'bg-red-100 text-red-800'
                       }`}>
-                        {variable.variable_type}
+                        {variable.variable_type.replace('_', ' ')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-sm">
@@ -480,7 +604,7 @@ export default function SystemVariableManagement() {
                       variable.variable_type === 'academic_year' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-red-100 text-red-800'
                     }`}>
-                      {variable.variable_type}
+                      {variable.variable_type.replace('_', ' ')}
                     </span>
                     
                     <div className="relative">
@@ -622,22 +746,6 @@ export default function SystemVariableManagement() {
                 </div>
               )}
 
-              {/* Variable Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Variable Name *
-                </label>
-                <input
-                  type="text"
-                  name="variable_name"
-                  value={formData.variable_name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter variable name"
-                />
-              </div>
-
               {/* Variable Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -659,23 +767,8 @@ export default function SystemVariableManagement() {
                 </select>
               </div>
 
-              {/* Subject Title (only for subject_code type) */}
-              {formData.variable_type === 'subject_code' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Subject Title *
-                  </label>
-                  <input
-                    type="text"
-                    name="subject_title"
-                    value={formData.subject_title}
-                    onChange={handleInputChange}
-                    required={formData.variable_type === 'subject_code'}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                    placeholder="Enter subject title"
-                  />
-                </div>
-              )}
+              {/* Conditionally render form fields based on variable type */}
+              {renderFormFields()}
 
               {/* Created By (hidden in edit mode) */}
               {!isEditMode && (
@@ -709,7 +802,7 @@ export default function SystemVariableManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !formData.variable_type}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Variable" : "Add Variable")}

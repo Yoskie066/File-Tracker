@@ -5,26 +5,77 @@ const generateVariableId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Create system variable
+// Create system variable - MODIFIED
 export const createSystemVariable = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { variable_name, variable_type, subject_title, created_by } = req.body;
+    const { variable_type, created_by } = req.body;
+    let variable_name, subject_title, subject_code;
 
     // Validation 
-    if (!variable_name || !variable_type || !created_by) {
+    if (!variable_type || !created_by) {
       return res.status(400).json({ 
         success: false, 
-        message: "All required fields must be filled.",
+        message: "Variable Type and Created By are required.",
       });
     }
 
-    // Additional validation for subject_code type
-    if (variable_type === 'subject_code' && !subject_title) {
+    // Extract data based on variable_type
+    if (variable_type === 'subject_code') {
+      subject_code = req.body.subject_code;
+      subject_title = req.body.subject_title;
+      if (!subject_code || !subject_title) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Subject Code and Subject Title are required for Subject Code type.",
+        });
+      }
+      variable_name = subject_code;
+    } else if (variable_type === 'course_section') {
+      const course_section = req.body.course_section;
+      if (!course_section) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Course/Section is required for Course Section type.",
+        });
+      }
+      variable_name = course_section;
+    } else if (variable_type === 'semester') {
+      const semester = req.body.semester;
+      if (!semester) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Semester is required for Semester type.",
+        });
+      }
+      variable_name = semester;
+    } else if (variable_type === 'academic_year') {
+      const academic_year = req.body.academic_year;
+      if (!academic_year) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Academic Year is required for Academic Year type.",
+        });
+      }
+      variable_name = academic_year;
+    } else {
       return res.status(400).json({ 
         success: false, 
-        message: "Subject Title is required for Subject Code type.",
+        message: "Invalid variable type.",
+      });
+    }
+
+    // Check for duplicate
+    const existingVariable = await SystemVariable.findOne({
+      variable_type,
+      variable_name
+    });
+
+    if (existingVariable) {
+      return res.status(409).json({
+        success: false,
+        message: `A ${variable_type.replace('_', ' ')} with this name already exists.`
       });
     }
 
@@ -104,17 +155,66 @@ export const getSystemVariableById = async (req, res) => {
   }
 };
 
-// Update system variable
+// Update system variable - MODIFIED
 export const updateSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { variable_name, variable_type, subject_title } = req.body;
+    const { variable_type } = req.body;
+    let variable_name, subject_title;
 
-    // Additional validation for subject_code type
-    if (variable_type === 'subject_code' && !subject_title) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Subject Title is required for Subject Code type.",
+    // Find existing variable
+    const existingVariable = await SystemVariable.findOne({ variable_id: id });
+    if (!existingVariable) {
+      return res.status(404).json({ success: false, message: "System variable not found" });
+    }
+
+    // Extract data based on variable_type
+    if (variable_type === 'subject_code') {
+      variable_name = req.body.subject_code;
+      subject_title = req.body.subject_title;
+      if (!variable_name || !subject_title) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Subject Code and Subject Title are required for Subject Code type.",
+        });
+      }
+    } else if (variable_type === 'course_section') {
+      variable_name = req.body.course_section;
+      if (!variable_name) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Course/Section is required for Course Section type.",
+        });
+      }
+    } else if (variable_type === 'semester') {
+      variable_name = req.body.semester;
+      if (!variable_name) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Semester is required for Semester type.",
+        });
+      }
+    } else if (variable_type === 'academic_year') {
+      variable_name = req.body.academic_year;
+      if (!variable_name) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Academic Year is required for Academic Year type.",
+        });
+      }
+    }
+
+    // Check for duplicate (excluding current one)
+    const duplicateVariable = await SystemVariable.findOne({
+      variable_type,
+      variable_name,
+      variable_id: { $ne: id }
+    });
+
+    if (duplicateVariable) {
+      return res.status(409).json({
+        success: false,
+        message: `A ${variable_type.replace('_', ' ')} with this name already exists.`
       });
     }
 
@@ -129,7 +229,7 @@ export const updateSystemVariable = async (req, res) => {
       updateData.subject_title = subject_title;
     } else {
       // Remove subject_title if changing from subject_code to another type
-      updateData.$unset = { subject_title: "" };
+      updateData.subject_title = undefined;
     }
 
     const updated = await SystemVariable.findOneAndUpdate(
@@ -137,10 +237,6 @@ export const updateSystemVariable = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     );
-
-    if (!updated) {
-      return res.status(404).json({ success: false, message: "System variable not found" });
-    }
 
     res.status(200).json({ 
       success: true, 

@@ -31,7 +31,7 @@ export default function FacultyLoadManagement() {
     faculty_loaded_id: "",
     subject_code: "",
     subject_title: "",
-    course_sections: [], // CHANGED to array for multiple sections
+    course_sections: [],
     semester: "",
     school_year: ""
   });
@@ -82,8 +82,7 @@ export default function FacultyLoadManagement() {
 
   // Get available semesters from system variables
   const getSemesterOptions = () => {
-    const semesters = getVariablesByType('semester').map(v => v.variable_name);
-    return semesters.length > 0 ? semesters : ["1st Semester", "2nd Semester", "Summer"];
+    return getVariablesByType('semester').map(v => v.variable_name);
   };
 
   // Get available school years from system variables
@@ -278,7 +277,7 @@ export default function FacultyLoadManagement() {
   
       const requestData = {
         subject_code: formData.subject_code,
-        course_sections: formData.course_sections, // NOW AN ARRAY
+        course_sections: formData.course_sections,
         semester: formData.semester,
         school_year: formData.school_year
       };
@@ -360,7 +359,7 @@ export default function FacultyLoadManagement() {
           faculty_loaded_id: facultyLoad.faculty_loaded_id,
           subject_code: facultyLoad.subject_code,
           subject_title: facultyLoad.subject_title,
-          course_sections: facultyLoad.course_sections || [], // NOW AN ARRAY
+          course_sections: facultyLoad.course_sections || [],
           semester: facultyLoad.semester,
           school_year: facultyLoad.school_year
         });
