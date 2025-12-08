@@ -350,7 +350,7 @@ export default function SystemVariableManagement() {
                 onChange={handleInputChange}
                 required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                placeholder="Enter subject code (e.g., CS101)"
+                placeholder="Enter subject code (e.g., COSC-50)"
               />
             </div>
             <div>
@@ -364,7 +364,7 @@ export default function SystemVariableManagement() {
                 onChange={handleInputChange}
                 required
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                placeholder="Enter subject title (e.g., Introduction to Programming)"
+                placeholder="Enter subject title (e.g., Discrete Structure)"
               />
             </div>
           </>
@@ -382,7 +382,7 @@ export default function SystemVariableManagement() {
               onChange={handleInputChange}
               required
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-              placeholder="Enter course/section (e.g., BSCS 3A)"
+              placeholder="Enter course/section (e.g., BSCS-1A)"
             />
           </div>
         );
@@ -416,7 +416,7 @@ export default function SystemVariableManagement() {
               onChange={handleInputChange}
               required
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-              placeholder="Enter academic year (e.g., 2023-2024)"
+              placeholder="Enter academic year (e.g., AY : 2025-2026)"
             />
           </div>
         );

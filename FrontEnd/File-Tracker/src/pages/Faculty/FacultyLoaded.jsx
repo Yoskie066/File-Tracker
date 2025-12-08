@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, ChevronDown, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
 
@@ -25,6 +25,11 @@ export default function FacultyLoadManagement() {
   // Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [facultyLoadToDelete, setFacultyLoadToDelete] = useState(null);
+
+  // Subject Code Search/Dropdown state
+  const [showSubjectCodeDropdown, setShowSubjectCodeDropdown] = useState(false);
+  const [subjectCodeSearch, setSubjectCodeSearch] = useState("");
+  const dropdownRef = useRef(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -90,9 +95,19 @@ export default function FacultyLoadManagement() {
     return getVariablesByType('academic_year').map(v => v.variable_name);
   };
 
-  // Get available subject codes from system variables with titles
-  const getSubjectCodeOptions = () => {
-    return getVariablesByType('subject_code');
+  // Get available subject codes from system variables with titles - FILTERED BASED ON SEARCH
+  const getFilteredSubjectCodeOptions = () => {
+    const allSubjects = getVariablesByType('subject_code');
+    
+    if (!subjectCodeSearch.trim()) {
+      return allSubjects;
+    }
+    
+    const searchTerm = subjectCodeSearch.toLowerCase();
+    return allSubjects.filter(subject => 
+      subject.variable_name.toLowerCase().includes(searchTerm) ||
+      (subject.subject_title && subject.subject_title.toLowerCase().includes(searchTerm))
+    );
   };
 
   // Get available course sections from system variables - FOR CHECKBOXES
@@ -144,6 +159,20 @@ export default function FacultyLoadManagement() {
       course_sections: []
     }));
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowSubjectCodeDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Add authentication check on component mount
   useEffect(() => {
@@ -203,7 +232,7 @@ export default function FacultyLoadManagement() {
     }
   };
 
-  // Close dropdown when clicking outside
+  // Close action dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setActionDropdown(null);
     document.addEventListener("click", handleClickOutside);
@@ -215,18 +244,54 @@ export default function FacultyLoadManagement() {
     const { name, value } = e.target;
     
     if (name === 'subject_code') {
-      const subjectTitle = getSubjectTitle(value);
-      setFormData(prev => ({
-        ...prev,
-        subject_code: value,
-        subject_title: subjectTitle
-      }));
+      // This is for the search input, not for the actual selection
+      setSubjectCodeSearch(value);
+      // Auto-select if there's an exact match
+      const exactMatch = getFilteredSubjectCodeOptions().find(
+        subject => subject.variable_name.toLowerCase() === value.toLowerCase()
+      );
+      if (exactMatch) {
+        setFormData(prev => ({
+          ...prev,
+          subject_code: exactMatch.variable_name,
+          subject_title: exactMatch.subject_title
+        }));
+      } else {
+        // Clear if no exact match
+        setFormData(prev => ({
+          ...prev,
+          subject_code: "",
+          subject_title: ""
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
     }
+  };
+
+  // Handle subject code selection from dropdown
+  const handleSubjectCodeSelect = (subject) => {
+    setFormData(prev => ({
+      ...prev,
+      subject_code: subject.variable_name,
+      subject_title: subject.subject_title
+    }));
+    setSubjectCodeSearch(subject.variable_name);
+    setShowSubjectCodeDropdown(false);
+  };
+
+  // Clear subject code search and selection
+  const clearSubjectCodeSearch = () => {
+    setSubjectCodeSearch("");
+    setFormData(prev => ({
+      ...prev,
+      subject_code: "",
+      subject_title: ""
+    }));
+    setShowSubjectCodeDropdown(false);
   };
 
   // Show feedback modal
@@ -246,6 +311,8 @@ export default function FacultyLoadManagement() {
       semester: "",
       school_year: ""
     });
+    setSubjectCodeSearch("");
+    setShowSubjectCodeDropdown(false);
     setIsEditMode(false);
   };
 
@@ -265,6 +332,13 @@ export default function FacultyLoadManagement() {
       // Validate that at least one course section is selected
       if (formData.course_sections.length === 0) {
         showFeedback("error", "Please select at least one course section.");
+        setLoading(false);
+        return;
+      }
+
+      // Validate that subject code is selected
+      if (!formData.subject_code) {
+        showFeedback("error", "Please select a valid subject code.");
         setLoading(false);
         return;
       }
@@ -363,6 +437,7 @@ export default function FacultyLoadManagement() {
           semester: facultyLoad.semester,
           school_year: facultyLoad.school_year
         });
+        setSubjectCodeSearch(facultyLoad.subject_code);
         setIsEditMode(true);
         setShowModal(true);
       } else {
@@ -762,40 +837,77 @@ export default function FacultyLoadManagement() {
                 </div>
               )}
 
-              {/* Subject Code - Dropdown from System Variables */}
+              {/* Subject Code - COMBINED SEARCH AND DROPDOWN */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Code *
                 </label>
-                <select
-                  name="subject_code"
-                  value={formData.subject_code}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select subject code</option>
-                  {getSubjectCodeOptions().map((subject) => (
-                    <option key={subject.variable_name} value={subject.variable_name}>
-                      {subject.variable_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Subject Title - Auto-filled and read-only */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject Title
-                </label>
-                <input
-                  type="text"
-                  name="subject_title"
-                  value={formData.subject_title}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
-                  placeholder="Subject title will auto-fill when subject code is selected"
-                />
+                <div className="relative" ref={dropdownRef}>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      name="subject_code"
+                      value={subjectCodeSearch}
+                      onChange={handleInputChange}
+                      onFocus={() => setShowSubjectCodeDropdown(true)}
+                      placeholder="Search subject code or title..."
+                      required
+                      className="w-full border border-gray-300 rounded-md pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                    />
+                    {subjectCodeSearch && (
+                      <button
+                        type="button"
+                        onClick={clearSubjectCodeSearch}
+                        className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowSubjectCodeDropdown(!showSubjectCodeDropdown)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Dropdown with search results */}
+                  {showSubjectCodeDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {getFilteredSubjectCodeOptions().length > 0 ? (
+                        getFilteredSubjectCodeOptions().map((subject) => (
+                          <div
+                            key={subject.variable_name}
+                            className={`px-3 py-2 cursor-pointer hover:bg-gray-50 ${
+                              formData.subject_code === subject.variable_name ? 'bg-blue-50' : ''
+                            }`}
+                            onClick={() => handleSubjectCodeSelect(subject)}
+                          >
+                            <div className="font-medium text-gray-900">{subject.variable_name}</div>
+                            <div className="text-xs text-gray-500 truncate">{subject.subject_title}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-3 text-center text-gray-500">
+                          No subject codes found matching "{subjectCodeSearch}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Selected subject title display */}
+                  {formData.subject_title && (
+                    <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Selected Subject:</span> {formData.subject_title}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Course Sections - CHECKBOXES for multiple selection */}
@@ -909,7 +1021,7 @@ export default function FacultyLoadManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || formData.course_sections.length === 0}
+                  disabled={loading || formData.course_sections.length === 0 || !formData.subject_code}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Faculty Load" : "Add Faculty Load")}
