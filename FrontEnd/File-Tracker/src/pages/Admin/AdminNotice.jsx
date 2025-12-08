@@ -7,7 +7,6 @@ Modal.setAppElement("#root");
 
 export default function AdminNoticeManagement() {
   const [adminNotices, setAdminNotices] = useState([]);
-  const [facultyList, setFacultyList] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -26,32 +25,20 @@ export default function AdminNoticeManagement() {
 
   // Form state
   const [formData, setFormData] = useState({
-    recipient_id: "",
+    notice_id: "",
     prof_name: "",
     document_type: "",
-    tos_type: "",
     due_date: "",
-    notes: ""
+    notes: "" // ADDED: Notes field
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Document type options
+  // Document type options - only "All Files" remains
   const documentTypeOptions = [
-    { value: "syllabus", label: "Syllabus" },
-    { value: "tos", label: "Table of Specification (TOS)" },
-    { value: "midterm-exam", label: "Midterm Exam" },
-    { value: "final-exam", label: "Final Exam" },
-    { value: "instructional-materials", label: "Instructional Materials" },
-    { value: "all-files", label: "All Files" }
-  ];
-
-  // TOS type options
-  const tosTypeOptions = [
-    { value: "midterm", label: "TOS-Midterm" },
-    { value: "final", label: "TOS-Final" }
+    "all-files"
   ];
 
   // Fetch admin notices from backend 
@@ -74,24 +61,8 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Fetch faculty list
-  const fetchFacultyList = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/faculty-list`);
-      if (!res.ok) throw new Error("Server responded with " + res.status);
-      const result = await res.json();
-      
-      if (result.success && Array.isArray(result.data)) {
-        setFacultyList(result.data);
-      }
-    } catch (err) {
-      console.error("Error fetching faculty list:", err);
-    }
-  };
-
   useEffect(() => {
     fetchAdminNotices();
-    fetchFacultyList();
   }, []);
 
   // Close dropdown when clicking outside
@@ -104,43 +75,10 @@ export default function AdminNoticeManagement() {
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // If document_type changes and not 'tos', clear tos_type
-    if (name === 'document_type' && value !== 'tos') {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        tos_type: ""
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
-  };
-
-  // Handle faculty selection
-  const handleFacultyChange = (e) => {
-    const selectedValue = e.target.value;
-    
-    if (selectedValue === "ALL") {
-      setFormData(prev => ({
-        ...prev,
-        recipient_id: "ALL",
-        prof_name: "ALL FACULTY"
-      }));
-    } else {
-      // Find selected faculty
-      const selectedFaculty = facultyList.find(f => f.facultyId === selectedValue);
-      if (selectedFaculty) {
-        setFormData(prev => ({
-          ...prev,
-          recipient_id: selectedFaculty.facultyId,
-          prof_name: selectedFaculty.facultyName
-        }));
-      }
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   // Show feedback modal
@@ -153,12 +91,11 @@ export default function AdminNoticeManagement() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      recipient_id: "",
+      notice_id: "",
       prof_name: "",
       document_type: "",
-      tos_type: "",
       due_date: "",
-      notes: ""
+      notes: "" // ADDED: Reset notes
     });
     setIsEditMode(false);
   };
@@ -176,12 +113,10 @@ export default function AdminNoticeManagement() {
       const method = isEditMode ? "PUT" : "POST";
   
       const requestData = {
-        recipient_id: formData.recipient_id,
         prof_name: formData.prof_name,
         document_type: formData.document_type,
-        tos_type: formData.document_type === "tos" ? formData.tos_type : null,
         due_date: formData.due_date,
-        notes: formData.notes
+        notes: formData.notes // ADDED: Include notes in request
       };
   
       console.log("Sending request to:", url);
@@ -231,12 +166,10 @@ export default function AdminNoticeManagement() {
         const adminNotice = result.data;
         setFormData({
           notice_id: adminNotice.notice_id,
-          recipient_id: adminNotice.recipient_id,
           prof_name: adminNotice.prof_name,
           document_type: adminNotice.document_type,
-          tos_type: adminNotice.tos_type || "",
           due_date: adminNotice.due_date ? adminNotice.due_date.split('T')[0] : "",
-          notes: adminNotice.notes || ""
+          notes: adminNotice.notes || "" // ADDED: Load notes
         });
         setIsEditMode(true);
         setShowModal(true);
@@ -280,35 +213,26 @@ export default function AdminNoticeManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Get badge color for document type
-  const getDocumentTypeBadgeColor = (documentType) => {
-    switch (documentType) {
-      case 'syllabus': return 'bg-blue-100 text-blue-800';
-      case 'tos': return 'bg-purple-100 text-purple-800';
-      case 'midterm-exam': return 'bg-orange-100 text-orange-800';
-      case 'final-exam': return 'bg-red-100 text-red-800';
-      case 'instructional-materials': return 'bg-green-100 text-green-800';
-      case 'all-files': return 'bg-cyan-100 text-cyan-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Get document type display name
-  const getDocumentTypeDisplay = (documentType, tosType) => {
-    if (documentType === 'tos' && tosType) {
-      return `TOS-${tosType.charAt(0).toUpperCase() + tosType.slice(1)}`;
-    }
-    
-    const option = documentTypeOptions.find(opt => opt.value === documentType);
-    return option ? option.label : documentType;
+  // Calculate stats
+  const adminNoticeStats = {
+    total: Array.isArray(adminNotices) ? adminNotices.length : 0,
+    allFiles: Array.isArray(adminNotices) ? adminNotices.filter(notice => notice.document_type === 'all-files').length : 0
   };
 
   // Search filter
   const filteredAdminNotices = (Array.isArray(adminNotices) ? adminNotices : [])
     .filter((notice) =>
-      [notice.notice_id, notice.prof_name, notice.document_type, notice.notes]
+      [notice.notice_id, notice.prof_name, notice.document_type, notice.notes] // ADDED: Include notes in search
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
+
+  // Get badge color for document type
+  const getDocumentTypeBadgeColor = (documentType) => {
+    switch (documentType) {
+      case 'all-files': return 'bg-cyan-100 text-cyan-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   // Pagination
   const totalPages = Math.ceil(filteredAdminNotices.length / adminNoticesPerPage);
@@ -361,7 +285,6 @@ export default function AdminNoticeManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Notice ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Notes</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
@@ -376,15 +299,8 @@ export default function AdminNoticeManagement() {
                     <td className="px-4 py-3 text-gray-700">{adminNotice.prof_name}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(adminNotice.document_type)}`}>
-                        {getDocumentTypeDisplay(adminNotice.document_type, adminNotice.tos_type)}
+                        {adminNotice.document_type === 'all-files' ? 'All Files' : adminNotice.document_type}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {adminNotice.tos_type && (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${adminNotice.tos_type === 'midterm' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'}`}>
-                          {adminNotice.tos_type === 'midterm' ? 'TOS-Midterm' : 'TOS-Final'}
-                        </span>
-                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`font-medium ${
@@ -445,7 +361,7 @@ export default function AdminNoticeManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No admin notices found.
                   </td>
                 </tr>
@@ -466,7 +382,7 @@ export default function AdminNoticeManagement() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(adminNotice.document_type)}`}>
-                      {getDocumentTypeDisplay(adminNotice.document_type, adminNotice.tos_type)}
+                      {adminNotice.document_type === 'all-files' ? 'All Files' : adminNotice.document_type}
                     </span>
                     
                     <div className="relative">
@@ -517,17 +433,7 @@ export default function AdminNoticeManagement() {
                   </div>
                 </div>
 
-                {/* TOS Type in mobile view */}
-                {adminNotice.tos_type && (
-                  <div className="mb-2">
-                    <span className="text-gray-500 text-sm">TOS Type:</span>
-                    <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${adminNotice.tos_type === 'midterm' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'}`}>
-                      {adminNotice.tos_type === 'midterm' ? 'TOS-Midterm' : 'TOS-Final'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Notes in mobile view */}
+                {/* ADDED: Notes in mobile view */}
                 <div className="mt-2">
                   <span className="text-gray-500 text-sm">Notes:</span>
                   <p className="text-sm text-gray-600 mt-1">
@@ -627,26 +533,22 @@ export default function AdminNoticeManagement() {
                 </div>
               )}
 
-              {/* Faculty Name - DROPDOWN */}
+              {/* Professor Name - DROPDOWN */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Faculty Name *
                 </label>
                 <select
-                  value={formData.recipient_id}
-                  onChange={handleFacultyChange}
+                  name="prof_name"
+                  value={formData.prof_name}
+                  onChange={handleInputChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
                   <option value="">Select Faculty</option>
                   <option value="ALL">ALL FACULTY</option>
-                  {facultyList.map((faculty) => (
-                    <option key={faculty._id} value={faculty.facultyId}>
-                      {faculty.facultyName} ({faculty.facultyNumber})
-                    </option>
-                  ))}
                 </select>
-                {formData.recipient_id === "ALL" && (
+                {formData.prof_name === "ALL" && (
                   <p className="text-xs text-blue-600 mt-1">
                     This admin notice will be sent to ALL faculty members.
                   </p>
@@ -667,35 +569,17 @@ export default function AdminNoticeManagement() {
                 >
                   <option value="">Select document type</option>
                   {documentTypeOptions.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
+                    <option key={type} value={type}>
+                      {type === 'all-files' ? 'All Files' : type}
                     </option>
                   ))}
                 </select>
+                {formData.document_type === "all-files" && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    This admin notice includes ALL file types.
+                  </p>
+                )}
               </div>
-
-              {/* TOS Type (only shows when document_type is 'tos') */}
-              {formData.document_type === "tos" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    TOS Type *
-                  </label>
-                  <select
-                    name="tos_type"
-                    value={formData.tos_type}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                  >
-                    <option value="">Select TOS Type</option>
-                    {tosTypeOptions.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {/* Due Date */}
               <div>
@@ -709,15 +593,10 @@ export default function AdminNoticeManagement() {
                   onChange={handleInputChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  pattern="\d{4}-\d{2}-\d{2}"
-                  title="Please use YYYY-MM-DD format"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Format: YYYY-MM-DD (e.g., 2024-12-31)
-                </p>
               </div>
 
-              {/* Instructions/Notes Textarea */}
+              {/* ADDED: Notes Textarea */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Instructions/Notes (Optional)
@@ -749,7 +628,7 @@ export default function AdminNoticeManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || (formData.document_type === "tos" && !formData.tos_type)}
+                  disabled={loading}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Notice" : "Add Notice")}

@@ -15,59 +15,155 @@ const generateNotificationId = () => {
 // Create admin notice
 export const createAdminNotice = async (req, res) => {
   try {
-    const { recipient_id, prof_name, document_type, tos_type, due_date, notes } = req.body;
+    console.log("Received request body:", req.body);
+    
+    const { prof_name, document_type, due_date, notes } = req.body; 
 
     // Validation
-    if (!recipient_id || !prof_name || !document_type || !due_date) {
-      return res.status(400).json({ success: false, message: "All required fields must be filled." });
+    if (!prof_name || !document_type || !due_date) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "All required fields must be filled.",
+        missing_fields: {
+          prof_name: !prof_name,
+          document_type: !document_type,
+          due_date: !due_date
+        }
+      });
     }
 
-    // If document_type is tos, tos_type is required
-    if (document_type === "tos" && !tos_type) {
-      return res.status(400).json({ success: false, message: "TOS type is required for TOS documents." });
-    }
-
-    // Generate notice_id
     const notice_id = generateNoticeId();
 
-    // Create admin notice
-    const adminNotice = new AdminNotice({
+    console.log("Creating admin notice with ID:", notice_id);
+
+    const newAdminNotice = new AdminNotice({
       notice_id,
-      recipient_id,
       prof_name,
       document_type,
-      tos_type: document_type === "tos" ? tos_type : null,
-      due_date,
-      notes: notes || "",
+      due_date: new Date(due_date),
+      notes: notes || "", 
     });
 
-    const savedAdminNotice = await adminNotice.save();
+    const savedAdminNotice = await newAdminNotice.save();
+    console.log("Admin notice saved successfully:", savedAdminNotice._id);
 
-    // Create notification
-    const notification = new Notification({
-      notification_id: generateNotificationId(),
-      recipient_id,
-      recipient_type: recipient_id === "ALL" ? "all_faculty" : "faculty",
-      recipient_name: prof_name,
-      title: `New Admin Notice: ${document_type}`,
-      message: `Document submission required`,
-      document_type,
-      tos_type: document_type === "tos" ? tos_type : null,
-      due_date,
-      notes: notes || "",
-      related_notice_id: notice_id,
+    // Create notification message
+    const notificationMessage = `You have a new admin notice for document submission`;
+
+    // Create notifications based on professor selection
+    try {
+      if (prof_name === "ALL") {
+        // Send notification to ALL faculty members
+        console.log("Sending notification to ALL faculty members");
+        
+        const allFaculty = await Faculty.find({});
+        console.log(`Found ${allFaculty.length} faculty members`);
+        
+        // Create notifications for each faculty member
+        const notificationPromises = allFaculty.map(faculty => {
+          const notification = new Notification({
+            notification_id: generateNotificationId(),
+            recipient_id: faculty.facultyId,
+            recipient_type: "Faculty",
+            recipient_name: faculty.facultyName,
+            title: "New Admin Notice",
+            message: notificationMessage,
+            document_type: document_type,
+            due_date: new Date(due_date),
+            related_notice_id: savedAdminNotice.notice_id,
+            notes: notes || "", 
+            is_read: false,
+          });
+          return notification.save();
+        });
+        
+        await Promise.all(notificationPromises);
+        console.log(`Created ${notificationPromises.length} notifications for all faculty`);
+        
+      } else {
+        // Send notification to specific faculty member only
+        console.log("Looking for specific faculty with name:", prof_name);
+        
+        // Find faculty by name to get their facultyId
+        const faculty = await Faculty.findOne({ facultyName: new RegExp(`^${prof_name}$`, "i") });
+        console.log("Found faculty:", faculty);
+        
+        if (faculty) {
+          // Create notification linked to that faculty
+          const notification = new Notification({
+            notification_id: generateNotificationId(),
+            recipient_id: faculty.facultyId,
+            recipient_type: "Faculty",
+            recipient_name: faculty.facultyName,
+            title: "New Admin Notice",
+            message: notificationMessage,
+            document_type: document_type,
+            due_date: new Date(due_date),
+            related_notice_id: savedAdminNotice.notice_id,
+            notes: notes || "", 
+            is_read: false,
+          });
+          
+          const savedNotification = await notification.save();
+          console.log("Notification saved successfully:", savedNotification);
+        } else {
+          console.warn("Faculty not found for notification:", prof_name);
+          
+          // Fallback notification (if faculty name not matched)
+          const fallbackNotification = new Notification({
+            notification_id: generateNotificationId(),
+            recipient_id: "unknown",
+            recipient_type: "Faculty",
+            recipient_name: prof_name,
+            title: "New Admin Notice",
+            message: notificationMessage,
+            document_type: document_type,
+            due_date: new Date(due_date),
+            related_notice_id: savedAdminNotice.notice_id,
+            notes: notes || "", 
+            is_read: false,
+          });
+          
+          await fallbackNotification.save();
+          console.log("Notification created with fallback ID.");
+        }
+      }
+    } catch (notificationError) {
+      console.error("Error creating notification:", notificationError);
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: "Admin notice created successfully",
+      data: savedAdminNotice,
     });
 
-    const savedNotification = await notification.save();
-
-    res.status(201).json({ 
-      success: true, 
-      message: "Admin notice created successfully", 
-      data: savedAdminNotice 
-    });
   } catch (error) {
     console.error("Error creating admin notice:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    
+    // More specific error messages
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Validation Error", 
+        error: error.message 
+      });
+    }
+    
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Duplicate notice ID", 
+        error: "Notice ID already exists" 
+      });
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -82,16 +178,14 @@ export const getAdminNotices = async (req, res) => {
   }
 };
 
-// Get admin notice by ID
+// Get single admin notice
 export const getAdminNoticeById = async (req, res) => {
   try {
     const { id } = req.params;
     const adminNotice = await AdminNotice.findOne({ notice_id: id });
-    
-    if (!adminNotice) {
-      return res.status(404).json({ success: false, message: "Admin notice not found" });
-    }
-    
+
+    if (!adminNotice) return res.status(404).json({ success: false, message: "Admin notice not found" });
+
     res.status(200).json({ success: true, data: adminNotice });
   } catch (error) {
     console.error("Error fetching admin notice:", error);
@@ -103,55 +197,39 @@ export const getAdminNoticeById = async (req, res) => {
 export const updateAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { recipient_id, prof_name, document_type, tos_type, due_date, notes } = req.body;
+    const { prof_name, document_type, due_date, notes } = req.body; 
 
-    // Find the existing admin notice
-    const existingNotice = await AdminNotice.findOne({ notice_id: id });
-    if (!existingNotice) {
-      return res.status(404).json({ success: false, message: "Admin notice not found" });
-    }
+    const updateData = {
+      prof_name,
+      document_type,
+      due_date,
+      notes: notes || "", 
+      updated_at: new Date()
+    };
 
-    // If document_type is tos, tos_type is required
-    if (document_type === "tos" && !tos_type) {
-      return res.status(400).json({ success: false, message: "TOS type is required for TOS documents." });
-    }
-
-    // Update admin notice
-    const updatedAdminNotice = await AdminNotice.findOneAndUpdate(
+    const updated = await AdminNotice.findOneAndUpdate(
       { notice_id: id },
-      {
-        recipient_id,
-        prof_name,
-        document_type,
-        tos_type: document_type === "tos" ? tos_type : null,
-        due_date,
-        notes: notes || "",
-        updated_at: Date.now(),
-      },
-      { new: true }
+      updateData,
+      { new: true, runValidators: true }
     );
 
-    // Update associated notification
-    await Notification.findOneAndUpdate(
+    if (!updated) return res.status(404).json({ success: false, message: "Admin notice not found" });
+
+    // Update notification message
+    const notificationMessage = `You have an updated admin notice for document submission`;
+
+    // Update notifications
+    await Notification.updateMany(
       { related_notice_id: id },
       {
-        recipient_id,
-        recipient_type: recipient_id === "ALL" ? "all_faculty" : "faculty",
-        recipient_name: prof_name,
-        title: `Updated Admin Notice: ${document_type}`,
+        message: notificationMessage,
         document_type,
-        tos_type: document_type === "tos" ? tos_type : null,
         due_date,
-        notes: notes || "",
-        updated_at: Date.now(),
+        notes: notes || "", 
       }
     );
-
-    res.status(200).json({
-      success: true,
-      message: "Admin notice updated successfully",
-      data: updatedAdminNotice,
-    });
+    
+    res.status(200).json({ success: true, message: "Admin notice updated successfully", data: updated });
   } catch (error) {
     console.error("Error updating admin notice:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
@@ -162,39 +240,16 @@ export const updateAdminNotice = async (req, res) => {
 export const deleteAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
+    const deleted = await AdminNotice.findOneAndDelete({ notice_id: id });
 
-    // Find and delete the admin notice
-    const deletedAdminNotice = await AdminNotice.findOneAndDelete({ notice_id: id });
-    if (!deletedAdminNotice) {
-      return res.status(404).json({ success: false, message: "Admin notice not found" });
-    }
+    if (!deleted) return res.status(404).json({ success: false, message: "Admin notice not found" });
 
-    // Delete associated notification
-    await Notification.findOneAndDelete({ related_notice_id: id });
+    // Delete linked notification
+    await Notification.deleteMany({ related_notice_id: id });
 
-    res.status(200).json({
-      success: true,
-      message: "Admin notice deleted successfully",
-      data: deletedAdminNotice,
-    });
+    res.status(200).json({ success: true, message: "Admin notice deleted successfully", data: deleted });
   } catch (error) {
     console.error("Error deleting admin notice:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
-  }
-};
-
-// Get all faculty for dropdown
-export const getAllFaculty = async (req, res) => {
-  try {
-    const faculty = await Faculty.find({}, 'facultyId facultyName facultyNumber role')
-      .sort({ facultyName: 1 });
-    
-    res.status(200).json({ 
-      success: true, 
-      data: faculty 
-    });
-  } catch (error) {
-    console.error("Error fetching faculty:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

@@ -4,7 +4,7 @@ import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLo
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
 import { getFiles, getFileById, deleteFile, updateFileStatus, bulkCompleteAllFiles } from "../../controllers/FacultyController/FileUploadController.js";
-import { getAdminNotices,getAllFaculty, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
+import { getAdminNotices, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
 import { getAnalyticsData, getFacultyPerformance } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
 
@@ -30,7 +30,6 @@ router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
 
 // Admin Notice Routes
 router.get("/admin-notice", getAdminNotices);
-router.get("/faculty-list", getAllFaculty);
 router.post("/admin-notice", createAdminNotice);
 router.get("/admin-notice/:id", getAdminNoticeById);
 router.put("/admin-notice/:id", updateAdminNotice);
