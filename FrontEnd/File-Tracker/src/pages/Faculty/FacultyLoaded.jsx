@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, ChevronDown, Search, X } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, ChevronDown, Search, X, Filter, ArrowUpDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
 
@@ -43,6 +43,14 @@ export default function FacultyLoadManagement() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const navigate = useNavigate(); 
+
+  // Filtering and Sorting states
+  const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
+  const [courseSectionFilter, setCourseSectionFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState("");
+  const [schoolYearFilter, setSchoolYearFilter] = useState("");
+  const [sortOption, setSortOption] = useState("most_recent");
+  const [showFilters, setShowFilters] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -316,6 +324,16 @@ export default function FacultyLoadManagement() {
     setIsEditMode(false);
   };
 
+  // Reset all filters
+  const resetFilters = () => {
+    setSubjectCodeFilter("");
+    setCourseSectionFilter("");
+    setSemesterFilter("");
+    setSchoolYearFilter("");
+    setSortOption("most_recent");
+    setCurrentPage(1);
+  };
+
   // Handle form submission 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -498,6 +516,80 @@ export default function FacultyLoadManagement() {
     setDeleteModalOpen(true);
   };
 
+  // Get unique values for filters
+  const getUniqueValues = (key) => {
+    let filtered = (Array.isArray(facultyLoads) ? facultyLoads : []);
+    const values = new Set();
+    
+    filtered.forEach(load => {
+      if (key === 'subject_code' && load.subject_code) {
+        values.add(load.subject_code);
+      } else if (key === 'semester' && load.semester) {
+        values.add(load.semester);
+      } else if (key === 'school_year' && load.school_year) {
+        values.add(load.school_year);
+      } else if (key === 'course_sections' && Array.isArray(load.course_sections)) {
+        load.course_sections.forEach(section => values.add(section));
+      }
+    });
+
+    return Array.from(values).sort();
+  };
+
+  // Apply filters and sorting to faculty loads
+  const getFilteredFacultyLoads = () => {
+    let filtered = (Array.isArray(facultyLoads) ? facultyLoads : []);
+
+    // Apply search filter
+    filtered = filtered.filter((fl) =>
+      [fl.faculty_loaded_id, fl.subject_code, fl.semester, fl.school_year, fl.subject_title]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
+      (fl.course_sections && fl.course_sections.some(section => 
+        section.toLowerCase().includes(search.toLowerCase())
+      ))
+    );
+
+    // Apply advanced filters
+    if (subjectCodeFilter) {
+      filtered = filtered.filter(load => load.subject_code === subjectCodeFilter);
+    }
+    
+    if (semesterFilter) {
+      filtered = filtered.filter(load => load.semester === semesterFilter);
+    }
+    
+    if (schoolYearFilter) {
+      filtered = filtered.filter(load => load.school_year === schoolYearFilter);
+    }
+    
+    if (courseSectionFilter) {
+      filtered = filtered.filter(load => 
+        load.course_sections && 
+        Array.isArray(load.course_sections) && 
+        load.course_sections.includes(courseSectionFilter)
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.updated_at);
+      const dateB = new Date(b.created_at || b.updated_at);
+      
+      switch (sortOption) {
+        case "most_recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return dateB - dateA;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredFacultyLoads = getFilteredFacultyLoads();
+
   // Calculate stats for cards
   const facultyLoadStats = {
     total: Array.isArray(facultyLoads) ? facultyLoads.length : 0,
@@ -505,16 +597,6 @@ export default function FacultyLoadManagement() {
     courseSection: Array.isArray(facultyLoads) ? facultyLoads.reduce((total, fl) => total + (fl.course_sections?.length || 0), 0) : 0,
     schoolYear: Array.isArray(facultyLoads) ? [...new Set(facultyLoads.map(fl => fl.school_year))].length : 0
   };
-
-  // Search filter
-  const filteredFacultyLoads = (Array.isArray(facultyLoads) ? facultyLoads : [])
-    .filter((fl) =>
-      [fl.faculty_loaded_id, fl.subject_code, fl.semester, fl.school_year, fl.subject_title]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
-      (fl.course_sections && fl.course_sections.some(section => 
-        section.toLowerCase().includes(search.toLowerCase())
-      ))
-    );
 
   // Pagination
   const totalPages = Math.ceil(filteredFacultyLoads.length / facultyLoadsPerPage);
@@ -541,7 +623,10 @@ export default function FacultyLoadManagement() {
               type="text"
               placeholder="Search faculty loads..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
             {/* Plus Sign Button */}
@@ -558,6 +643,159 @@ export default function FacultyLoadManagement() {
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* Filtering and Sorting Options - Show Filters Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+          >
+            <Filter className="w-4 h-4" />
+            {showFilters ? "Hide Filters" : "Show Filters"}
+            {showFilters && (
+              <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                Active
+              </span>
+            )}
+          </button>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mt-4">
+              {/* First Row - 4 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Subject Code
+                  </label>
+                  <select
+                    value={subjectCodeFilter}
+                    onChange={(e) => {
+                      setSubjectCodeFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Subject Codes</option>
+                    {getUniqueValues('subject_code').map(code => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Course Section
+                  </label>
+                  <select
+                    value={courseSectionFilter}
+                    onChange={(e) => {
+                      setCourseSectionFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Sections</option>
+                    {getUniqueValues('course_sections').map(section => (
+                      <option key={section} value={section}>{section}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Semester
+                  </label>
+                  <select
+                    value={semesterFilter}
+                    onChange={(e) => {
+                      setSemesterFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Semesters</option>
+                    {getUniqueValues('semester').map(semester => (
+                      <option key={semester} value={semester}>{semester}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Academic Year
+                  </label>
+                  <select
+                    value={schoolYearFilter}
+                    onChange={(e) => {
+                      setSchoolYearFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Academic Years</option>
+                    {getUniqueValues('school_year').map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Second Row - Sort and Reset */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Sort by:
+                  </label>
+                  <select
+                    value={sortOption}
+                    onChange={(e) => {
+                      setSortOption(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="most_recent">Most Recent</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </div>
+                
+                <div className="col-span-1">
+                  <div className="flex items-center gap-2 h-full">
+                    <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                  </div>
+                </div>
+                
+                <div className="col-span-1 text-right">
+                  {(subjectCodeFilter || courseSectionFilter || semesterFilter || schoolYearFilter || sortOption !== "most_recent") && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Filter Summary */}
+              <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
+                {filteredFacultyLoads.length} of {facultyLoads.length} faculty loads
+                {subjectCodeFilter || courseSectionFilter || semesterFilter || schoolYearFilter ? (
+                  <span className="ml-2 text-blue-600">
+                    ({[
+                      subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                      courseSectionFilter && `Section: ${courseSectionFilter}`,
+                      semesterFilter && `Semester: ${semesterFilter}`,
+                      schoolYearFilter && `Year: ${schoolYearFilter}`
+                    ].filter(Boolean).join(", ")})
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -591,6 +829,7 @@ export default function FacultyLoadManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course Sections</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Created</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
@@ -623,6 +862,13 @@ export default function FacultyLoadManagement() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{facultyLoad.school_year}</td>
+                    <td className="px-4 py-3 text-gray-700 text-xs">
+                      {new Date(facultyLoad.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </td>
                     <td className="px-4 py-3 relative">
                       <button
                         onClick={(e) => {
@@ -657,7 +903,7 @@ export default function FacultyLoadManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
                     No faculty loads found.
                   </td>
                 </tr>
@@ -742,12 +988,12 @@ export default function FacultyLoadManagement() {
                       <span className="text-gray-500">Academic Year:</span>
                       <p className="font-medium">{facultyLoad.school_year}</p>
                     </div>
+                    <div>
+                      <span className="text-gray-500">Created:</span>
+                      <p className="font-medium text-xs">{new Date(facultyLoad.created_at).toLocaleDateString()}</p>
+                    </div>
                   </div>
                 </div>
-
-                <p className="text-xs text-gray-500 mt-3">
-                  Created: {new Date(facultyLoad.created_at).toLocaleDateString()}
-                </p>
               </div>
             ))
           ) : (
@@ -761,6 +1007,10 @@ export default function FacultyLoadManagement() {
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentFacultyLoads.length} of {filteredFacultyLoads.length} faculty loads
+            {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
+            {courseSectionFilter && ` • Section: ${courseSectionFilter}`}
+            {semesterFilter && ` • Semester: ${semesterFilter}`}
+            {schoolYearFilter && ` • Year: ${schoolYearFilter}`}
           </div>
           
           <div className="flex items-center gap-3">

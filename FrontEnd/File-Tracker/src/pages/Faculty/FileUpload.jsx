@@ -446,7 +446,7 @@ export default function FileUpload() {
                   value={formData.file_name}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter base file name (optional)"
+                  placeholder="Enter file name"
                 />
               </div>
 
