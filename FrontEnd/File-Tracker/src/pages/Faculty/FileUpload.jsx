@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, Upload, FileText } from "lucide-react";
+import { CheckCircle, XCircle, Upload, FileText, Trash2 } from "lucide-react";
 import tokenService from "../../services/tokenService";
 
 Modal.setAppElement("#root");
@@ -11,9 +11,11 @@ export default function FileUpload() {
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [facultyLoadeds, setFacultyLoadeds] = useState([]);
   const [availableSections, setAvailableSections] = useState([]);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [fileToPreview, setFileToPreview] = useState(null);
 
   const [formData, setFormData] = useState({
     file_name: "",
@@ -137,18 +139,33 @@ export default function FileUpload() {
     return uniqueSubjects;
   };
 
-  // Handle file selection
+  // Handle file selection - MULTIPLE FILES
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setSelectedFiles(prev => [...prev, ...files]);
       
-      if (!formData.file_name) {
+      // Auto-fill file name with first file's name if empty
+      if (!formData.file_name && files[0]) {
         setFormData(prev => ({
           ...prev,
-          file_name: file.name.replace(/\.[^/.]+$/, "") 
+          file_name: files[0].name.replace(/\.[^/.]+$/, "")
         }));
       }
+    }
+  };
+
+  // Remove a single file
+  const removeFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Clear all files
+  const clearAllFiles = () => {
+    setSelectedFiles([]);
+    const fileInput = document.getElementById('file-upload');
+    if (fileInput) {
+      fileInput.value = '';
     }
   };
 
@@ -157,6 +174,12 @@ export default function FileUpload() {
     setFeedbackType(type);
     setFeedbackMessage(message);
     setFeedbackModalOpen(true);
+  };
+
+  // Preview file
+  const handlePreviewFile = (file) => {
+    setFileToPreview(file);
+    setPreviewModalOpen(true);
   };
 
   // Reset form
@@ -168,7 +191,7 @@ export default function FileUpload() {
       subject_code: "",
       subject_title: ""
     });
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setAvailableSections([]);
     
     const fileInput = document.getElementById('file-upload');
@@ -188,12 +211,12 @@ export default function FileUpload() {
     setShowModal(true);
   };
 
-  // Handle form submission
+  // Handle form submission - UPDATED FOR MULTIPLE FILES
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!selectedFile) {
-      showFeedback("error", "Please select a file to upload");
+    if (selectedFiles.length === 0) {
+      showFeedback("error", "Please select at least one file to upload");
       return;
     }
 
@@ -224,13 +247,18 @@ export default function FileUpload() {
       formDataToSend.append('file_name', formData.file_name);
       formDataToSend.append('document_type', formData.document_type);
       formDataToSend.append('subject_code', formData.subject_code);
-      formDataToSend.append('file', selectedFile);
 
       if (formData.document_type === 'tos' && formData.tos_type) {
         formDataToSend.append('tos_type', formData.tos_type);
       }
 
+      // Append all files
+      selectedFiles.forEach(file => {
+        formDataToSend.append('files', file);
+      });
+
       console.log("Sending form data:");
+      console.log("- Files:", selectedFiles.length);
       console.log("- Subject:", formData.subject_code);
       console.log("- Sections (auto-sync):", availableSections.join(', '));
       console.log("- Document Type:", formData.document_type);
@@ -254,13 +282,13 @@ export default function FileUpload() {
       if (result.success) {
         resetForm();
         setShowModal(false);
-        showFeedback("success", `File uploaded successfully for ${availableSections.length} course section(s)!`);
+        showFeedback("success", `${result.data.files_uploaded} file(s) uploaded successfully for ${availableSections.length} course section(s)!`);
       } else {
-        showFeedback("error", result.message || "Error uploading file");
+        showFeedback("error", result.message || "Error uploading files");
       }
     } catch (error) {
-      console.error("Error uploading file:", error);
-      showFeedback("error", error.message || "Error uploading file");
+      console.error("Error uploading files:", error);
+      showFeedback("error", error.message || "Error uploading files");
     } finally {
       setLoading(false);
     }
@@ -273,6 +301,16 @@ export default function FileUpload() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Get file icon based on type
+  const getFileIcon = (fileType) => {
+    if (fileType.includes('pdf')) return '📄';
+    if (fileType.includes('word') || fileType.includes('document')) return '📝';
+    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return '📊';
+    if (fileType.includes('image')) return '🖼️';
+    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return '📽️';
+    return '📎';
   };
 
   return (
@@ -292,7 +330,7 @@ export default function FileUpload() {
             className="bg-black text-white px-4 py-2 rounded-md hover:bg-yellow-500 hover:text-black transition-colors duration-200 flex items-center gap-2"
           >
             <Upload className="w-5 h-5" />
-            Upload File
+            Upload File(s)
           </button>
         </div>
 
@@ -301,10 +339,12 @@ export default function FileUpload() {
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
-            <li>• Required fields: File Name, Document Type, Subject, and the File itself</li>
+            <li>• You can now select multiple files (no limit)</li>
+            <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Course sections are automatically synced from your Faculty Load</li>
             <li>• Files will be uploaded for ALL sections of the selected subject</li>
+            <li>• Each file will be duplicated for each course section</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
           </ul>
@@ -317,13 +357,13 @@ export default function FileUpload() {
             setShowModal(false);
             resetForm();
           }}
-          className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
           overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
         >
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">
-                Upload File
+                File Upload
               </h3>
               <button
                 onClick={() => {
@@ -377,7 +417,7 @@ export default function FileUpload() {
                       ))}
                     </div>
                     <p className="text-xs text-gray-600 mt-2">
-                      File will be uploaded for all {availableSections.length} section(s) automatically
+                      Each file will be duplicated for all {availableSections.length} section(s) automatically
                     </p>
                   </div>
                 </div>
@@ -398,16 +438,15 @@ export default function FileUpload() {
               {/* File Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File Name *
+                  File Name (Optional - Defaults to first file's name)
                 </label>
                 <input
                   type="text"
                   name="file_name"
                   value={formData.file_name}
                   onChange={handleInputChange}
-                  required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter file name"
+                  placeholder="Enter base file name (optional)"
                 />
               </div>
 
@@ -454,38 +493,87 @@ export default function FileUpload() {
                 </div>
               )}
 
-              {/* File Upload */}
+              {/* File Upload - MULTIPLE */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select File *
+                  Select Files * (Multiple allowed, no limit)
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors">
                   <input
                     type="file"
                     onChange={handleFileChange}
-                    required
+                    multiple
+                    required={selectedFiles.length === 0}
                     className="hidden"
                     id="file-upload"
                   />
                   <label htmlFor="file-upload" className="cursor-pointer block">
                     <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <span className="text-sm text-gray-600">
-                      {selectedFile ? selectedFile.name : "Click to select file"}
+                      {selectedFiles.length > 0 
+                        ? `${selectedFiles.length} file(s) selected` 
+                        : "Click to select files"}
                     </span>
                     <p className="text-xs text-gray-500 mt-1">
-                      PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX formats allowed
+                      You can select multiple files (PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX)
                     </p>
                   </label>
                 </div>
                 
-                {selectedFile && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-700">{selectedFile.name}</span>
+                {/* Selected Files List */}
+                {selectedFiles.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        Selected Files ({selectedFiles.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={clearAllFiles}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        Clear All
+                      </button>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Size: {formatFileSize(selectedFile.size)} | Type: {selectedFile.type}
+                    
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {selectedFiles.map((file, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="text-lg">
+                              {getFileIcon(file.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span 
+                                  className="text-sm font-medium text-gray-700 truncate cursor-pointer hover:text-blue-600"
+                                  onClick={() => handlePreviewFile(file)}
+                                >
+                                  {file.name}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Size: {formatFileSize(file.size)} | Type: {file.type}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-3 text-xs text-gray-500">
+                      <p>• Files will be duplicated for each course section</p>
+                      <p>• Total records created: {selectedFiles.length} files × {availableSections.length} sections = {selectedFiles.length * availableSections.length} records</p>
                     </div>
                   </div>
                 )}
@@ -505,14 +593,79 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !selectedFile || !formData.subject_code || availableSections.length === 0 || (formData.document_type === 'tos' && !formData.tos_type)}
+                  disabled={loading || selectedFiles.length === 0 || !formData.subject_code || availableSections.length === 0 || (formData.document_type === 'tos' && !formData.tos_type)}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Uploading..." : `Upload for ${availableSections.length} Section(s)`}
+                  {loading 
+                    ? "Uploading..." 
+                    : `Upload ${selectedFiles.length} File(s) for ${availableSections.length} Section(s)`}
                 </button>
               </div>
             </form>
           </div>
+        </Modal>
+
+        {/* File Preview Modal */}
+        <Modal
+          isOpen={previewModalOpen}
+          onRequestClose={() => setPreviewModalOpen(false)}
+          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          {fileToPreview && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  File Preview
+                </h3>
+                <button
+                  onClick={() => setPreviewModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-4">
+                    {getFileIcon(fileToPreview.type)}
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-800 break-all">
+                    {fileToPreview.name}
+                  </h4>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">File Size:</span>
+                    <span className="text-sm font-medium">{formatFileSize(fileToPreview.size)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">File Type:</span>
+                    <span className="text-sm font-medium">{fileToPreview.type || 'Unknown'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Last Modified:</span>
+                    <span className="text-sm font-medium">
+                      {new Date(fileToPreview.lastModified).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    onClick={() => setPreviewModalOpen(false)}
+                    className="w-full bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
+                  >
+                    Close Preview
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </Modal>
 
         {/* Feedback Modal */}

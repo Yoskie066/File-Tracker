@@ -43,7 +43,7 @@ const fileFilter = (req, file, cb) => {
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit per file
 });
 
 // Generate Unique File ID
@@ -115,23 +115,17 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED WITHOUT CLOUDINARY
+// File Upload Controller - UPDATED FOR MULTIPLE FILES
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
     console.log("Request body:", req.body);
-    console.log("Request file:", req.file ? {
-      originalname: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      path: req.file.path,
-      filename: req.file.filename
-    } : 'No file');
+    console.log("Files received:", req.files ? req.files.length : 0);
 
-    if (!req.file) {
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({ 
         success: false, 
-        message: "No file uploaded. Please select a file." 
+        message: "No files uploaded. Please select at least one file." 
       });
     }
 
@@ -184,7 +178,7 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    console.log("💾 Saving file locally...");
+    console.log("💾 Saving files locally...");
     
     // Determine the final document type
     let finalDocumentType = document_type;
@@ -192,36 +186,46 @@ export const uploadFile = async (req, res) => {
       finalDocumentType = `tos-${tos_type}`;
     }
 
-    // Create file records for EACH course section
-    const fileCreationPromises = course_sections.map(async (course_section) => {
-      const sectionFileId = generateFileId();
+    // Process each uploaded file
+    const allSavedFiles = [];
+    
+    for (const file of req.files) {
+      console.log(`Processing file: ${file.originalname}`);
       
-      const newFile = new FileManagement({
-        file_id: sectionFileId,
-        faculty_id: req.faculty.facultyId,
-        faculty_name: req.faculty.facultyName,
-        file_name: `${file_name || req.file.originalname} - ${course_section}`,
-        document_type: finalDocumentType,
-        tos_type: document_type === 'tos' ? tos_type : null,
-        subject_code,
-        course_section,
-        subject_title,
-        status: "pending", 
-        file_path: `/uploads/${req.file.filename}`,
-        original_name: req.file.originalname,
-        file_size: req.file.size,
-        uploaded_at: new Date()
+      // Create file records for EACH course section for EACH file
+      const fileCreationPromises = course_sections.map(async (course_section) => {
+        const sectionFileId = generateFileId();
+        
+        const newFile = new FileManagement({
+          file_id: sectionFileId,
+          faculty_id: req.faculty.facultyId,
+          faculty_name: req.faculty.facultyName,
+          file_name: `${file_name || file.originalname} - ${course_section}`,
+          document_type: finalDocumentType,
+          tos_type: document_type === 'tos' ? tos_type : null,
+          subject_code,
+          course_section,
+          subject_title,
+          status: "pending", 
+          file_path: `/uploads/${file.filename}`,
+          original_name: file.originalname,
+          file_size: file.size,
+          uploaded_at: new Date()
+        });
+
+        return newFile.save();
       });
 
-      return newFile.save();
-    });
+      const savedFiles = await Promise.all(fileCreationPromises);
+      allSavedFiles.push(...savedFiles);
+      console.log(`✅ Created ${savedFiles.length} file records for file: ${file.originalname}`);
+    }
 
-    const savedFiles = await Promise.all(fileCreationPromises);
-    console.log(`✅ Created ${savedFiles.length} file records for sections: ${course_sections.join(', ')}`);
+    console.log(`🎉 Total created: ${allSavedFiles.length} file records for ${req.files.length} files`);
 
     // Create file history records
     try {
-      const historyPromises = savedFiles.map(async (savedFile) => {
+      const historyPromises = allSavedFiles.map(async (savedFile) => {
         await createFileHistory({
           file_name: savedFile.file_name,
           document_type: savedFile.document_type,
@@ -233,7 +237,7 @@ export const uploadFile = async (req, res) => {
         });
       });
       await Promise.all(historyPromises);
-      console.log("✅ File history created for all sections");
+      console.log("✅ File history created for all files and sections");
     } catch (historyError) {
       console.error("⚠️ Error creating file history:", historyError);
     }
@@ -255,29 +259,38 @@ export const uploadFile = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `File uploaded successfully for ${course_sections.length} course section(s). Status: Pending admin approval.`,
-      data: savedFiles.map(file => ({
-        file_id: file.file_id,
-        file_name: file.file_name,
-        document_type: file.document_type,
-        subject_code: file.subject_code,
-        course_section: file.course_section,
-        status: file.status,
-        uploaded_at: file.uploaded_at
-      })),
+      message: `${req.files.length} file(s) uploaded successfully for ${course_sections.length} course section(s). Status: Pending admin approval.`,
+      data: {
+        files_uploaded: req.files.length,
+        sections: course_sections.length,
+        total_records: allSavedFiles.length,
+        file_details: allSavedFiles.map(file => ({
+          file_id: file.file_id,
+          file_name: file.file_name,
+          document_type: file.document_type,
+          subject_code: file.subject_code,
+          course_section: file.course_section,
+          status: file.status,
+          uploaded_at: file.uploaded_at
+        })),
+      },
     });
 
   } catch (error) {
-    console.error("❌ Error uploading file:", error);
+    console.error("❌ Error uploading files:", error);
     
-    // Clean up uploaded file if there's an error
-    if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-        console.log("🧹 Cleaned up uploaded file after error");
-      } catch (cleanupError) {
-        console.error("Error cleaning up file:", cleanupError);
-      }
+    // Clean up uploaded files if there's an error
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        if (file && file.path) {
+          try {
+            fs.unlinkSync(file.path);
+            console.log(`🧹 Cleaned up uploaded file: ${file.filename}`);
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
+          }
+        }
+      });
     }
     
     res.status(500).json({

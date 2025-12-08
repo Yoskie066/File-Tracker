@@ -903,7 +903,7 @@ export default function FacultyLoadManagement() {
                   {formData.subject_title && (
                     <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
                       <div className="text-sm text-gray-700">
-                        <span className="font-medium">Selected Subject:</span> {formData.subject_title}
+                        <span className="font-medium">Subject Title:</span> {formData.subject_title}
                       </div>
                     </div>
                   )}

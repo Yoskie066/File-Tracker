@@ -26,7 +26,7 @@ router.delete("/faculty-loaded/:id", verifyToken, deleteFacultyLoaded);
 
 
 // File upload routes
-router.post("/file-upload", verifyToken, upload.single('file'), uploadFile);
+router.post("/file-upload", verifyToken, upload.array('files', 10), uploadFile);
 router.get("/file-upload/my-files", verifyToken, getFacultyFiles);
 
 
