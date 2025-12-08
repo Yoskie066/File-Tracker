@@ -115,7 +115,7 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED FOR MULTIPLE FILES
+// File Upload Controller - UPDATED: No duplicate records, one record per file
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
@@ -186,72 +186,69 @@ export const uploadFile = async (req, res) => {
       finalDocumentType = `tos-${tos_type}`;
     }
 
-    // Process each uploaded file
+    // Process each uploaded file - ONE RECORD PER FILE, NOT PER SECTION
     const allSavedFiles = [];
     
     for (const file of req.files) {
       console.log(`Processing file: ${file.originalname}`);
       
-      // Create file records for EACH course section for EACH file
-      const fileCreationPromises = course_sections.map(async (course_section) => {
-        const sectionFileId = generateFileId();
-        
-        const newFile = new FileManagement({
-          file_id: sectionFileId,
-          faculty_id: req.faculty.facultyId,
-          faculty_name: req.faculty.facultyName,
-          file_name: `${file_name || file.originalname} - ${course_section}`,
-          document_type: finalDocumentType,
-          tos_type: document_type === 'tos' ? tos_type : null,
-          subject_code,
-          course_section,
-          subject_title,
-          status: "pending", 
-          file_path: `/uploads/${file.filename}`,
-          original_name: file.originalname,
-          file_size: file.size,
-          uploaded_at: new Date()
-        });
-
-        return newFile.save();
+      // Create ONE file record for this file with all course sections in array
+      const fileId = generateFileId();
+      
+      const newFile = new FileManagement({
+        file_id: fileId,
+        faculty_id: req.faculty.facultyId,
+        faculty_name: req.faculty.facultyName,
+        file_name: file_name || file.originalname,
+        document_type: finalDocumentType,
+        tos_type: document_type === 'tos' ? tos_type : null,
+        subject_code,
+        course_sections: course_sections, // Store as array
+        subject_title,
+        status: "pending", 
+        file_path: `/uploads/${file.filename}`,
+        original_name: file.originalname,
+        file_size: file.size,
+        uploaded_at: new Date()
       });
 
-      const savedFiles = await Promise.all(fileCreationPromises);
-      allSavedFiles.push(...savedFiles);
-      console.log(`✅ Created ${savedFiles.length} file records for file: ${file.originalname}`);
+      const savedFile = await newFile.save();
+      allSavedFiles.push(savedFile);
+      console.log(`✅ Created ONE file record for: ${file.originalname} with ${course_sections.length} sections`);
     }
 
     console.log(`🎉 Total created: ${allSavedFiles.length} file records for ${req.files.length} files`);
 
-    // Create file history records
+    // Create ONE file history record per file (not per section)
     try {
-      const historyPromises = allSavedFiles.map(async (savedFile) => {
+      for (const savedFile of allSavedFiles) {
         await createFileHistory({
           file_name: savedFile.file_name,
           document_type: savedFile.document_type,
           tos_type: savedFile.tos_type,
           faculty_id: savedFile.faculty_id,
           subject_code: savedFile.subject_code,
-          course_section: savedFile.course_section,
+          course_sections: savedFile.course_sections, // Array of sections
           date_submitted: new Date()
         });
-      });
-      await Promise.all(historyPromises);
-      console.log("✅ File history created for all files and sections");
+      }
+      console.log("✅ File history created (ONE per file)");
     } catch (historyError) {
       console.error("⚠️ Error creating file history:", historyError);
     }
 
-    // Update Task Deliverables for ALL sections
+    // Update Task Deliverables for ALL sections (this still needs to update each section)
     try {
-      await updateTaskDeliverables({
-        faculty_id: req.faculty.facultyId,
-        faculty_name: req.faculty.facultyName,
-        subject_code: subject_code,
-        course_sections: course_sections,
-        document_type: finalDocumentType,
-        status: "pending"
-      });
+      for (const savedFile of allSavedFiles) {
+        await updateTaskDeliverables({
+          faculty_id: savedFile.faculty_id,
+          faculty_name: savedFile.faculty_name,
+          subject_code: savedFile.subject_code,
+          course_sections: savedFile.course_sections,
+          document_type: savedFile.document_type,
+          status: savedFile.status
+        });
+      }
       console.log("✅ Task deliverables updated for all sections");
     } catch (taskError) {
       console.error("⚠️ Error updating task deliverables:", taskError);
@@ -269,7 +266,7 @@ export const uploadFile = async (req, res) => {
           file_name: file.file_name,
           document_type: file.document_type,
           subject_code: file.subject_code,
-          course_section: file.course_section,
+          course_sections: file.course_sections, // Return as array
           status: file.status,
           uploaded_at: file.uploaded_at
         })),
@@ -421,17 +418,17 @@ export const updateFileStatus = async (req, res) => {
     if (!updatedFile)
       return res.status(404).json({ success: false, message: "File not found" });
 
-    // Update corresponding TaskDeliverables
+    // Update corresponding TaskDeliverables for all sections
     await updateTaskDeliverables({
       faculty_id: updatedFile.faculty_id,
       faculty_name: updatedFile.faculty_name,
       subject_code: updatedFile.subject_code,
-      course_sections: [updatedFile.course_section],
+      course_sections: updatedFile.course_sections, // Use array
       document_type: updatedFile.document_type,
       status: updatedFile.status
     });
 
-    console.log(`File status updated and synced to Task Deliverables: ${status}`);
+    console.log(`File status updated and synced to Task Deliverables for ${updatedFile.course_sections.length} sections: ${status}`);
 
     res.status(200).json({
       success: true,
@@ -479,12 +476,12 @@ export const bulkCompleteAllFiles = async (req, res) => {
         );
 
         if (updatedFile) {
-          // Update corresponding TaskDeliverables
+          // Update corresponding TaskDeliverables for all sections
           await updateTaskDeliverables({
             faculty_id: updatedFile.faculty_id,
             faculty_name: updatedFile.faculty_name,
             subject_code: updatedFile.subject_code,
-            course_sections: [updatedFile.course_section],
+            course_sections: updatedFile.course_sections, // Use array
             document_type: updatedFile.document_type,
             status: "completed"
           });

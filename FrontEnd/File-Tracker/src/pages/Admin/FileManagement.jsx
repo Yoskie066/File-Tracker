@@ -258,14 +258,22 @@ export default function FileManagement() {
     }
   };
 
+  // Format course sections (array to string)
+  const formatCourseSections = (sections) => {
+    if (!sections || !Array.isArray(sections)) return 'N/A';
+    return sections.join(', ');
+  };
+
   // Search filter
   const getFilteredFiles = () => {
     let filtered = (Array.isArray(files) ? files : []);
 
     // Apply search filter
     filtered = filtered.filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.course_section]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
+      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
+      (file.course_sections && Array.isArray(file.course_sections) && 
+        file.course_sections.some(section => section.toLowerCase().includes(search.toLowerCase())))
     );
 
     // Apply filters for history view
@@ -342,8 +350,8 @@ export default function FileManagement() {
         'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
         'TOS Type': f.tos_type || 'N/A',
         'Subject Code': f.subject_code,
-        'Course Section': f.course_section,
-        'Subject & Section': `${f.subject_code} - ${f.course_section}`,
+        'Course Sections': formatCourseSections(f.course_sections),
+        'Subject Title': f.subject_title,
         'File Size': formatFileSize(f.file_size),
         'Status': f.status,
         'Uploaded At': new Date(f.uploaded_at).toLocaleString('en-US', {
@@ -369,8 +377,8 @@ export default function FileManagement() {
         { wch: 20 }, // Document Type
         { wch: 15 }, // TOS Type
         { wch: 15 }, // Subject Code
-        { wch: 15 }, // Course Section
-        { wch: 20 }, // Subject & Section
+        { wch: 25 }, // Course Sections
+        { wch: 30 }, // Subject Title
         { wch: 15 }, // File Size
         { wch: 15 }, // Status
         { wch: 25 }  // Uploaded At
@@ -457,7 +465,7 @@ export default function FileManagement() {
             <p className="text-sm text-gray-500">
               {historyView 
                 ? `Viewing historical file records and submissions for ${selectedYear}`
-                : 'A secure file management system for storing, organizing, and monitoring all details'
+                : 'One record per file with multiple course sections'
               }
             </p>
           </div>
@@ -593,7 +601,8 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject & Section</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course Sections</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Uploaded At</th>
@@ -618,7 +627,23 @@ export default function FileManagement() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
-                      {file.subject_code} - {file.course_section}
+                      {file.subject_code}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {file.course_sections && Array.isArray(file.course_sections) ? (
+                          file.course_sections.map((section, index) => (
+                            <span 
+                              key={index}
+                              className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                            >
+                              {section}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-xs">N/A</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{formatFileSize(file.file_size)}</td>
                     <td className="px-4 py-3">
@@ -674,7 +699,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
                   </td>
                 </tr>
@@ -757,8 +782,8 @@ export default function FileManagement() {
                     <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Subject & Section:</span>
-                    <p className="font-medium">{file.subject_code} - {file.course_section}</p>
+                    <span className="text-gray-500">Subject Code:</span>
+                    <p className="font-medium">{file.subject_code}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Size:</span>
@@ -767,6 +792,25 @@ export default function FileManagement() {
                   <div className="col-span-2">
                     <span className="text-gray-500">Uploaded:</span>
                     <p className="font-medium text-xs">{formatDate(file.uploaded_at)}</p>
+                  </div>
+                </div>
+
+                {/* Course Sections in Mobile */}
+                <div className="mt-3">
+                  <span className="text-gray-500 text-sm">Course Sections:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {file.course_sections && Array.isArray(file.course_sections) ? (
+                      file.course_sections.map((section, index) => (
+                        <span 
+                          key={index}
+                          className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                        >
+                          {section}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 text-xs">N/A</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -890,122 +934,76 @@ export default function FileManagement() {
                     <p className="mt-1 text-sm text-gray-900">{fileToPreview.subject_code}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Course Section</label>
-                    <p className="mt-1 text-sm text-gray-900">{fileToPreview.course_section}</p>
+                    <label className="block text-sm font-medium text-gray-700">Subject Title</label>
+                    <p className="mt-1 text-sm text-gray-900">{fileToPreview.subject_title}</p>
                   </div>
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Course Sections</label>
+                  <div className="mt-1">
+                    <div className="flex flex-wrap gap-2">
+                      {fileToPreview.course_sections && Array.isArray(fileToPreview.course_sections) ? (
+                        fileToPreview.course_sections.map((section, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                          >
+                            {section}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 text-sm">N/A</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Total: {fileToPreview.course_sections?.length || 0} sections
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">File Path</label>
+                  <p className="mt-1 text-sm text-gray-900 break-all">{fileToPreview.file_path}</p>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
-                    <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    {!historyView && (
-                      <button
-                        onClick={() => openStatusModal(fileToPreview)}
-                        className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Update Status
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </Modal>
-
-          {/* Status Update Modal */}
-          <Modal
-            isOpen={statusModalOpen}
-            onRequestClose={() => setStatusModalOpen(false)}
-            className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
-            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          >
-            {fileToUpdate && (
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Update File Status
-                  </h3>
-                  <button
-                    onClick={() => setStatusModalOpen(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      File: <span className="font-semibold">{fileToUpdate.file_name}</span>
-                    </label>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
-                      {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Subject: {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
-                      This update will also sync with Task Deliverables for {fileToUpdate.subject_code} - {fileToUpdate.course_section}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Status
-                    </label>
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="completed">Completed</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 pt-4">
+                  {!historyView && (
                     <button
-                      onClick={() => setStatusModalOpen(false)}
-                      className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+                      onClick={() => openStatusModal(fileToPreview)}
+                      className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors flex items-center justify-center gap-2"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleUpdateStatus}
-                      className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
-                    >
+                      <Edit className="w-4 h-4" />
                       Update Status
                     </button>
-                  </div>
+                  )}
                 </div>
               </div>
-            )}
-          </Modal>
+            </div>
+          )}
+        </Modal>
 
-          {/* Bulk Complete Confirmation Modal */}
-          <Modal
-            isOpen={bulkCompleteModalOpen}
-            onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
-            className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
-            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          >
+        {/* Status Update Modal */}
+        <Modal
+          isOpen={statusModalOpen}
+          onRequestClose={() => setStatusModalOpen(false)}
+          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          {fileToUpdate && (
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  Mark All Files as Completed
+                  Update File Status
                 </h3>
                 <button
-                  onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+                  onClick={() => setStatusModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
-                  disabled={bulkCompleteLoading}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1014,106 +1012,183 @@ export default function FileManagement() {
               </div>
 
               <div className="space-y-4">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                  <div className="flex items-center">
-                    <CheckCheck className="w-5 h-5 text-yellow-600 mr-2" />
-                    <p className="text-yellow-800 font-medium">Important Information:</p>
-                  </div>
-                  <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                    <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
-                    <li>• Affects files with status: "pending" or "rejected"</li>
-                    <li>• Task Deliverables will be automatically updated to "completed"</li>
-                    <li>• This action cannot be undone</li>
-                  </ul>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    File: <span className="font-semibold">{fileToUpdate.file_name}</span>
+                  </label>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
+                    {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Subject: {fileToUpdate.subject_code}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Course Sections: {formatCourseSections(fileToUpdate.course_sections)}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    This update will sync with Task Deliverables for all {fileToUpdate.course_sections?.length || 0} sections
+                  </p>
                 </div>
 
-                <p className="text-sm text-gray-600">
-                  Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables.
-                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Status
+                  </label>
+                  <select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
 
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
-                    disabled={bulkCompleteLoading}
-                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    onClick={() => setStatusModalOpen(false)}
+                    className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleBulkComplete}
-                    disabled={bulkCompleteLoading}
-                    className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-400 hover:text-black transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {bulkCompleteLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCheck className="w-4 h-4" />
-                        Mark All as Completed
-                      </>
-                    )}
+                    onClick={handleUpdateStatus}
+                    className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
+                    >
+                    Update Status
                   </button>
                 </div>
               </div>
             </div>
-          </Modal>
+          )}
+        </Modal>
 
-          {/* Delete Confirmation Modal */}
-          <Modal
-            isOpen={deleteModalOpen}
-            onRequestClose={() => setDeleteModalOpen(false)}
-            className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <div className="flex flex-col items-center text-center">
-              <XCircle className="text-red-500 w-12 h-12 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
+        {/* Bulk Complete Confirmation Modal */}
+        <Modal
+          isOpen={bulkCompleteModalOpen}
+          onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+          className="bg-white rounded-lg max-w-md w-full mx-auto my-8"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Mark All Files as Completed
+              </h3>
+              <button
+                onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={bulkCompleteLoading}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <div className="flex items-center">
+                  <CheckCheck className="w-5 h-5 text-yellow-600 mr-2" />
+                  <p className="text-yellow-800 font-medium">Important Information:</p>
+                </div>
+                <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                  <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
+                  <li>• Affects files with status: "pending" or "rejected"</li>
+                  <li>• Task Deliverables will be automatically updated to "completed" for all sections</li>
+                  <li>• This action cannot be undone</li>
+                </ul>
+              </div>
+
+              <p className="text-sm text-gray-600">
+                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables for all course sections.
               </p>
-              <div className="flex gap-3 w-full">
+
+              <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setDeleteModalOpen(false)}
-                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
+                  disabled={bulkCompleteLoading}
+                  className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleDelete(fileToDelete)}
-                  className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
+                  onClick={handleBulkComplete}
+                  disabled={bulkCompleteLoading}
+                  className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-400 hover:text-black transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Delete
+                  {bulkCompleteLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck className="w-4 h-4" />
+                      Mark All as Completed
+                    </>
+                  )}
                 </button>
               </div>
             </div>
-          </Modal>
+          </div>
+        </Modal>
 
-          {/* Feedback Modal */}
-          <Modal
-            isOpen={feedbackModalOpen}
-            onRequestClose={() => setFeedbackModalOpen(false)}
-            className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-            overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <div className="flex flex-col items-center text-center">
-              {feedbackType === "success" ? (
-                <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
-              ) : (
-                <XCircle className="text-red-500 w-12 h-12 mb-4" />
-              )}
-              <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={deleteModalOpen}
+          onRequestClose={() => setDeleteModalOpen(false)}
+          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <div className="flex flex-col items-center text-center">
+            <XCircle className="text-red-500 w-12 h-12 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 w-full">
               <button
-                onClick={() => setFeedbackModalOpen(false)}
-                className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
+                onClick={() => setDeleteModalOpen(false)}
+                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(fileToDelete)}
+                className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
+              >
+                Delete
               </button>
             </div>
-          </Modal>
-        </div>
+          </div>
+        </Modal>
+
+        {/* Feedback Modal */}
+        <Modal
+          isOpen={feedbackModalOpen}
+          onRequestClose={() => setFeedbackModalOpen(false)}
+          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <div className="flex flex-col items-center text-center">
+            {feedbackType === "success" ? (
+              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
+            ) : (
+              <XCircle className="text-red-500 w-12 h-12 mb-4" />
+            )}
+            <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
+            <button
+              onClick={() => setFeedbackModalOpen(false)}
+              className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
       </div>
-    );
-  }
+    </div>
+  );
+}

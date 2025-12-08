@@ -121,6 +121,12 @@ export default function FileHistory() {
     });
   };
 
+  // Format course sections (array to string)
+  const formatCourseSections = (sections) => {
+    if (!sections || !Array.isArray(sections)) return 'N/A';
+    return sections.join(', ');
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -130,7 +136,7 @@ export default function FileHistory() {
           <div className="text-left w-full md:w-auto">
             <h1 className="text-2xl font-bold text-gray-800">File History</h1>
             <p className="text-sm text-gray-500">
-              Collection of all your submitted files
+              Collection of all your submitted files (One record per file)
             </p>
           </div>
           <input
@@ -144,9 +150,10 @@ export default function FileHistory() {
 
         {/* Desktop Grid Header - Hidden on mobile */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg">
-          <div className="col-span-5 text-sm font-semibold text-gray-600">File Name</div>
-          <div className="col-span-3 text-sm font-semibold text-gray-600">Document Type</div>
+          <div className="col-span-4 text-sm font-semibold text-gray-600">File Name</div>
+          <div className="col-span-2 text-sm font-semibold text-gray-600">Document Type</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">TOS Type</div>
+          <div className="col-span-2 text-sm font-semibold text-gray-600">Course Sections</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">Date Submitted</div>
         </div>
 
@@ -171,7 +178,7 @@ export default function FileHistory() {
                       className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                       {/* File Name */}
-                      <div className="col-span-5">
+                      <div className="col-span-4">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
                             <DocumentTypeIcon className="w-4 h-4" />
@@ -181,14 +188,14 @@ export default function FileHistory() {
                               {file.file_name}
                             </h3>
                             <p className="text-xs text-gray-500 mt-1">
-                              {file.subject_code} - {file.course_section}
+                              {file.subject_code}
                             </p>
                           </div>
                         </div>
                       </div>
 
                       {/* Document Type */}
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${documentTypeDetails.color} border`}>
                           <DocumentTypeIcon className="w-3 h-3" />
                           {documentTypeDetails.label}
@@ -204,6 +211,24 @@ export default function FileHistory() {
                         ) : (
                           <span className="text-gray-400 text-xs">N/A</span>
                         )}
+                      </div>
+
+                      {/* Course Sections */}
+                      <div className="col-span-2">
+                        <div className="flex flex-wrap gap-1">
+                          {file.course_sections && Array.isArray(file.course_sections) ? (
+                            file.course_sections.map((section, index) => (
+                              <span 
+                                key={index}
+                                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                              >
+                                {section}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-xs">N/A</span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Date Submitted */}
@@ -237,7 +262,7 @@ export default function FileHistory() {
                           <div>
                             <h2 className="font-semibold text-gray-800 text-sm">{file.file_name}</h2>
                             <p className="text-xs text-gray-500 mt-1">
-                              {file.subject_code} - {file.course_section}
+                              {file.subject_code}
                             </p>
                           </div>
                         </div>
@@ -258,6 +283,25 @@ export default function FileHistory() {
                             <div className="font-medium">{formatDate(file.date_submitted)}</div>
                             <div className="text-xs text-gray-500">{formatTime(file.date_submitted)}</div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Course Sections in Mobile */}
+                      <div>
+                        <span className="text-gray-500 text-sm">Course Sections:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {file.course_sections && Array.isArray(file.course_sections) ? (
+                            file.course_sections.map((section, index) => (
+                              <span 
+                                key={index}
+                                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                              >
+                                {section}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-xs">N/A</span>
+                          )}
                         </div>
                       </div>
                     </div>

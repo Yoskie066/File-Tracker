@@ -28,8 +28,8 @@ const fileHistorySchema = new mongoose.Schema(
       type: String, 
       required: true 
     },
-    course_section: { 
-      type: String, 
+    course_sections: { 
+      type: [String], 
       required: true 
     }
   },
