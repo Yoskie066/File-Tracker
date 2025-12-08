@@ -1,42 +1,17 @@
 import mongoose from "mongoose";
 
-const adminSchema = new mongoose.Schema(
+const adminNoticeSchema = new mongoose.Schema(
   {
-    adminId: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    adminName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    adminNumber: {
-      type: String,
-      required: true,
-      unique: true, 
-    },
-    password: {
-      type: String,
-      required: true,
-      minlength: 4, 
-    },
-    role: {
-      type: String,
-      default: "admin",
-    },
-    status: {
-      type: String,
-      enum: ["online", "offline"],
-      default: "offline",
-    },
-    registeredAt: {
-      type: Date,
-      default: Date.now,
-    },
+    notice_id: { type: String, required: true, unique: true },
+    prof_name: { type: String, required: true },
+    document_type: { type: String, required: true },
+    due_date: { type: Date, required: true },
+    notes: { type: String, default: "" }, 
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { versionKey: false }
 );
 
-export default mongoose.models.Admin || mongoose.model("Admin", adminSchema);
+const AdminNotice = mongoose.model("AdminNotice", adminNoticeSchema);
+export default AdminNotice;
