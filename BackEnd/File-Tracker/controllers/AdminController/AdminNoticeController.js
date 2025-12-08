@@ -17,7 +17,7 @@ export const createAdminNotice = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { prof_name, document_type, due_date, notes } = req.body; 
+    const { prof_name, faculty_id, document_type, tos_type, due_date, notes } = req.body; 
 
     // Validation
     if (!prof_name || !document_type || !due_date) {
@@ -32,6 +32,14 @@ export const createAdminNotice = async (req, res) => {
       });
     }
 
+    // Validate TOS type if document_type is TOS
+    if (document_type === "TOS" && !tos_type) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "TOS Type is required when Document Type is TOS."
+      });
+    }
+
     const notice_id = generateNoticeId();
 
     console.log("Creating admin notice with ID:", notice_id);
@@ -39,7 +47,9 @@ export const createAdminNotice = async (req, res) => {
     const newAdminNotice = new AdminNotice({
       notice_id,
       prof_name,
+      faculty_id: prof_name !== "ALL" ? faculty_id : "",
       document_type,
+      tos_type: document_type === "TOS" ? tos_type : "N/A",
       due_date: new Date(due_date),
       notes: notes || "", 
     });
@@ -47,8 +57,11 @@ export const createAdminNotice = async (req, res) => {
     const savedAdminNotice = await newAdminNotice.save();
     console.log("Admin notice saved successfully:", savedAdminNotice._id);
 
-    // Create notification message
-    const notificationMessage = `You have a new admin notice for document submission`;
+    // Create notification message based on document type
+    let notificationMessage = `You have a new admin notice for ${document_type}`;
+    if (document_type === "TOS" && tos_type) {
+      notificationMessage = `You have a new admin notice for ${document_type} (${tos_type})`;
+    }
 
     // Create notifications based on professor selection
     try {
@@ -69,6 +82,7 @@ export const createAdminNotice = async (req, res) => {
             title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
+            tos_type: document_type === "TOS" ? tos_type : "N/A",
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
             notes: notes || "", 
@@ -82,10 +96,15 @@ export const createAdminNotice = async (req, res) => {
         
       } else {
         // Send notification to specific faculty member only
-        console.log("Looking for specific faculty with name:", prof_name);
+        console.log("Looking for specific faculty with ID:", faculty_id);
         
-        // Find faculty by name to get their facultyId
-        const faculty = await Faculty.findOne({ facultyName: new RegExp(`^${prof_name}$`, "i") });
+        // Find faculty by ID or name
+        const faculty = await Faculty.findOne({ 
+          $or: [
+            { facultyId: faculty_id },
+            { facultyName: new RegExp(`^${prof_name}$`, "i") }
+          ]
+        });
         console.log("Found faculty:", faculty);
         
         if (faculty) {
@@ -98,6 +117,7 @@ export const createAdminNotice = async (req, res) => {
             title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
+            tos_type: document_type === "TOS" ? tos_type : "N/A",
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
             notes: notes || "", 
@@ -109,7 +129,7 @@ export const createAdminNotice = async (req, res) => {
         } else {
           console.warn("Faculty not found for notification:", prof_name);
           
-          // Fallback notification (if faculty name not matched)
+          // Fallback notification
           const fallbackNotification = new Notification({
             notification_id: generateNotificationId(),
             recipient_id: "unknown",
@@ -118,6 +138,7 @@ export const createAdminNotice = async (req, res) => {
             title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
+            tos_type: document_type === "TOS" ? tos_type : "N/A",
             due_date: new Date(due_date),
             related_notice_id: savedAdminNotice.notice_id,
             notes: notes || "", 
@@ -193,15 +214,37 @@ export const getAdminNoticeById = async (req, res) => {
   }
 };
 
+// Get all faculty for dropdown
+export const getAllFaculty = async (req, res) => {
+  try {
+    const faculty = await Faculty.find({}, 'facultyId facultyName')
+      .sort({ facultyName: 1 });
+    
+    res.status(200).json({ 
+      success: true, 
+      data: faculty 
+    });
+  } catch (error) {
+    console.error("Error fetching faculty:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
 // Update admin notice
 export const updateAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { prof_name, document_type, due_date, notes } = req.body; 
+    const { prof_name, faculty_id, document_type, tos_type, due_date, notes } = req.body; 
 
     const updateData = {
       prof_name,
+      faculty_id: prof_name !== "ALL" ? faculty_id : "",
       document_type,
+      tos_type: document_type === "TOS" ? tos_type : "N/A",
       due_date,
       notes: notes || "", 
       updated_at: new Date()
@@ -216,7 +259,10 @@ export const updateAdminNotice = async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: "Admin notice not found" });
 
     // Update notification message
-    const notificationMessage = `You have an updated admin notice for document submission`;
+    let notificationMessage = `You have an updated admin notice for ${document_type}`;
+    if (document_type === "TOS" && tos_type) {
+      notificationMessage = `You have an updated admin notice for ${document_type} (${tos_type})`;
+    }
 
     // Update notifications
     await Notification.updateMany(
@@ -224,6 +270,7 @@ export const updateAdminNotice = async (req, res) => {
       {
         message: notificationMessage,
         document_type,
+        tos_type: document_type === "TOS" ? tos_type : "N/A",
         due_date,
         notes: notes || "", 
       }
@@ -250,6 +297,28 @@ export const deleteAdminNotice = async (req, res) => {
     res.status(200).json({ success: true, message: "Admin notice deleted successfully", data: deleted });
   } catch (error) {
     console.error("Error deleting admin notice:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Get admin notice statistics
+export const getAdminNoticeStats = async (req, res) => {
+  try {
+    const allNotices = await AdminNotice.find();
+    
+    const stats = {
+      total: allNotices.length,
+      syllabus: allNotices.filter(n => n.document_type === "Syllabus").length,
+      tos: allNotices.filter(n => n.document_type === "TOS").length,
+      midterm_exam: allNotices.filter(n => n.document_type === "MIDTERM EXAM").length,
+      final_exam: allNotices.filter(n => n.document_type === "FINAL EXAM").length,
+      instructional_materials: allNotices.filter(n => n.document_type === "INSTRUCTIONAL MATERIALS").length,
+      all_files: allNotices.filter(n => n.document_type === "all-files").length
+    };
+    
+    res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    console.error("Error fetching admin notice stats:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

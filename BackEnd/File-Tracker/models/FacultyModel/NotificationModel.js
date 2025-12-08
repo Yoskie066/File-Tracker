@@ -39,6 +39,10 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  tos_type: {
+    type: String,
+    default: "",
+  },
   due_date: {
     type: Date,
     default: null,

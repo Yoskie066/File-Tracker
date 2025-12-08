@@ -37,7 +37,11 @@ export default function NotificationPage() {
               }`}
             >
               <h2 className="font-semibold text-lg text-gray-800">{note.title}</h2>
-              <p className="text-gray-700 mt-1">{note.message}</p>
+              <p className="text-gray-700 mt-1">
+                {note.document_type === "TOS" && note.tos_type 
+                  ? `${note.message} (${note.tos_type})` 
+                  : note.message}
+              </p>
               <div className="flex justify-between items-center mt-2">
                 <p className="text-sm text-gray-500">
                   {new Date(note.created_at).toLocaleString()}
@@ -64,6 +68,11 @@ export default function NotificationPage() {
             <p>
               <span className="font-semibold">Document Type:</span> {selectedNote.document_type === 'all-files' ? 'All Files' : selectedNote.document_type || "N/A"}
             </p>
+            {selectedNote.document_type === 'TOS' && selectedNote.tos_type && selectedNote.tos_type !== "N/A" && (
+              <p>
+                <span className="font-semibold">TOS Type:</span> {selectedNote.tos_type}
+              </p>
+            )}
             <p>
               <span className="font-semibold">Due Date:</span>{" "}
               {selectedNote.due_date
@@ -71,7 +80,7 @@ export default function NotificationPage() {
                 : "No due date"}
             </p>
             
-            {/* ADDED: Display notes if available */}
+            {/* Display notes if available */}
             {selectedNote.notes && selectedNote.notes.trim() !== "" && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <span className="font-semibold block mb-2">Instructions/Notes:</span>
