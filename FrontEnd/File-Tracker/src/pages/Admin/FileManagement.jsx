@@ -44,6 +44,8 @@ export default function FileManagement() {
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
   const [courseSectionFilter, setCourseSectionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState(""); // Added semester filter
+  const [schoolYearFilter, setSchoolYearFilter] = useState(""); // Added school year filter
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
@@ -259,6 +261,14 @@ export default function FileManagement() {
     return sections.join(', ');
   };
 
+  // Get semester badge color
+  const getSemesterColor = (semester) => {
+    if (semester?.includes('1st')) return 'bg-purple-100 text-purple-800';
+    if (semester?.includes('2nd')) return 'bg-green-100 text-green-800';
+    if (semester?.includes('Summer')) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
   // Get unique values for filters
   const getUniqueValues = (key) => {
     let filtered = (Array.isArray(files) ? files : []);
@@ -276,6 +286,10 @@ export default function FileManagement() {
         file.course_sections.forEach(section => values.add(section));
       } else if (key === 'status' && file.status) {
         values.add(file.status);
+      } else if (key === 'semester' && file.semester) { // Added
+        values.add(file.semester);
+      } else if (key === 'school_year' && file.school_year) { // Added
+        values.add(file.school_year);
       } else if (key === 'months') {
         if (file.uploaded_at) {
           const month = new Date(file.uploaded_at).getMonth();
@@ -315,6 +329,8 @@ export default function FileManagement() {
     setSubjectCodeFilter("");
     setCourseSectionFilter("");
     setStatusFilter("");
+    setSemesterFilter(""); // Added
+    setSchoolYearFilter(""); // Added
     setMonthFilter("");
     setYearFilter("");
     setSortOption("most_recent");
@@ -327,7 +343,7 @@ export default function FileManagement() {
 
     // Apply search filter
     filtered = filtered.filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code]
+      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.semester, file.school_year]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
       (file.course_sections && Array.isArray(file.course_sections) && 
         file.course_sections.some(section => section.toLowerCase().includes(search.toLowerCase())))
@@ -360,7 +376,17 @@ export default function FileManagement() {
       filtered = filtered.filter(file => file.status === statusFilter);
     }
 
-    // Apply month filter
+    // Apply semester filter (auto-synced from faculty load)
+    if (semesterFilter) {
+      filtered = filtered.filter(file => file.semester === semesterFilter);
+    }
+
+    // Apply school year filter (auto-synced from faculty load)
+    if (schoolYearFilter) {
+      filtered = filtered.filter(file => file.school_year === schoolYearFilter);
+    }
+
+    // Apply month filter (uploaded date)
     if (monthFilter) {
       const monthNames = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -375,7 +401,7 @@ export default function FileManagement() {
       });
     }
 
-    // Apply year filter
+    // Apply year filter (uploaded date)
     if (yearFilter) {
       filtered = filtered.filter(file => {
         if (!file.uploaded_at) return false;
@@ -468,6 +494,8 @@ export default function FileManagement() {
         'Subject Code': f.subject_code,
         'Course Sections': formatCourseSections(f.course_sections),
         'Subject Title': f.subject_title,
+        'Semester': f.semester, // Added
+        'Academic Year': f.school_year, // Added
         'File Size': formatFileSize(f.file_size),
         'Status': f.status,
         'Uploaded At': new Date(f.uploaded_at).toLocaleString('en-US', {
@@ -491,6 +519,8 @@ export default function FileManagement() {
         { wch: 15 },
         { wch: 25 },
         { wch: 30 },
+        { wch: 15 },
+        { wch: 15 },
         { wch: 15 },
         { wch: 15 },
         { wch: 25 }
@@ -520,6 +550,7 @@ export default function FileManagement() {
       let sheetName = `History`;
       if (yearFilter) sheetName += `_${yearFilter}`;
       if (monthFilter) sheetName += `_${monthFilter.substring(0, 3)}`;
+      if (semesterFilter) sheetName += `_${semesterFilter.substring(0, 3)}`;
       sheetName = sheetName.substring(0, 31);
       
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -539,6 +570,7 @@ export default function FileManagement() {
       let filename = `file-management-history`;
       if (yearFilter) filename += `-${yearFilter}`;
       if (monthFilter) filename += `-${monthFilter.replace(/\s+/g, '-')}`;
+      if (semesterFilter) filename += `-${semesterFilter.replace(/\s+/g, '-')}`;
       filename += '.xlsx';
       
       link.href = url;
@@ -585,7 +617,7 @@ export default function FileManagement() {
             <p className="text-sm text-gray-500">
               {historyView 
                 ? 'Viewing historical file records and submissions'
-                : 'One record per file with multiple course sections'
+                : 'One record per file with auto-synced semester and academic year'
               }
             </p>
           </div>
@@ -671,11 +703,11 @@ export default function FileManagement() {
             />
           </div>
 
-          {/* Filtering and Sorting Options - 4x4 Grid */}
+          {/* Filtering and Sorting Options - 5x4 Grid */}
           {showFilters && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
-              {/* First Row - 4 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* First Row - 5 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Faculty Name
@@ -751,10 +783,7 @@ export default function FileManagement() {
                     ))}
                   </select>
                 </div>
-              </div>
 
-              {/* Second Row - 4 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Status
@@ -773,10 +802,51 @@ export default function FileManagement() {
                     <option value="rejected">Rejected</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Second Row - 5 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Semester (Auto-sync)
+                  </label>
+                  <select
+                    value={semesterFilter}
+                    onChange={(e) => {
+                      setSemesterFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Semesters</option>
+                    {getUniqueValues('semester').map(semester => (
+                      <option key={semester} value={semester}>{semester}</option>
+                    ))}
+                  </select>
+                </div>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Month
+                    Academic Year (Auto-sync)
+                  </label>
+                  <select
+                    value={schoolYearFilter}
+                    onChange={(e) => {
+                      setSchoolYearFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Years</option>
+                    {getUniqueValues('school_year').map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Upload Month
                   </label>
                   <select
                     value={monthFilter}
@@ -804,7 +874,7 @@ export default function FileManagement() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Year
+                    Upload Year
                   </label>
                   <select
                     value={yearFilter}
@@ -844,7 +914,7 @@ export default function FileManagement() {
                 <div className="col-span-1">
                   <span className="text-xs text-gray-500">
                     {filteredFiles.length} of {files.length} records
-                    {facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || monthFilter || yearFilter ? (
+                    {facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || semesterFilter || schoolYearFilter || monthFilter || yearFilter ? (
                       <span className="ml-2 text-blue-600">
                         ({[
                           facultyFilter && "Faculty",
@@ -852,6 +922,8 @@ export default function FileManagement() {
                           subjectCodeFilter && "Subject",
                           courseSectionFilter && "Section",
                           statusFilter && "Status",
+                          semesterFilter && "Semester",
+                          schoolYearFilter && "Year",
                           monthFilter && monthFilter,
                           yearFilter && yearFilter
                         ].filter(Boolean).join(", ")})
@@ -868,7 +940,7 @@ export default function FileManagement() {
                 </div>
                 
                 <div className="col-span-1 text-right">
-                  {(facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                  {(facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || semesterFilter || schoolYearFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
                     <button
                       onClick={resetFilters}
                       className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -891,6 +963,8 @@ export default function FileManagement() {
                     Viewing {filteredFiles.length} historical file records
                     {yearFilter && ` from ${yearFilter}`}
                     {monthFilter && `, ${monthFilter}`}
+                    {semesterFilter && ` • Semester: ${semesterFilter}`}
+                    {schoolYearFilter && ` • Year: ${schoolYearFilter}`}
                     {facultyFilter && ` • Faculty: ${facultyFilter}`}
                     {documentTypeFilter && ` • Type: ${documentTypeFilter}`}
                     {statusFilter && ` • Status: ${statusFilter}`}
@@ -932,7 +1006,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - UPDATED with auto-synced fields */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -944,6 +1018,8 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course Sections</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Uploaded At</th>
@@ -986,6 +1062,12 @@ export default function FileManagement() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(file.semester)}`}>
+                        {file.semester}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{file.school_year}</td>
                     <td className="px-4 py-3 text-gray-700">{formatFileSize(file.file_size)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
@@ -1040,7 +1122,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="13" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
                   </td>
                 </tr>
@@ -1049,7 +1131,7 @@ export default function FileManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - UPDATED with auto-synced fields */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentFiles.length > 0 ? (
             currentFiles.map((file) => (
@@ -1126,6 +1208,14 @@ export default function FileManagement() {
                     <p className="font-medium">{file.subject_code}</p>
                   </div>
                   <div>
+                    <span className="text-gray-500">Semester:</span>
+                    <p className="font-medium">{file.semester}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Academic Year:</span>
+                    <p className="font-medium">{file.school_year}</p>
+                  </div>
+                  <div>
                     <span className="text-gray-500">Size:</span>
                     <p className="font-medium">{formatFileSize(file.file_size)}</p>
                   </div>
@@ -1167,6 +1257,8 @@ export default function FileManagement() {
             Showing {currentFiles.length} of {filteredFiles.length} {historyView ? 'historical records' : 'files'}
             {yearFilter && ` from ${yearFilter}`}
             {monthFilter && `, ${monthFilter}`}
+            {semesterFilter && ` • Semester: ${semesterFilter}`}
+            {schoolYearFilter && ` • Year: ${schoolYearFilter}`}
           </div>
           
           <div className="flex items-center gap-3">
@@ -1198,7 +1290,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* File Preview Modal */}
+        {/* File Preview Modal - UPDATED with auto-synced fields */}
         <Modal
           isOpen={previewModalOpen}
           onRequestClose={() => setPreviewModalOpen(false)}
@@ -1279,8 +1371,21 @@ export default function FileManagement() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Semester (Auto-synced)</label>
+                    <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(fileToPreview.semester)}`}>
+                      {fileToPreview.semester}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Academic Year (Auto-synced)</label>
+                    <p className="mt-1 text-sm text-gray-900">{fileToPreview.school_year}</p>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Course Sections</label>
+                  <label className="block text-sm font-medium text-gray-700">Course Sections (Auto-synced)</label>
                   <div className="mt-1">
                     <div className="flex flex-wrap gap-2">
                       {fileToPreview.course_sections && Array.isArray(fileToPreview.course_sections) ? (
@@ -1356,12 +1461,18 @@ export default function FileManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     File: <span className="font-semibold">{fileToUpdate.file_name}</span>
                   </label>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
                     Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
                     {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
                   </p>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
                     Subject: {fileToUpdate.subject_code}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Semester: {fileToUpdate.semester}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Academic Year: {fileToUpdate.school_year}
                   </p>
                   <p className="text-sm text-gray-600 mb-4">
                     Course Sections: {formatCourseSections(fileToUpdate.course_sections)}

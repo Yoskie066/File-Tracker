@@ -37,7 +37,9 @@ export const getFacultyFileHistory = async (req, res) => {
       filter.$or = [
         { file_name: { $regex: search, $options: 'i' } },
         { document_type: { $regex: search, $options: 'i' } },
-        { subject_code: { $regex: search, $options: 'i' } }
+        { subject_code: { $regex: search, $options: 'i' } },
+        { semester: { $regex: search, $options: 'i' } },
+        { school_year: { $regex: search, $options: 'i' } }
       ];
     }
 

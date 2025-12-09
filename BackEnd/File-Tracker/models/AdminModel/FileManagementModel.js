@@ -22,8 +22,10 @@ const fileManagementSchema = new mongoose.Schema(
       enum: ["pending", "completed", "rejected"]
     },
     subject_code: { type: String, required: true }, 
-    course_sections: { type: [String], required: true },
     subject_title: { type: String, required: true },
+    course_sections: { type: [String], required: true },
+    semester: { type: String, required: true },
+    school_year: { type: String, required: true },
     file_path: { type: String, required: true },
     original_name: { type: String, required: true },
     file_size: { type: Number, required: true },

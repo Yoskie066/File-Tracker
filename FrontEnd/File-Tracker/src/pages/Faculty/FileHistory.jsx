@@ -4,7 +4,9 @@ import {
   FileText,
   File,
   Calendar,
-  Download
+  Download,
+  Filter,
+  ArrowUpDown
 } from "lucide-react";
 import tokenService from '../../services/tokenService';
 
@@ -15,6 +17,14 @@ export default function FileHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({});
   const itemsPerPage = 12;
+  
+  // Filter states
+  const [documentTypeFilter, setDocumentTypeFilter] = useState("");
+  const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState("");
+  const [schoolYearFilter, setSchoolYearFilter] = useState("");
+  const [sortOption, setSortOption] = useState("most_recent");
+  const [showFilters, setShowFilters] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -23,13 +33,10 @@ export default function FileHistory() {
     try {
       setLoading(true);
       
-      // Use tokenService instead of direct localStorage
       const token = tokenService.getFacultyAccessToken();
       
       if (!token) {
         console.error("No faculty token found");
-        showFeedback("error", "Please log in again");
-        navigate('/auth/login');
         return;
       }
   
@@ -39,7 +46,6 @@ export default function FileHistory() {
         ...(search && { search })
       });
   
-      // Use authFetch instead of direct fetch
       const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/file-history?${params}`);
   
       if (!response.ok) throw new Error('Failed to fetch file history');
@@ -53,9 +59,7 @@ export default function FileHistory() {
     } catch (error) {
       console.error("Error fetching file history:", error);
       if (error.message === 'Token refresh failed') {
-        showFeedback("error", "Session expired. Please log in again.");
-        tokenService.clearFacultyTokens();
-        navigate('/auth/login');
+        console.error("Token refresh failed");
       }
     } finally {
       setLoading(false);
@@ -127,6 +131,94 @@ export default function FileHistory() {
     return sections.join(', ');
   };
 
+  // Get unique values for filters
+  const getUniqueValues = (key) => {
+    const values = new Set();
+    
+    files.forEach(file => {
+      if (key === 'document_type') {
+        values.add(getDocumentTypeDetails(file.document_type, file.tos_type).label);
+      } else if (key === 'subject_code' && file.subject_code) {
+        values.add(file.subject_code);
+      } else if (key === 'semester' && file.semester) {
+        values.add(file.semester);
+      } else if (key === 'school_year' && file.school_year) {
+        values.add(file.school_year);
+      }
+    });
+
+    return Array.from(values).sort();
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setDocumentTypeFilter("");
+    setSubjectCodeFilter("");
+    setSemesterFilter("");
+    setSchoolYearFilter("");
+    setSortOption("most_recent");
+    setCurrentPage(1);
+  };
+
+  // Apply filters to files
+  const getFilteredFiles = () => {
+    let filtered = (Array.isArray(files) ? files : []);
+
+    // Apply search filter
+    filtered = filtered.filter((file) =>
+      [file.file_name, file.document_type, file.subject_code, file.semester, file.school_year]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
+      (file.course_sections && Array.isArray(file.course_sections) && 
+        file.course_sections.some(section => section.toLowerCase().includes(search.toLowerCase())))
+    );
+
+    // Apply advanced filters
+    if (documentTypeFilter) {
+      filtered = filtered.filter(file => 
+        getDocumentTypeDetails(file.document_type, file.tos_type).label === documentTypeFilter
+      );
+    }
+    
+    if (subjectCodeFilter) {
+      filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
+    }
+    
+    if (semesterFilter) {
+      filtered = filtered.filter(file => file.semester === semesterFilter);
+    }
+    
+    if (schoolYearFilter) {
+      filtered = filtered.filter(file => file.school_year === schoolYearFilter);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.date_submitted);
+      const dateB = new Date(b.date_submitted);
+      
+      switch (sortOption) {
+        case "most_recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return dateB - dateA;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredFiles = getFilteredFiles();
+
+  // Get semester badge color
+  const getSemesterColor = (semester) => {
+    if (semester?.includes('1st')) return 'bg-purple-100 text-purple-800';
+    if (semester?.includes('2nd')) return 'bg-green-100 text-green-800';
+    if (semester?.includes('Summer')) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -136,24 +228,171 @@ export default function FileHistory() {
           <div className="text-left w-full md:w-auto">
             <h1 className="text-2xl font-bold text-gray-800">File History</h1>
             <p className="text-sm text-gray-500">
-              Collection of all your submitted files (One record per file)
+              Collection of all your submitted files with auto-synced semester and academic year
             </p>
           </div>
-          <input
-            type="text"
-            placeholder="Search files..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
-          />
+          <div className="flex gap-3 w-full md:w-auto">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
+            <input
+              type="text"
+              placeholder="Search files..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
+            />
+          </div>
         </div>
 
-        {/* Desktop Grid Header - Hidden on mobile */}
+        {/* Filtering Options */}
+        {showFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
+            {/* First Row - 4 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Document Type
+                </label>
+                <select
+                  value={documentTypeFilter}
+                  onChange={(e) => {
+                    setDocumentTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Types</option>
+                  {getUniqueValues('document_type').map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Subject Code
+                </label>
+                <select
+                  value={subjectCodeFilter}
+                  onChange={(e) => {
+                    setSubjectCodeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Subjects</option>
+                  {getUniqueValues('subject_code').map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Semester (Auto-sync)
+                </label>
+                <select
+                  value={semesterFilter}
+                  onChange={(e) => {
+                    setSemesterFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Semesters</option>
+                  {getUniqueValues('semester').map(semester => (
+                    <option key={semester} value={semester}>{semester}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Academic Year (Auto-sync)
+                </label>
+                <select
+                  value={schoolYearFilter}
+                  onChange={(e) => {
+                    setSchoolYearFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Years</option>
+                  {getUniqueValues('school_year').map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Second Row - Sort and Reset */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Sort by:
+                </label>
+                <select
+                  value={sortOption}
+                  onChange={(e) => {
+                    setSortOption(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="most_recent">Most Recent</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </div>
+              
+              <div className="col-span-1">
+                <div className="flex items-center gap-2 h-full">
+                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                </div>
+              </div>
+              
+              <div className="col-span-1 text-right">
+                {(documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter || sortOption !== "most_recent") && (
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Filter Summary */}
+            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
+              {filteredFiles.length} of {files.length} files
+              {documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter ? (
+                <span className="ml-2 text-blue-600">
+                  ({[
+                    documentTypeFilter && `Type: ${documentTypeFilter}`,
+                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                    semesterFilter && `Semester: ${semesterFilter}`,
+                    schoolYearFilter && `Year: ${schoolYearFilter}`
+                  ].filter(Boolean).join(", ")})
+                </span>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Grid Header - UPDATED with auto-synced fields */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg">
-          <div className="col-span-4 text-sm font-semibold text-gray-600">File Name</div>
+          <div className="col-span-3 text-sm font-semibold text-gray-600">File Name</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">Document Type</div>
-          <div className="col-span-2 text-sm font-semibold text-gray-600">TOS Type</div>
+          <div className="col-span-1 text-sm font-semibold text-gray-600">TOS Type</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">Course Sections</div>
+          <div className="col-span-2 text-sm font-semibold text-gray-600">Semester & Year</div>
           <div className="col-span-2 text-sm font-semibold text-gray-600">Date Submitted</div>
         </div>
 
@@ -164,11 +403,11 @@ export default function FileHistory() {
               <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
               <span className="ml-3 text-gray-500">Loading files...</span>
             </div>
-          ) : files.length > 0 ? (
+          ) : filteredFiles.length > 0 ? (
             <>
-              {/* Desktop Grid Layout */}
+              {/* Desktop Grid Layout - UPDATED */}
               <div className="hidden md:block">
-                {files.map((file) => {
+                {filteredFiles.map((file) => {
                   const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
                   const DocumentTypeIcon = documentTypeDetails.icon;
                   
@@ -178,7 +417,7 @@ export default function FileHistory() {
                       className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                       {/* File Name */}
-                      <div className="col-span-4">
+                      <div className="col-span-3">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
                             <DocumentTypeIcon className="w-4 h-4" />
@@ -203,7 +442,7 @@ export default function FileHistory() {
                       </div>
 
                       {/* TOS Type */}
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         {file.tos_type ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
                             {file.tos_type}
@@ -213,7 +452,7 @@ export default function FileHistory() {
                         )}
                       </div>
 
-                      {/* Course Sections */}
+                      {/* Course Sections (Auto-synced) */}
                       <div className="col-span-2">
                         <div className="flex flex-wrap gap-1">
                           {file.course_sections && Array.isArray(file.course_sections) ? (
@@ -228,6 +467,16 @@ export default function FileHistory() {
                           ) : (
                             <span className="text-gray-400 text-xs">N/A</span>
                           )}
+                        </div>
+                      </div>
+
+                      {/* Semester & Academic Year (Auto-synced) */}
+                      <div className="col-span-2">
+                        <div className="space-y-1">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(file.semester)}`}>
+                            {file.semester}
+                          </span>
+                          <div className="text-xs text-gray-600">{file.school_year}</div>
                         </div>
                       </div>
 
@@ -246,9 +495,9 @@ export default function FileHistory() {
                 })}
               </div>
 
-              {/* Mobile Cards Layout */}
+              {/* Mobile Cards Layout - UPDATED */}
               <div className="md:hidden grid grid-cols-1 gap-4 p-4">
-                {files.map((file) => {
+                {filteredFiles.map((file) => {
                   const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
                   const DocumentTypeIcon = documentTypeDetails.icon;
                   
@@ -277,6 +526,14 @@ export default function FileHistory() {
                           <span className="text-gray-500">TOS Type:</span>
                           <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
                         </div>
+                        <div>
+                          <span className="text-gray-500">Semester:</span>
+                          <p className="font-medium">{file.semester}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Academic Year:</span>
+                          <p className="font-medium">{file.school_year}</p>
+                        </div>
                         <div className="flex items-center gap-2 text-gray-600">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <div>
@@ -288,7 +545,7 @@ export default function FileHistory() {
 
                       {/* Course Sections in Mobile */}
                       <div>
-                        <span className="text-gray-500 text-sm">Course Sections:</span>
+                        <span className="text-gray-500 text-sm">Course Sections (Auto-sync):</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {file.course_sections && Array.isArray(file.course_sections) ? (
                             file.course_sections.map((section, index) => (
@@ -314,23 +571,34 @@ export default function FileHistory() {
             <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                {search ? "No files found" : "No files submitted yet"}
+                {search || documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter 
+                  ? "No files found with current filters" 
+                  : "No files submitted yet"}
               </h3>
               <p className="text-gray-500 max-w-md mx-auto text-sm">
-                {search 
-                  ? "Try adjusting your search terms to find what you're looking for."
-                  : "Files you submit will appear in your history here."
-                }
+                {search || documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter 
+                  ? "Try adjusting your search terms or filters to find what you're looking for."
+                  : "Files you submit will appear in your history here with auto-synced semester and academic year."}
               </p>
             </div>
           )}
         </div>
 
-        {/* Pagination - Same style as User Management */}
+        {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
             <div className="text-sm text-gray-600">
-              Showing {files.length} of {pagination.totalRecords} files
+              Showing {filteredFiles.length} of {files.length} files
+              {documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter ? (
+                <span className="ml-2 text-blue-600">
+                  ({[
+                    documentTypeFilter && `Type: ${documentTypeFilter}`,
+                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                    semesterFilter && `Semester: ${semesterFilter}`,
+                    schoolYearFilter && `Year: ${schoolYearFilter}`
+                  ].filter(Boolean).join(", ")})
+                </span>
+              ) : null}
             </div>
             
             <div className="flex items-center gap-3">

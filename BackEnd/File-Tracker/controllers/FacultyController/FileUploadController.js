@@ -115,7 +115,7 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED: No duplicate records, one record per file
+// File Upload Controller - UPDATED: Auto-sync semester and school_year
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
@@ -155,7 +155,7 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    // Get faculty loaded data
+    // Get faculty loaded data - INCLUDING SEMESTER AND SCHOOL_YEAR
     const facultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
       subject_code: subject_code
@@ -170,6 +170,8 @@ export const uploadFile = async (req, res) => {
 
     const subject_title = facultyLoaded.subject_title;
     const course_sections = facultyLoaded.course_sections || [];
+    const semester = facultyLoaded.semester; // Get from faculty load
+    const school_year = facultyLoaded.school_year; // Get from faculty load
 
     if (course_sections.length === 0) {
       return res.status(400).json({
@@ -177,6 +179,13 @@ export const uploadFile = async (req, res) => {
         message: "No course sections found for this subject. Please update your faculty load.",
       });
     }
+
+    console.log("💾 Auto-synced data:", { 
+      semester, 
+      school_year, 
+      course_sections, 
+      subject_title 
+    });
 
     console.log("💾 Saving files locally...");
     
@@ -205,6 +214,8 @@ export const uploadFile = async (req, res) => {
         subject_code,
         course_sections: course_sections, // Store as array
         subject_title,
+        semester, // Auto-synced from faculty load
+        school_year, // Auto-synced from faculty load
         status: "pending", 
         file_path: `/uploads/${file.filename}`,
         original_name: file.originalname,
@@ -215,6 +226,7 @@ export const uploadFile = async (req, res) => {
       const savedFile = await newFile.save();
       allSavedFiles.push(savedFile);
       console.log(`✅ Created ONE file record for: ${file.originalname} with ${course_sections.length} sections`);
+      console.log(`📚 Auto-synced: Semester=${semester}, School Year=${school_year}`);
     }
 
     console.log(`🎉 Total created: ${allSavedFiles.length} file records for ${req.files.length} files`);
@@ -229,10 +241,12 @@ export const uploadFile = async (req, res) => {
           faculty_id: savedFile.faculty_id,
           subject_code: savedFile.subject_code,
           course_sections: savedFile.course_sections, // Array of sections
+          semester: savedFile.semester, // Pass semester to history
+          school_year: savedFile.school_year, // Pass school_year to history
           date_submitted: new Date()
         });
       }
-      console.log("✅ File history created (ONE per file)");
+      console.log("✅ File history created (ONE per file) with auto-synced semester and school year");
     } catch (historyError) {
       console.error("⚠️ Error creating file history:", historyError);
     }
@@ -267,6 +281,8 @@ export const uploadFile = async (req, res) => {
           document_type: file.document_type,
           subject_code: file.subject_code,
           course_sections: file.course_sections, // Return as array
+          semester: file.semester, // Include semester in response
+          school_year: file.school_year, // Include school_year in response
           status: file.status,
           uploaded_at: file.uploaded_at
         })),
