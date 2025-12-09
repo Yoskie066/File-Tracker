@@ -43,7 +43,7 @@ const fileFilter = (req, file, cb) => {
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit per file
+  limits: { fileSize: 10 * 1024 * 1024 }, 
 });
 
 // Generate Unique File ID
@@ -115,7 +115,7 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED: Auto-sync semester and school_year
+// File Upload Controller
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
@@ -155,7 +155,7 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    // Get faculty loaded data - INCLUDING SEMESTER AND SCHOOL_YEAR
+    // Get faculty loaded data 
     const facultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
       subject_code: subject_code
@@ -241,8 +241,6 @@ export const uploadFile = async (req, res) => {
           faculty_id: savedFile.faculty_id,
           subject_code: savedFile.subject_code,
           course_sections: savedFile.course_sections, // Array of sections
-          semester: savedFile.semester, // Pass semester to history
-          school_year: savedFile.school_year, // Pass school_year to history
           date_submitted: new Date()
         });
       }

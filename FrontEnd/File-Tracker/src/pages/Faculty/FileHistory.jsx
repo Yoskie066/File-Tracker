@@ -18,11 +18,9 @@ export default function FileHistory() {
   const [pagination, setPagination] = useState({});
   const itemsPerPage = 12;
   
-  // Filter states
+  //  filter states
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [semesterFilter, setSemesterFilter] = useState("");
-  const [schoolYearFilter, setSchoolYearFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -80,9 +78,8 @@ export default function FileHistory() {
     return () => clearTimeout(timeoutId);
   }, [search]);
 
-  // Get document type icon and color with TOS type support
+  // Get document type icon and color 
   const getDocumentTypeDetails = (documentType, tosType = null) => {
-    // Handle TOS files with specific types
     if (documentType === 'tos-midterm' || (documentType === 'tos' && tosType === 'midterm')) {
       return { 
         icon: File, 
@@ -108,7 +105,7 @@ export default function FileHistory() {
     return typeMap[documentType] || { icon: File, color: 'bg-gray-100 text-gray-600 border-gray-200', label: documentType };
   };
 
-  // Format date
+  // Format date and time 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -117,7 +114,6 @@ export default function FileHistory() {
     });
   };
 
-  // Format time
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString('en-US', {
       hour: '2-digit',
@@ -125,13 +121,7 @@ export default function FileHistory() {
     });
   };
 
-  // Format course sections (array to string)
-  const formatCourseSections = (sections) => {
-    if (!sections || !Array.isArray(sections)) return 'N/A';
-    return sections.join(', ');
-  };
-
-  // Get unique values for filters
+  // UPDATED: Get unique values for filters 
   const getUniqueValues = (key) => {
     const values = new Set();
     
@@ -140,36 +130,28 @@ export default function FileHistory() {
         values.add(getDocumentTypeDetails(file.document_type, file.tos_type).label);
       } else if (key === 'subject_code' && file.subject_code) {
         values.add(file.subject_code);
-      } else if (key === 'semester' && file.semester) {
-        values.add(file.semester);
-      } else if (key === 'school_year' && file.school_year) {
-        values.add(file.school_year);
       }
     });
 
     return Array.from(values).sort();
   };
 
-  // Reset all filters
+  // UPDATED: Reset all filters 
   const resetFilters = () => {
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
-    setSemesterFilter("");
-    setSchoolYearFilter("");
     setSortOption("most_recent");
     setCurrentPage(1);
   };
 
-  // Apply filters to files
+  // UPDATED: Apply filters to files 
   const getFilteredFiles = () => {
     let filtered = (Array.isArray(files) ? files : []);
 
     // Apply search filter
     filtered = filtered.filter((file) =>
-      [file.file_name, file.document_type, file.subject_code, file.semester, file.school_year]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
-      (file.course_sections && Array.isArray(file.course_sections) && 
-        file.course_sections.some(section => section.toLowerCase().includes(search.toLowerCase())))
+      [file.file_name, file.document_type, file.subject_code]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
     // Apply advanced filters
@@ -181,14 +163,6 @@ export default function FileHistory() {
     
     if (subjectCodeFilter) {
       filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
-    }
-    
-    if (semesterFilter) {
-      filtered = filtered.filter(file => file.semester === semesterFilter);
-    }
-    
-    if (schoolYearFilter) {
-      filtered = filtered.filter(file => file.school_year === schoolYearFilter);
     }
 
     // Apply sorting
@@ -211,19 +185,11 @@ export default function FileHistory() {
 
   const filteredFiles = getFilteredFiles();
 
-  // Get semester badge color
-  const getSemesterColor = (semester) => {
-    if (semester?.includes('1st')) return 'bg-purple-100 text-purple-800';
-    if (semester?.includes('2nd')) return 'bg-green-100 text-green-800';
-    if (semester?.includes('Summer')) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header  */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div className="text-left w-full md:w-auto">
             <h1 className="text-2xl font-bold text-gray-800">File History</h1>
@@ -249,11 +215,11 @@ export default function FileHistory() {
           </div>
         </div>
 
-        {/* Filtering Options */}
+        {/* UPDATED: Filtering Options */}
         {showFilters && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
-            {/* First Row - 4 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* First Row - 2 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Document Type
@@ -294,47 +260,6 @@ export default function FileHistory() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Semester (Auto-sync)
-                </label>
-                <select
-                  value={semesterFilter}
-                  onChange={(e) => {
-                    setSemesterFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Semesters</option>
-                  {getUniqueValues('semester').map(semester => (
-                    <option key={semester} value={semester}>{semester}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Academic Year (Auto-sync)
-                </label>
-                <select
-                  value={schoolYearFilter}
-                  onChange={(e) => {
-                    setSchoolYearFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Years</option>
-                  {getUniqueValues('school_year').map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Second Row - Sort and Reset */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Sort by:
                 </label>
                 <select
@@ -349,16 +274,17 @@ export default function FileHistory() {
                   <option value="oldest">Oldest</option>
                 </select>
               </div>
-              
-              <div className="col-span-1">
-                <div className="flex items-center gap-2 h-full">
-                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
-                </div>
+            </div>
+
+            {/* Second Row - Sort info and Reset */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
               </div>
               
-              <div className="col-span-1 text-right">
-                {(documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter || sortOption !== "most_recent") && (
+              <div className="text-right">
+                {(documentTypeFilter || subjectCodeFilter || sortOption !== "most_recent") && (
                   <button
                     onClick={resetFilters}
                     className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -372,13 +298,11 @@ export default function FileHistory() {
             {/* Filter Summary */}
             <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
               {filteredFiles.length} of {files.length} files
-              {documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter ? (
+              {documentTypeFilter || subjectCodeFilter ? (
                 <span className="ml-2 text-blue-600">
                   ({[
                     documentTypeFilter && `Type: ${documentTypeFilter}`,
-                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
-                    semesterFilter && `Semester: ${semesterFilter}`,
-                    schoolYearFilter && `Year: ${schoolYearFilter}`
+                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`
                   ].filter(Boolean).join(", ")})
                 </span>
               ) : null}
@@ -386,14 +310,12 @@ export default function FileHistory() {
           </div>
         )}
 
-        {/* Desktop Grid Header - UPDATED with auto-synced fields */}
+        {/* UPDATED: Desktop Grid Header  */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg">
-          <div className="col-span-3 text-sm font-semibold text-gray-600">File Name</div>
-          <div className="col-span-2 text-sm font-semibold text-gray-600">Document Type</div>
-          <div className="col-span-1 text-sm font-semibold text-gray-600">TOS Type</div>
-          <div className="col-span-2 text-sm font-semibold text-gray-600">Course Sections</div>
-          <div className="col-span-2 text-sm font-semibold text-gray-600">Semester & Year</div>
-          <div className="col-span-2 text-sm font-semibold text-gray-600">Date Submitted</div>
+          <div className="col-span-4 text-sm font-semibold text-gray-600">File Name</div>
+          <div className="col-span-3 text-sm font-semibold text-gray-600">Document Type</div>
+          <div className="col-span-2 text-sm font-semibold text-gray-600">TOS Type</div>
+          <div className="col-span-3 text-sm font-semibold text-gray-600">Date Submitted</div>
         </div>
 
         {/* Files List Container */}
@@ -405,7 +327,7 @@ export default function FileHistory() {
             </div>
           ) : filteredFiles.length > 0 ? (
             <>
-              {/* Desktop Grid Layout - UPDATED */}
+              {/* UPDATED: Desktop Grid Layout */}
               <div className="hidden md:block">
                 {filteredFiles.map((file) => {
                   const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
@@ -417,7 +339,7 @@ export default function FileHistory() {
                       className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                       {/* File Name */}
-                      <div className="col-span-3">
+                      <div className="col-span-4">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
                             <DocumentTypeIcon className="w-4 h-4" />
@@ -434,7 +356,7 @@ export default function FileHistory() {
                       </div>
 
                       {/* Document Type */}
-                      <div className="col-span-2">
+                      <div className="col-span-3">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${documentTypeDetails.color} border`}>
                           <DocumentTypeIcon className="w-3 h-3" />
                           {documentTypeDetails.label}
@@ -442,7 +364,7 @@ export default function FileHistory() {
                       </div>
 
                       {/* TOS Type */}
-                      <div className="col-span-1">
+                      <div className="col-span-2">
                         {file.tos_type ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
                             {file.tos_type}
@@ -452,36 +374,8 @@ export default function FileHistory() {
                         )}
                       </div>
 
-                      {/* Course Sections (Auto-synced) */}
-                      <div className="col-span-2">
-                        <div className="flex flex-wrap gap-1">
-                          {file.course_sections && Array.isArray(file.course_sections) ? (
-                            file.course_sections.map((section, index) => (
-                              <span 
-                                key={index}
-                                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
-                              >
-                                {section}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 text-xs">N/A</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Semester & Academic Year (Auto-synced) */}
-                      <div className="col-span-2">
-                        <div className="space-y-1">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(file.semester)}`}>
-                            {file.semester}
-                          </span>
-                          <div className="text-xs text-gray-600">{file.school_year}</div>
-                        </div>
-                      </div>
-
                       {/* Date Submitted */}
-                      <div className="col-span-2">
+                      <div className="col-span-3">
                         <div className="flex items-center gap-2 text-gray-600 text-sm">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <div>
@@ -495,7 +389,7 @@ export default function FileHistory() {
                 })}
               </div>
 
-              {/* Mobile Cards Layout - UPDATED */}
+              {/* UPDATED: Mobile Cards Layout  */}
               <div className="md:hidden grid grid-cols-1 gap-4 p-4">
                 {filteredFiles.map((file) => {
                   const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
@@ -526,39 +420,12 @@ export default function FileHistory() {
                           <span className="text-gray-500">TOS Type:</span>
                           <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
                         </div>
-                        <div>
-                          <span className="text-gray-500">Semester:</span>
-                          <p className="font-medium">{file.semester}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Academic Year:</span>
-                          <p className="font-medium">{file.school_year}</p>
-                        </div>
                         <div className="flex items-center gap-2 text-gray-600">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <div>
                             <div className="font-medium">{formatDate(file.date_submitted)}</div>
                             <div className="text-xs text-gray-500">{formatTime(file.date_submitted)}</div>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Course Sections in Mobile */}
-                      <div>
-                        <span className="text-gray-500 text-sm">Course Sections (Auto-sync):</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {file.course_sections && Array.isArray(file.course_sections) ? (
-                            file.course_sections.map((section, index) => (
-                              <span 
-                                key={index}
-                                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
-                              >
-                                {section}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 text-xs">N/A</span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -571,31 +438,29 @@ export default function FileHistory() {
             <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                {search || documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter 
+                {search || documentTypeFilter || subjectCodeFilter
                   ? "No files found with current filters" 
                   : "No files submitted yet"}
               </h3>
               <p className="text-gray-500 max-w-md mx-auto text-sm">
-                {search || documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter 
+                {search || documentTypeFilter || subjectCodeFilter
                   ? "Try adjusting your search terms or filters to find what you're looking for."
-                  : "Files you submit will appear in your history here with auto-synced semester and academic year."}
+                  : "Files you submit will appear in your history here."}
               </p>
             </div>
           )}
         </div>
 
-        {/* Pagination */}
+        {/* UPDATED: Pagination  */}
         {pagination && pagination.totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
             <div className="text-sm text-gray-600">
               Showing {filteredFiles.length} of {files.length} files
-              {documentTypeFilter || subjectCodeFilter || semesterFilter || schoolYearFilter ? (
+              {documentTypeFilter || subjectCodeFilter ? (
                 <span className="ml-2 text-blue-600">
                   ({[
                     documentTypeFilter && `Type: ${documentTypeFilter}`,
-                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
-                    semesterFilter && `Semester: ${semesterFilter}`,
-                    schoolYearFilter && `Year: ${schoolYearFilter}`
+                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`
                   ].filter(Boolean).join(", ")})
                 </span>
               ) : null}

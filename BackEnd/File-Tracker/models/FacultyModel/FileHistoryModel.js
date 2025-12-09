@@ -27,18 +27,6 @@ const fileHistorySchema = new mongoose.Schema(
     subject_code: { 
       type: String, 
       required: true 
-    },
-    course_sections: { 
-      type: [String], 
-      required: true 
-    },
-    semester: { 
-      type: String, 
-      required: true 
-    },
-    school_year: { 
-      type: String, 
-      required: true 
     }
   },
   { 
@@ -46,11 +34,9 @@ const fileHistorySchema = new mongoose.Schema(
   }
 );
 
-// Index for better query performance
+// Updated indexes - removed semester and school_year
 fileHistorySchema.index({ faculty_id: 1, date_submitted: -1 });
 fileHistorySchema.index({ date_submitted: -1 });
-fileHistorySchema.index({ semester: 1 });
-fileHistorySchema.index({ school_year: 1 });
 
 const FileHistory = mongoose.model("FileHistory", fileHistorySchema);
 export default FileHistory;
