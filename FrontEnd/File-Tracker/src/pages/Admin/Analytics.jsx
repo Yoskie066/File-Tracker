@@ -14,6 +14,7 @@ import {
   Legend, 
   ArcElement 
 } from 'chart.js';
+import { Filter, ArrowUpDown } from 'lucide-react';
 
 // Register Chart.js components
 ChartJS.register(
@@ -35,11 +36,14 @@ export default function Analytics() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [error, setError] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Filter states
+  const [dateRangeMode, setDateRangeMode] = useState('year');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [dateRangeMode, setDateRangeMode] = useState('year'); // 'year' or 'custom'
-
+  
   // Performance 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -121,7 +125,7 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [selectedYear, startDate, endDate]);
+  }, [selectedYear, startDate, endDate, dateRangeMode]);
 
   // Format file size
   const formatFileSize = (bytes) => {
@@ -141,12 +145,13 @@ export default function Analytics() {
     });
   };
 
-  // Reset date filters
+  // Reset all filters
   const resetFilters = () => {
     setSelectedYear(new Date().getFullYear());
     setStartDate(null);
     setEndDate(null);
     setDateRangeMode('year');
+    setCurrentPage(1);
   };
 
   // Search filter 
@@ -172,6 +177,18 @@ export default function Analytics() {
         position: 'bottom',
       },
     },
+  };
+
+  // Calculate TOS total (tos-midterm + tos-final)
+  const calculateTOSTotal = () => {
+    const docDist = analyticsData?.admin_notice_management?.document_type_distribution || {};
+    return (docDist['tos-midterm'] || 0) + (docDist['tos-final'] || 0);
+  };
+
+  // Calculate All Files total for admin notice
+  const calculateAllFilesTotal = () => {
+    const docDist = analyticsData?.admin_notice_management?.document_type_distribution || {};
+    return Object.values(docDist).reduce((sum, count) => sum + count, 0);
   };
 
   // 1. User Distribution (Admin vs Faculty)
@@ -263,25 +280,39 @@ export default function Analytics() {
     };
   };
 
-  // 5. Semester Distribution
-  const getSemesterDistributionData = () => {
-    const semesters = analyticsData?.file_management?.semester_distribution || {
-      '1st_semester': 0,
-      '2nd_semester': 0,
-      'summer': 0
-    };
+  // 5. Admin Notice Document Type Distribution with All Files
+  const getAdminNoticeDocTypeData = () => {
+    const documentTypes = analyticsData?.admin_notice_management?.document_type_distribution || {};
     
-    const labels = ['1st Semester', '2nd Semester', 'Summer'];
-    const data = [
-      semesters['1st_semester'] || 0,
-      semesters['2nd_semester'] || 0,
-      semesters['summer'] || 0
+    // Add TOS total and All Files
+    const tosTotal = calculateTOSTotal();
+    const allFilesTotal = calculateAllFilesTotal();
+    
+    const labels = [
+      'Syllabus',
+      'TOS',
+      'Midterm Exam',
+      'Final Exam',
+      'Instructional Materials',
+      'All Files'
     ];
-    
+
+    const data = [
+      documentTypes.syllabus || 0,
+      tosTotal,
+      documentTypes['midterm-exam'] || 0,
+      documentTypes['final-exam'] || 0,
+      documentTypes['instructional-materials'] || 0,
+      allFilesTotal
+    ];
+
     const backgroundColors = [
-      '#4F46E5', // Indigo - 1st Semester
-      '#10B981', // Emerald - 2nd Semester
-      '#F59E0B', // Amber - Summer
+      '#4F46E5', // Indigo - Syllabus
+      '#10B981', // Emerald - TOS
+      '#F59E0B', // Amber - Midterm Exam
+      '#EF4444', // Red - Final Exam
+      '#8B5CF6', // Violet - Instructional Materials
+      '#6B7280', // Gray - All Files
     ];
 
     return {
@@ -297,47 +328,7 @@ export default function Analytics() {
     };
   };
 
-  // 6. Admin Notice Document Type Distribution
-  const getAdminNoticeDocTypeData = () => {
-    const documentTypes = analyticsData?.admin_notice_management?.document_type_distribution || {};
-    
-    const labels = Object.keys(documentTypes).map(type => {
-      const typeMap = {
-        'syllabus': 'Syllabus',
-        'tos-midterm': 'TOS Midterm',
-        'tos-final': 'TOS Final',
-        'midterm-exam': 'Midterm Exam',
-        'final-exam': 'Final Exam',
-        'instructional-materials': 'Instructional Materials'
-      };
-      return typeMap[type] || type;
-    });
-
-    const data = Object.values(documentTypes);
-    
-    const backgroundColors = [
-      '#4F46E5', // Indigo - Syllabus
-      '#10B981', // Emerald - TOS Midterm
-      '#0EA5E9', // Sky - TOS Final
-      '#F59E0B', // Amber - Midterm Exam
-      '#EF4444', // Red - Final Exam
-      '#8B5CF6', // Violet - Instructional Materials
-    ];
-
-    return {
-      labels: labels,
-      datasets: [
-        {
-          data: data,
-          backgroundColor: backgroundColors.slice(0, data.length),
-          borderColor: backgroundColors.slice(0, data.length),
-          borderWidth: 2,
-        }
-      ],
-    };
-  };
-
-  // 7. Admin Notice Status Distribution
+  // 6. Admin Notice Status Distribution
   const getAdminNoticeStatusData = () => ({
     labels: ['Overdue', 'Not Overdue'],
     datasets: [
@@ -353,7 +344,7 @@ export default function Analytics() {
     ],
   });
 
-  // 8. System Variables Distribution
+  // 7. System Variables Distribution
   const getSystemVariablesData = () => {
     const variableTypes = analyticsData?.system_variables?.variable_type_distribution || {
       subject_code: 0,
@@ -411,7 +402,7 @@ export default function Analytics() {
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header with Date Filters */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
@@ -425,73 +416,18 @@ export default function Analytics() {
             )}
           </div>
           
-          {/* Date Filter Controls */}
-          <div className="flex flex-col md:flex-row gap-3 items-center">
-            <div className="flex gap-2 items-center">
-              <button
-                onClick={() => setDateRangeMode('year')}
-                className={`px-3 py-1.5 text-sm rounded-md ${dateRangeMode === 'year' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700'}`}
-              >
-                By Year
-              </button>
-              <button
-                onClick={() => setDateRangeMode('custom')}
-                className={`px-3 py-1.5 text-sm rounded-md ${dateRangeMode === 'custom' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700'}`}
-              >
-                Custom Range
-              </button>
-            </div>
-            
-            {dateRangeMode === 'year' ? (
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Year:</label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                >
-                  {availableYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col md:flex-row gap-2">
-                  <div>
-                    <label className="text-xs text-gray-500 block">Start Date</label>
-                    <DatePicker
-                      selected={startDate}
-                      onChange={(date) => setStartDate(date)}
-                      selectsStart
-                      startDate={startDate}
-                      endDate={endDate}
-                      className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-full md:w-40 focus:outline-none focus:ring-2 focus:ring-black"
-                      placeholderText="Select start date"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 block">End Date</label>
-                    <DatePicker
-                      selected={endDate}
-                      onChange={(date) => setEndDate(date)}
-                      selectsEnd
-                      startDate={startDate}
-                      endDate={endDate}
-                      minDate={startDate}
-                      className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-full md:w-40 focus:outline-none focus:ring-2 focus:ring-black"
-                      placeholderText="Select end date"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-            
+          <div className="flex gap-3 w-full md:w-auto">
             <button
-              onClick={resetFilters}
-              className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
             >
-              Reset
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+              {showFilters && (
+                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
             </button>
             
             <div className="flex gap-2">
@@ -519,6 +455,131 @@ export default function Analytics() {
           </div>
         </div>
 
+        {/* Filtering Options */}
+        {showFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Date Range Mode Toggle */}
+              <div className="col-span-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Date Range Mode
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDateRangeMode('year')}
+                    className={`flex-1 px-3 py-2 text-sm rounded-md border ${
+                      dateRangeMode === 'year' 
+                        ? 'bg-black text-white border-black' 
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    By Year
+                  </button>
+                  <button
+                    onClick={() => setDateRangeMode('custom')}
+                    className={`flex-1 px-3 py-2 text-sm rounded-md border ${
+                      dateRangeMode === 'custom' 
+                        ? 'bg-black text-white border-black' 
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Custom Range
+                  </button>
+                </div>
+              </div>
+
+              {/* Year Filter */}
+              {dateRangeMode === 'year' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Year *
+                  </label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    {availableYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Custom Date Range */}
+              {dateRangeMode === 'custom' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Start Date *
+                    </label>
+                    <DatePicker
+                      selected={startDate}
+                      onChange={(date) => setStartDate(date)}
+                      selectsStart
+                      startDate={startDate}
+                      endDate={endDate}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                      placeholderText="Select start date"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      End Date *
+                    </label>
+                    <DatePicker
+                      selected={endDate}
+                      onChange={(date) => setEndDate(date)}
+                      selectsEnd
+                      startDate={startDate}
+                      endDate={endDate}
+                      minDate={startDate}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                      placeholderText="Select end date"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Reset Button */}
+              <div className="flex items-end">
+                <button
+                  onClick={resetFilters}
+                  className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors w-full"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+              <div className="col-span-1">
+                <span className="text-xs text-gray-500">
+                  Currently viewing data for:{" "}
+                  <span className="font-medium text-gray-700">
+                    {dateRangeMode === 'year' 
+                      ? `Year ${selectedYear}`
+                      : startDate && endDate 
+                        ? `${formatDate(startDate)} to ${formatDate(endDate)}`
+                        : 'Please select date range'
+                    }
+                  </span>
+                </span>
+              </div>
+              
+              <div className="col-span-1">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">
+                    Mode: {dateRangeMode === 'year' ? 'By Year' : 'Custom Range'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Date Range Display */}
         <div className="mb-6 p-3 bg-blue-50 rounded-lg">
           <div className="flex items-center justify-between">
@@ -529,13 +590,13 @@ export default function Analytics() {
                   ? `Year ${selectedYear}`
                   : startDate && endDate 
                     ? `${formatDate(startDate)} to ${formatDate(endDate)}`
-                    : 'All time'
+                    : 'Please select date range'
                 }
               </span>
             </div>
             {analyticsData?.filters && (
               <div className="text-sm text-gray-500">
-                Data generated on {formatDate(analyticsData.generated_at)}
+                Data generated on {formatDate(new Date())}
               </div>
             )}
           </div>
@@ -637,63 +698,40 @@ export default function Analytics() {
                     <span className="text-gray-600">Rejected:</span>
                     <span className="font-semibold text-red-600">{analyticsData?.file_management?.rejected_files || 0}</span>
                   </div>
-                  {/* Semester Distribution Summary */}
-                  <div className="pt-2 border-t">
-                    <div className="text-sm text-gray-500 mb-1">Semester Distribution:</div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div className="text-center">
-                        <div className="font-semibold">{analyticsData?.file_management?.semester_distribution?.['1st_semester'] || 0}</div>
-                        <div className="text-gray-500">1st Sem</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-semibold">{analyticsData?.file_management?.semester_distribution?.['2nd_semester'] || 0}</div>
-                        <div className="text-gray-500">2nd Sem</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-semibold">{analyticsData?.file_management?.semester_distribution?.summer || 0}</div>
-                        <div className="text-gray-500">Summer</div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Admin Notice Card */}
+              {/* Admin Notice Card - UPDATED */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Total:</span>
+                    <span className="text-gray-600">Total Files:</span>
                     <span className="font-semibold">{analyticsData?.admin_notice_management?.total_notices || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Overdue:</span>
-                    <span className="font-semibold text-red-600">{analyticsData?.admin_notice_management?.overdue_notices || 0}</span>
+                    <span className="text-gray-600">Syllabus:</span>
+                    <span className="font-semibold text-blue-600">{analyticsData?.admin_notice_management?.document_type_distribution?.syllabus || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Not Overdue:</span>
-                    <span className="font-semibold text-green-600">{analyticsData?.admin_notice_management?.not_overdue_notices || 0}</span>
+                    <span className="text-gray-600">TOS:</span>
+                    <span className="font-semibold text-green-600">{calculateTOSTotal()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Completion Rate:</span>
-                    <span className="font-semibold text-blue-600">
-                      {analyticsData?.admin_notice_management?.completion_rate || 0}%
-                    </span>
+                    <span className="text-gray-600">Midterm Exam:</span>
+                    <span className="font-semibold text-yellow-600">{analyticsData?.admin_notice_management?.document_type_distribution?.['midterm-exam'] || 0}</span>
                   </div>
-                  {/* Document Type Summary */}
-                  <div className="pt-2 border-t">
-                    <div className="text-sm text-gray-500 mb-1">Document Types:</div>
-                    <div className="grid grid-cols-2 gap-1 text-xs">
-                      {Object.entries(analyticsData?.admin_notice_management?.document_type_distribution || {})
-                        .filter(([_, count]) => count > 0)
-                        .slice(0, 4)
-                        .map(([type, count]) => (
-                          <div key={type} className="flex justify-between">
-                            <span className="truncate">{type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}:</span>
-                            <span className="font-semibold ml-1">{count}</span>
-                          </div>
-                        ))}
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Final Exam:</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.admin_notice_management?.document_type_distribution?.['final-exam'] || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Instructional Materials:</span>
+                    <span className="font-semibold text-purple-600">{analyticsData?.admin_notice_management?.document_type_distribution?.['instructional-materials'] || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 font-medium">All Files:</span>
+                    <span className="font-semibold text-gray-800">{calculateAllFilesTotal()}</span>
                   </div>
                 </div>
               </div>
@@ -726,7 +764,7 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* 3x4 Charts Section */}
+            {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* 1. User Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -760,15 +798,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 5. Semester Distribution */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Semester Distribution</h3>
-                <div className="h-64">
-                  <Doughnut data={getSemesterDistributionData()} options={chartOptions} />
-                </div>
-              </div>
-
-              {/* 6. Admin Notice Document Type Distribution */}
+              {/* 5. Admin Notice Document Types with All Files */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Document Types</h3>
                 <div className="h-64">
@@ -776,7 +806,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 7. Admin Notice Status */}
+              {/* 6. Admin Notice Status */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Status</h3>
                 <div className="h-64">
@@ -784,7 +814,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 8. System Variables Distribution */}
+              {/* 7. System Variables Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">
