@@ -1,4 +1,3 @@
-// models/AdminModel/AnalyticsModel.js
 import mongoose from "mongoose";
 
 const analyticsSchema = new mongoose.Schema(
@@ -54,7 +53,8 @@ const analyticsSchema = new mongoose.Schema(
         'tos-final': Number,
         'midterm-exam': Number,
         'final-exam': Number,
-        'instructional-materials': Number
+        'instructional-materials': Number,
+        'all-files': Number,
       }
     },
     

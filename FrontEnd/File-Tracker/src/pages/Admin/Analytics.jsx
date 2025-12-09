@@ -33,7 +33,7 @@ export default function Analytics() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [facultyPerformance, setFacultyPerformance] = useState([]);
   const [availableYears, setAvailableYears] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -121,6 +121,7 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchAvailableYears();
+    fetchAnalyticsData();
   }, []);
 
   useEffect(() => {
@@ -284,13 +285,10 @@ export default function Analytics() {
   const getAdminNoticeDocTypeData = () => {
     const documentTypes = analyticsData?.admin_notice_management?.document_type_distribution || {};
     
-    // Add TOS total and All Files
-    const tosTotal = calculateTOSTotal();
-    const allFilesTotal = calculateAllFilesTotal();
-    
     const labels = [
       'Syllabus',
-      'TOS',
+      'TOS Midterm',
+      'TOS Final',
       'Midterm Exam',
       'Final Exam',
       'Instructional Materials',
@@ -299,16 +297,18 @@ export default function Analytics() {
 
     const data = [
       documentTypes.syllabus || 0,
-      tosTotal,
+      documentTypes['tos-midterm'] || 0,
+      documentTypes['tos-final'] || 0,
       documentTypes['midterm-exam'] || 0,
       documentTypes['final-exam'] || 0,
       documentTypes['instructional-materials'] || 0,
-      allFilesTotal
+      documentTypes['all-files'] || 0
     ];
 
     const backgroundColors = [
       '#4F46E5', // Indigo - Syllabus
-      '#10B981', // Emerald - TOS
+      '#10B981', // Emerald - TOS Midterm
+      '#0EA5E9', // Sky - TOS Final
       '#F59E0B', // Amber - Midterm Exam
       '#EF4444', // Red - Final Exam
       '#8B5CF6', // Violet - Instructional Materials
@@ -387,16 +387,39 @@ export default function Analytics() {
     };
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading analytics data...</p>
-        </div>
-      </div>
-    );
-  }
+  // 8. Semester Distribution Chart - NEW
+  const getSemesterDistributionData = () => {
+    const semesterDist = analyticsData?.file_management?.semester_distribution || {
+      '1st_semester': 0,
+      '2nd_semester': 0,
+      'summer': 0
+    };
+    
+    const labels = ['1st Semester', '2nd Semester', 'Summer'];
+    const data = [
+      semesterDist['1st_semester'] || 0,
+      semesterDist['2nd_semester'] || 0,
+      semesterDist['summer'] || 0
+    ];
+
+    const backgroundColors = [
+      '#4F46E5', // Indigo - 1st Semester
+      '#10B981', // Emerald - 2nd Semester
+      '#F59E0B'  // Amber - Summer
+    ];
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 2,
+        }
+      ],
+    };
+  };
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -706,7 +729,7 @@ export default function Analytics() {
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Total Files:</span>
+                    <span className="text-gray-600">Total Notices:</span>
                     <span className="font-semibold">{analyticsData?.admin_notice_management?.total_notices || 0}</span>
                   </div>
                   <div className="flex justify-between">
@@ -714,8 +737,12 @@ export default function Analytics() {
                     <span className="font-semibold text-blue-600">{analyticsData?.admin_notice_management?.document_type_distribution?.syllabus || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">TOS:</span>
-                    <span className="font-semibold text-green-600">{calculateTOSTotal()}</span>
+                    <span className="text-gray-600">TOS Midterm:</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.admin_notice_management?.document_type_distribution?.['tos-midterm'] || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">TOS Final:</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.admin_notice_management?.document_type_distribution?.['tos-final'] || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Midterm Exam:</span>
@@ -731,7 +758,7 @@ export default function Analytics() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 font-medium">All Files:</span>
-                    <span className="font-semibold text-gray-800">{calculateAllFilesTotal()}</span>
+                    <span className="font-semibold text-gray-800">{analyticsData?.admin_notice_management?.document_type_distribution?.['all-files'] || 0}</span>
                   </div>
                 </div>
               </div>
@@ -798,7 +825,15 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 5. Admin Notice Document Types with All Files */}
+              {/* 5. Semester Distribution - NEW */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Semester Distribution</h3>
+                <div className="h-64">
+                  <Doughnut data={getSemesterDistributionData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* 6. Admin Notice Document Types */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Document Types</h3>
                 <div className="h-64">
@@ -806,7 +841,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 6. Admin Notice Status */}
+              {/* 7. Admin Notice Status */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Status</h3>
                 <div className="h-64">
@@ -814,7 +849,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 7. System Variables Distribution */}
+              {/* 8. System Variables Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">

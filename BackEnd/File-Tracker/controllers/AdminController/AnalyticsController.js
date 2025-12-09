@@ -1,4 +1,3 @@
-// controllers/AdminController/AnalyticsController.js
 import Analytics from "../../models/AdminModel/AnalyticsModel.js";
 import User from "../../models/AdminModel/UserManagementModel.js";
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
@@ -60,80 +59,6 @@ export const getAnalyticsData = async (req, res) => {
     const completedFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'completed' });
     const rejectedFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'rejected' });
 
-    // Get semester distribution from files
-    const semesterDistribution = await FileManagement.aggregate([
-      { $match: fileFilter },
-      {
-        $group: {
-          _id: '$semester',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Convert semester distribution to object format
-    const semesterDist = {
-      '1st_semester': 0,
-      '2nd_semester': 0,
-      'summer': 0
-    };
-
-    semesterDistribution.forEach(item => {
-      const semesterKey = item._id?.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      if (semesterDist.hasOwnProperty(semesterKey)) {
-        semesterDist[semesterKey] = item.count;
-      }
-    });
-
-    // Get admin notice statistics with date filter
-    const noticeFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
-    const totalNotices = await AdminNotice.countDocuments(noticeFilter);
-    const overdueNotices = await AdminNotice.countDocuments({
-      ...noticeFilter,
-      due_date: { $lt: new Date() }
-    });
-    const notOverdueNotices = totalNotices - overdueNotices;
-    const noticeCompletionRate = totalNotices > 0 ? 
-      Math.round(((totalNotices - overdueNotices) / totalNotices) * 100) : 0;
-
-    // Get admin notice document type distribution
-    const adminNoticeDocDistribution = await AdminNotice.aggregate([
-      { $match: noticeFilter },
-      {
-        $group: {
-          _id: '$document_type',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Convert admin notice document type distribution to object format
-    const adminNoticeDocDist = {
-      syllabus: 0,
-      'tos-midterm': 0,
-      'tos-final': 0,
-      'midterm-exam': 0,
-      'final-exam': 0,
-      'instructional-materials': 0
-    };
-
-    adminNoticeDocDistribution.forEach(item => {
-      if (adminNoticeDocDist.hasOwnProperty(item._id)) {
-        adminNoticeDocDist[item._id] = item.count;
-      }
-    });
-
-    // Get system variables statistics
-    const totalVariables = await SystemVariable.countDocuments();
-    const variableTypeDistribution = await SystemVariable.aggregate([
-      {
-        $group: {
-          _id: '$variable_type',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
     // Get document type distributions from FileManagement
     const documentTypeDistribution = await FileManagement.aggregate([
       { $match: fileFilter },
@@ -161,14 +86,101 @@ export const getAnalyticsData = async (req, res) => {
       }
     });
 
+    // Get semester distribution from files
+    const semesterDistribution = await FileManagement.aggregate([
+      { $match: fileFilter },
+      {
+        $group: {
+          _id: '$semester',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert semester distribution to object format
+    const semesterDist = {
+      '1st_semester': 0,
+      '2nd_semester': 0,
+      'summer': 0
+    };
+
+    semesterDistribution.forEach(item => {
+      if (item._id) {
+        // Normalize semester name
+        const semesterKey = item._id.toLowerCase().replace(/\s+/g, '_');
+        if (semesterDist.hasOwnProperty(semesterKey)) {
+          semesterDist[semesterKey] = item.count;
+        }
+      }
+    });
+
+    // Get admin notice statistics with date filter
+    const noticeFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
+    const totalNotices = await AdminNotice.countDocuments(noticeFilter);
+    const overdueNotices = await AdminNotice.countDocuments({
+      ...noticeFilter,
+      due_date: { $lt: new Date() }
+    });
+    const notOverdueNotices = totalNotices - overdueNotices;
+    const noticeCompletionRate = totalNotices > 0 ? 
+      Math.round(((totalNotices - overdueNotices) / totalNotices) * 100) : 0;
+
+    // Get admin notice document type distribution - UPDATED
+    const adminNoticeData = await AdminNotice.find(noticeFilter);
+    
+    // Calculate admin notice document type distribution
+    const adminNoticeDocDist = {
+      syllabus: 0,
+      'tos-midterm': 0,
+      'tos-final': 0,
+      'midterm-exam': 0,
+      'final-exam': 0,
+      'instructional-materials': 0,
+      'all-files': 0
+    };
+
+    adminNoticeData.forEach(notice => {
+      const docType = notice.document_type.toLowerCase();
+      
+      if (docType.includes('syllabus')) {
+        adminNoticeDocDist.syllabus++;
+      } else if (docType.includes('tos')) {
+        if (notice.tos_type === 'MIDTERM TOS') {
+          adminNoticeDocDist['tos-midterm']++;
+        } else if (notice.tos_type === 'FINAL TOS') {
+          adminNoticeDocDist['tos-final']++;
+        }
+      } else if (docType.includes('midterm') || docType.includes('midterm exam')) {
+        adminNoticeDocDist['midterm-exam']++;
+      } else if (docType.includes('final') || docType.includes('final exam')) {
+        adminNoticeDocDist['final-exam']++;
+      } else if (docType.includes('instructional') || docType.includes('instructional materials')) {
+        adminNoticeDocDist['instructional-materials']++;
+      } else if (docType.includes('all-files')) {
+        adminNoticeDocDist['all-files']++;
+      }
+    });
+
+    // Get system variables statistics
+    const totalVariables = await SystemVariable.countDocuments();
+    const variableTypeDistribution = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: '$variable_type',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
     const variableTypeDist = {
       subject_code: 0,
       course_section: 0,
       academic_year: 0,
       semester: 0
     };
+    
     variableTypeDistribution.forEach(item => {
-      if (variableTypeDist.hasOwnProperty(item._id)) {
+      if (item._id && variableTypeDist.hasOwnProperty(item._id)) {
         variableTypeDist[item._id] = item.count;
       }
     });
@@ -362,12 +374,38 @@ export const getAvailableYears = async (req, res) => {
       { $sort: { _id: -1 } }
     ]);
 
+    // Get distinct years from Admin
+    const adminYears = await Admin.aggregate([
+      {
+        $group: {
+          _id: { $year: "$created_at" }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
+    // Get distinct years from Faculty
+    const facultyYears = await Faculty.aggregate([
+      {
+        $group: {
+          _id: { $year: "$created_at" }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
     // Combine and deduplicate years
-    const allYears = [...new Set([
-      ...fileYears.map(item => item._id),
-      ...noticeYears.map(item => item._id),
-      new Date().getFullYear() // Include current year
-    ])].sort((a, b) => b - a);
+    const allYears = [
+      ...new Set([
+        ...fileYears.map(item => item._id),
+        ...noticeYears.map(item => item._id),
+        ...adminYears.map(item => item._id),
+        ...facultyYears.map(item => item._id),
+        new Date().getFullYear() // Include current year
+      ])
+    ]
+    .filter(year => year !== null)
+    .sort((a, b) => b - a);
 
     res.status(200).json({
       success: true,
