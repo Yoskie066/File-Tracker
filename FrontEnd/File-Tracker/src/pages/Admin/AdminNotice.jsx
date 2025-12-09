@@ -464,7 +464,7 @@ export default function AdminNoticeManagement() {
         </div>
 
         {/* Statistics Cards - UPDATED */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
             <div className="text-gray-600 text-xs font-medium">Total Files</div>
             <div className="text-xl font-bold text-gray-800">{adminNoticeStats.total}</div>

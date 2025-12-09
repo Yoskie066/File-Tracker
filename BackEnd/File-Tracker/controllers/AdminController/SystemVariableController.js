@@ -5,13 +5,18 @@ const generateVariableId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Create system variable - MODIFIED
+// Helper function to normalize strings for comparison
+const normalizeString = (str) => {
+  return str?.toString().trim().toLowerCase() || '';
+};
+
+// Create system variable - MODIFIED with case-insensitive checking
 export const createSystemVariable = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
     const { variable_type, created_by } = req.body;
-    let variable_name, subject_title, subject_code;
+    let variable_name, subject_title, subject_code, course_section, semester, academic_year;
 
     // Validation 
     if (!variable_type || !created_by) {
@@ -33,7 +38,7 @@ export const createSystemVariable = async (req, res) => {
       }
       variable_name = subject_code;
     } else if (variable_type === 'course_section') {
-      const course_section = req.body.course_section;
+      course_section = req.body.course_section;
       if (!course_section) {
         return res.status(400).json({ 
           success: false, 
@@ -42,7 +47,7 @@ export const createSystemVariable = async (req, res) => {
       }
       variable_name = course_section;
     } else if (variable_type === 'semester') {
-      const semester = req.body.semester;
+      semester = req.body.semester;
       if (!semester) {
         return res.status(400).json({ 
           success: false, 
@@ -51,7 +56,7 @@ export const createSystemVariable = async (req, res) => {
       }
       variable_name = semester;
     } else if (variable_type === 'academic_year') {
-      const academic_year = req.body.academic_year;
+      academic_year = req.body.academic_year;
       if (!academic_year) {
         return res.status(400).json({ 
           success: false, 
@@ -66,17 +71,22 @@ export const createSystemVariable = async (req, res) => {
       });
     }
 
-    // Check for duplicate
+    // Check for duplicate with case-insensitive comparison
     const existingVariable = await SystemVariable.findOne({
-      variable_type,
-      variable_name
+      variable_type
     });
 
     if (existingVariable) {
-      return res.status(409).json({
-        success: false,
-        message: `A ${variable_type.replace('_', ' ')} with this name already exists.`
-      });
+      // Normalize the variable names for comparison
+      const existingNameNormalized = normalizeString(existingVariable.variable_name);
+      const newNameNormalized = normalizeString(variable_name);
+      
+      if (existingNameNormalized === newNameNormalized) {
+        return res.status(409).json({
+          success: false,
+          message: `A ${variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`
+        });
+      }
     }
 
     const variable_id = generateVariableId();
@@ -155,7 +165,7 @@ export const getSystemVariableById = async (req, res) => {
   }
 };
 
-// Update system variable - MODIFIED
+// Update system variable - MODIFIED with case-insensitive checking
 export const updateSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
@@ -204,17 +214,27 @@ export const updateSystemVariable = async (req, res) => {
       }
     }
 
-    // Check for duplicate (excluding current one)
-    const duplicateVariable = await SystemVariable.findOne({
+    // Check for duplicate with case-insensitive comparison (excluding current one)
+    const duplicateVariables = await SystemVariable.find({
       variable_type,
-      variable_name,
       variable_id: { $ne: id }
     });
 
-    if (duplicateVariable) {
+    let isDuplicate = false;
+    for (const duplicate of duplicateVariables) {
+      const existingNameNormalized = normalizeString(duplicate.variable_name);
+      const newNameNormalized = normalizeString(variable_name);
+      
+      if (existingNameNormalized === newNameNormalized) {
+        isDuplicate = true;
+        break;
+      }
+    }
+
+    if (isDuplicate) {
       return res.status(409).json({
         success: false,
-        message: `A ${variable_type.replace('_', ' ')} with this name already exists.`
+        message: `A ${variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`
       });
     }
 

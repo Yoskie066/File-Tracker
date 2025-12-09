@@ -134,12 +134,13 @@ export default function SystemVariableManagement() {
     setIsEditMode(false);
   };
 
-  // Check for duplicate variable
+  // Check for duplicate variable with case-insensitive comparison
   const checkDuplicateVariable = () => {
     const variableName = getVariableNameByType();
     return variables.some(variable => 
       variable.variable_name.toLowerCase() === variableName.toLowerCase() &&
-      variable.variable_type === formData.variable_type
+      variable.variable_type === formData.variable_type &&
+      (!isEditMode || variable.variable_id !== formData.variable_id)
     );
   };
 
@@ -176,6 +177,11 @@ export default function SystemVariableManagement() {
       // Additional validation for subject_code
       if (formData.variable_type === 'subject_code' && !formData.subject_title) {
         throw new Error("Subject Title is required for Subject Code type");
+      }
+
+      // Client-side duplicate check (case-insensitive)
+      if (checkDuplicateVariable()) {
+        throw new Error(`A ${formData.variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`);
       }
 
       const url = isEditMode 
@@ -866,5 +872,5 @@ export default function SystemVariableManagement() {
         </Modal>
       </div>
     </div>
-  );
+  ); 
 }

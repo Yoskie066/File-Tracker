@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, ClipboardPlus, Download } from "lucide-react";
+import { CheckCircle, XCircle, ClipboardPlus, Download, Filter, ArrowUpDown, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
 import * as XLSX from 'xlsx';
@@ -15,10 +15,16 @@ export default function TaskDeliverablesManagement() {
   const [loading, setLoading] = useState(false);
   const taskDeliverablesPerPage = 10;
 
-  // History of Records states - NEWLY ADDED
+  // History of Records states
   const [historyView, setHistoryView] = useState(false);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [availableYears, setAvailableYears] = useState([]);
+
+  // Filtering and Sorting states
+  const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
+  const [courseSectionFilter, setCourseSectionFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+  const [sortOption, setSortOption] = useState("most_recent");
+  const [showFilters, setShowFilters] = useState(false);
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -44,7 +50,7 @@ export default function TaskDeliverablesManagement() {
     fetchTaskDeliverables();
   }, [navigate]);
 
-  // Fetch task deliverables from backend - MODIFIED to extract years
+  // Fetch task deliverables from backend
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
@@ -73,21 +79,9 @@ export default function TaskDeliverablesManagement() {
       
       if (result.success && Array.isArray(result.data)) {
         setTaskDeliverables(result.data);
-        
-        // Extract available years from task deliverables - NEWLY ADDED
-        const years = [...new Set(result.data.map(task => {
-          const date = new Date(task.updated_at || task.created_at);
-          return date.getFullYear();
-        }))].sort((a, b) => b - a);
-        
-        setAvailableYears(years);
-        if (years.length > 0 && !years.includes(selectedYear)) {
-          setSelectedYear(years[0]);
-        }
       } else {
         console.error("Unexpected API response format:", result);
         setTaskDeliverables([]);
-        setAvailableYears([]);
       }
     } catch (err) {
       console.error("Error fetching task deliverables:", err);
@@ -97,7 +91,6 @@ export default function TaskDeliverablesManagement() {
         navigate('/auth/login');
       }
       setTaskDeliverables([]);
-      setAvailableYears([]);
     } finally {
       setLoading(false);
     }
@@ -133,7 +126,7 @@ export default function TaskDeliverablesManagement() {
     return { overallStatus, overallColor, completedCount };
   };
 
-  // FIXED: Calculate stats for charts - SIMPLE AND ACCURATE COUNTING
+  // Calculate stats for charts
   const calculateStats = (taskList) => {
     if (!Array.isArray(taskList) || taskList.length === 0) {
       return { total: 0, pending: 0, completed: 0, rejected: 0, totalDeliverables: 0 };
@@ -172,7 +165,63 @@ export default function TaskDeliverablesManagement() {
     };
   };
 
-  // Get filtered task deliverables based on search and history view
+  // Get unique values for filters
+  const getUniqueValues = (key) => {
+    let filtered = (Array.isArray(taskDeliverables) ? taskDeliverables : []);
+
+    const values = new Set();
+    
+    filtered.forEach(task => {
+      if (key === 'subject_code' && task.subject_code) {
+        values.add(task.subject_code);
+      } else if (key === 'course_section' && task.course_section) {
+        values.add(task.course_section);
+      } else if (key === 'months') {
+        if (task.updated_at || task.created_at) {
+          const date = task.updated_at || task.created_at;
+          const month = new Date(date).getMonth();
+          const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          values.add(monthNames[month]);
+        }
+      } else if (key === 'years') {
+        if (task.updated_at || task.created_at) {
+          const date = task.updated_at || task.created_at;
+          const year = new Date(date).getFullYear();
+          values.add(year);
+        }
+      }
+    });
+
+    return Array.from(values).sort();
+  };
+
+  // Get unique years for filter
+  const getUniqueYears = () => {
+    const years = new Set();
+    taskDeliverables.forEach(task => {
+      if (task.updated_at || task.created_at) {
+        const date = task.updated_at || task.created_at;
+        const year = new Date(date).getFullYear();
+        years.add(year);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSubjectCodeFilter("");
+    setCourseSectionFilter("");
+    setMonthFilter("");
+    setYearFilter("");
+    setSortOption("most_recent");
+    setCurrentPage(1);
+  };
+
+  // Get filtered task deliverables based on search and filters
   const getFilteredTaskDeliverables = () => {
     let filtered = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
       .filter((td) => {
@@ -195,14 +244,55 @@ export default function TaskDeliverablesManagement() {
         );
       });
 
-    // Apply filters for history view - NEWLY ADDED
-    if (historyView) {
-      // Year filter
+    // Apply advanced filters
+    if (subjectCodeFilter) {
+      filtered = filtered.filter(task => task.subject_code === subjectCodeFilter);
+    }
+    
+    if (courseSectionFilter) {
+      filtered = filtered.filter(task => task.course_section === courseSectionFilter);
+    }
+
+    // Apply month filter
+    if (monthFilter) {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthIndex = monthNames.indexOf(monthFilter);
+      
       filtered = filtered.filter(task => {
-        const taskYear = new Date(task.updated_at || task.created_at).getFullYear();
-        return taskYear === selectedYear;
+        if (!task.updated_at && !task.created_at) return false;
+        const date = task.updated_at || task.created_at;
+        const taskMonth = new Date(date).getMonth();
+        return taskMonth === monthIndex;
       });
     }
+
+    // Apply year filter
+    if (yearFilter) {
+      filtered = filtered.filter(task => {
+        if (!task.updated_at && !task.created_at) return false;
+        const date = task.updated_at || task.created_at;
+        const taskYear = new Date(date).getFullYear();
+        return taskYear === parseInt(yearFilter);
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      
+      switch (sortOption) {
+        case "most_recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return dateB - dateA;
+      }
+    });
 
     return filtered;
   };
@@ -236,15 +326,16 @@ export default function TaskDeliverablesManagement() {
     return () => clearInterval(interval);
   }, []);
 
-  // History of Records export function - MODIFIED for Excel export
-  const handleExportReport = async (year) => {
+  // History of Records export function
+  const handleExportReport = async () => {
     try {
-      const tasksForYear = filteredTaskDeliverables.filter(task => 
-        new Date(task.updated_at || task.created_at).getFullYear() === year
-      );
+      if (filteredTaskDeliverables.length === 0) {
+        showFeedback("info", "No records to export with the current filters.");
+        return;
+      }
       
       // Prepare data for Excel
-      const excelData = tasksForYear.map(task => {
+      const excelData = filteredTaskDeliverables.map(task => {
         const { overallStatus, completedCount } = calculateOverallStatus(task);
         
         return {
@@ -259,7 +350,7 @@ export default function TaskDeliverablesManagement() {
           'Instructional Materials': task.instructional_materials || 'N/A',
           'Completed Deliverables': `${completedCount}/6`,
           'Overall Status': overallStatus,
-          'Last Updated': new Date(task.updated_at).toLocaleString('en-US', {
+          'Last Updated': new Date(task.updated_at || task.created_at).toLocaleString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -292,8 +383,35 @@ export default function TaskDeliverablesManagement() {
       ];
       ws['!cols'] = colWidths;
       
+      // Add header styling
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell_address = XLSX.utils.encode_cell({r: 0, c: C});
+        if (!ws[cell_address]) continue;
+        
+        ws[cell_address].s = {
+          font: {
+            bold: true,
+            color: { rgb: "FFFFFF" }
+          },
+          fill: {
+            fgColor: { rgb: "000000" }
+          },
+          alignment: {
+            horizontal: "center",
+            vertical: "center"
+          }
+        };
+      }
+      
+      // Create sheet name with filters
+      let sheetName = "Task_Deliverables";
+      if (yearFilter) sheetName += `_${yearFilter}`;
+      if (monthFilter) sheetName += `_${monthFilter.substring(0, 3)}`;
+      sheetName = sheetName.substring(0, 31); // Excel sheet name limit
+      
       // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, `Report_${year}`);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
       
       // Generate Excel file
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -302,65 +420,81 @@ export default function TaskDeliverablesManagement() {
       const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
+      
+      // Create filename with filters
+      let filename = 'task-deliverables-report';
+      if (yearFilter) filename += `-${yearFilter}`;
+      if (monthFilter) filename += `-${monthFilter.replace(/\s+/g, '-')}`;
+      if (subjectCodeFilter) filename += `-${subjectCodeFilter}`;
+      if (courseSectionFilter) filename += `-${courseSectionFilter}`;
+      filename += '.xlsx';
+      
       link.href = url;
-      link.download = `task-deliverables-report-${year}.xlsx`;
+      link.download = filename;
+      link.style.display = 'none';
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      showFeedback("success", `Task Deliverables Report for ${year} exported as Excel file successfully!`);
+      showFeedback("success", `Exported ${filteredTaskDeliverables.length} task deliverables with current filters as Excel file successfully!`);
     } catch (error) {
       console.error("Error exporting report:", error);
       showFeedback("error", "Error exporting report as Excel file");
     }
   };
 
+  // Reset filters when switching views
+  useEffect(() => {
+    resetFilters();
+  }, [historyView]);
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - MODIFIED for history view */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
-          <div>
+        {/* Header - EXACT SAME LAYOUT AS FILE MANAGEMENT */}
+        <div className="flex flex-col justify-between items-start mb-6 gap-3">
+          <div className="w-full">
             <h1 className="text-2xl font-bold text-gray-800">
-              {historyView ? `Task Deliverables Report - ${selectedYear}` : 'Task Deliverables'}
+              {historyView ? 'History of Records' : 'Task Deliverables'}
             </h1>
             <p className="text-sm text-gray-500">
               {historyView 
-                ? `Viewing historical task deliverables data for ${selectedYear}`
+                ? 'Viewing historical task deliverables data'
                 : 'Auto-synced with your faculty loads. Monitor the status of your submitted deliverables.'
               }
             </p>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            {/* History of Records Filters - NEWLY ADDED */}
-            {historyView && (
-              <div className="flex flex-col md:flex-row gap-2">
-                <select
-                  value={selectedYear}
-                  onChange={(e) => {
-                    setSelectedYear(parseInt(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-black"
-                >
-                  {availableYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            
-            {/* View Toggle Buttons - NEWLY ADDED */}
-            <div className="flex border border-gray-300 rounded-md overflow-hidden">
+          {/* Top Row: Show Filters button (only button in this row) */}
+          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3 mb-4">
+            {/* Show Filters Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+              {showFilters && (
+                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Second Row: View Toggle and Search Bar */}
+          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3 mb-4">
+            {/* View Toggle Buttons */}
+            <div className="flex border border-gray-300 rounded-md overflow-hidden w-full md:w-auto">
               <button
                 onClick={() => {
                   setHistoryView(false);
                   setCurrentPage(1);
                 }}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
                   !historyView 
                     ? 'bg-black text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -373,14 +507,14 @@ export default function TaskDeliverablesManagement() {
                   setHistoryView(true);
                   setCurrentPage(1);
                 }}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
                   historyView 
                     ? 'bg-black text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <ClipboardPlus className="w-4 h-4" />
+                <div className="flex items-center gap-2 justify-center">
+                  <History className="w-4 h-4" />
                   Report
                 </div>
               </button>
@@ -388,12 +522,195 @@ export default function TaskDeliverablesManagement() {
 
             <input
               type="text"
-              placeholder={`Search ${historyView ? 'report' : 'task deliverables'}...`}
+              placeholder={`Search ${historyView ? 'historical records' : 'task deliverables'}...`}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
           </div>
+
+          {/* Filtering and Sorting Options - 4x4 Grid */}
+          {showFilters && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
+              {/* First Row - 4 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Subject Code
+                  </label>
+                  <select
+                    value={subjectCodeFilter}
+                    onChange={(e) => {
+                      setSubjectCodeFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Subjects</option>
+                    {getUniqueValues('subject_code').map(code => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Course Section
+                  </label>
+                  <select
+                    value={courseSectionFilter}
+                    onChange={(e) => {
+                      setCourseSectionFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Sections</option>
+                    {getUniqueValues('course_section').map(section => (
+                      <option key={section} value={section}>{section}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Month
+                  </label>
+                  <select
+                    value={monthFilter}
+                    onChange={(e) => {
+                      setMonthFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Months</option>
+                    <option value="January">January</option>
+                    <option value="February">February</option>
+                    <option value="March">March</option>
+                    <option value="April">April</option>
+                    <option value="May">May</option>
+                    <option value="June">June</option>
+                    <option value="July">July</option>
+                    <option value="August">August</option>
+                    <option value="September">September</option>
+                    <option value="October">October</option>
+                    <option value="November">November</option>
+                    <option value="December">December</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Year
+                  </label>
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => {
+                      setYearFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Years</option>
+                    {getUniqueYears().map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Second Row - 4 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Sort by:
+                  </label>
+                  <select
+                    value={sortOption}
+                    onChange={(e) => {
+                      setSortOption(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="most_recent">Most Recent</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Third Row - 3 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                <div className="col-span-1">
+                  <span className="text-xs text-gray-500">
+                    {filteredTaskDeliverables.length} of {taskDeliverables.length} records
+                    {subjectCodeFilter || courseSectionFilter || monthFilter || yearFilter || sortOption !== "most_recent" ? (
+                      <span className="ml-2 text-blue-600">
+                        ({[
+                          subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                          courseSectionFilter && `Section: ${courseSectionFilter}`,
+                          monthFilter && monthFilter,
+                          yearFilter && yearFilter
+                        ].filter(Boolean).join(", ")})
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                
+                <div className="col-span-1">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                  </div>
+                </div>
+                
+                <div className="col-span-1 text-right">
+                  {(subjectCodeFilter || courseSectionFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* History of Records Management Bar */}
+          {historyView && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 w-full">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <ClipboardPlus className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm text-gray-800">
+                    Viewing {filteredTaskDeliverables.length} task deliverables records
+                    {yearFilter && ` from ${yearFilter}`}
+                    {monthFilter && `, ${monthFilter}`}
+                    {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
+                    {courseSectionFilter && ` • Section: ${courseSectionFilter}`}
+                  </span>
+                </div>
+                <div className="flex gap-2 mt-2 md:mt-0">
+                  <button
+                    onClick={handleExportReport}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Filtered Report
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Export will include only the records matching current filters: {filteredTaskDeliverables.length} record(s)
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Auto-sync Notice - HIDDEN in history view */}
@@ -409,30 +726,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         )}
 
-        {/* Report Management Bar - NEWLY ADDED */}
-        {historyView && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2">
-                <ClipboardPlus className="w-5 h-5 text-gray-600" />
-                <span className="text-sm text-gray-800">
-                  Viewing {filteredTaskDeliverables.length} task deliverables records from {selectedYear}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleExportReport(selectedYear)}
-                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Export {selectedYear} Report
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Statistics Cards - MODIFIED for history view */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
@@ -459,7 +753,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Desktop Table - UPDATED for history view */}
+        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -523,7 +817,7 @@ export default function TaskDeliverablesManagement() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-700 text-xs">
-                        {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
+                        {new Date(task.updated_at || task.created_at).toLocaleDateString()} {new Date(task.updated_at || task.created_at).toLocaleTimeString()}
                       </td>
                     </tr>
                   );
@@ -534,7 +828,7 @@ export default function TaskDeliverablesManagement() {
                     {loading 
                       ? "Loading task deliverables..." 
                       : historyView 
-                        ? `No task deliverables found for ${selectedYear}`
+                        ? `No task deliverables found with the current filters`
                         : "No task deliverables found. Add faculty loads to auto-create task deliverables."
                     }
                   </td>
@@ -544,7 +838,7 @@ export default function TaskDeliverablesManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED for history view */}
+        {/* Mobile Cards */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentTaskDeliverables.length > 0 ? (
             currentTaskDeliverables.map((task) => {
@@ -602,7 +896,7 @@ export default function TaskDeliverablesManagement() {
                   </div>
 
                   <p className="text-xs text-gray-500 mt-3">
-                    Updated: {new Date(task.updated_at).toLocaleDateString()} {new Date(task.updated_at).toLocaleTimeString()}
+                    Updated: {new Date(task.updated_at || task.created_at).toLocaleDateString()} {new Date(task.updated_at || task.created_at).toLocaleTimeString()}
                   </p>
                 </div>
               );
@@ -612,18 +906,21 @@ export default function TaskDeliverablesManagement() {
               {loading 
                 ? "Loading task deliverables..." 
                 : historyView 
-                  ? `No task deliverables found for ${selectedYear}`
+                  ? `No task deliverables found with the current filters`
                   : "No task deliverables found. Add faculty loads to auto-create task deliverables."
               }
             </div>
           )}
         </div>
 
-        {/* Pagination - MODIFIED for history view */}
+        {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentTaskDeliverables.length} of {filteredTaskDeliverables.length} tasks
-            {historyView && ` for ${selectedYear}`}
+            {yearFilter && ` from ${yearFilter}`}
+            {monthFilter && `, ${monthFilter}`}
+            {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
+            {courseSectionFilter && ` • Section: ${courseSectionFilter}`}
           </div>
           
           <div className="flex items-center gap-3">
