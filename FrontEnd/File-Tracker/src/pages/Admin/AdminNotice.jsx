@@ -1,20 +1,28 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, Calendar } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, Calendar, Filter, ArrowUpDown } from "lucide-react";
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
 
 export default function AdminNoticeManagement() {
   const [adminNotices, setAdminNotices] = useState([]);
-  const [facultyList, setFacultyList] = useState([]); // ADDED: Faculty list
+  const [facultyList, setFacultyList] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadingFaculty, setLoadingFaculty] = useState(false); // ADDED: Faculty loading state
+  const [loadingFaculty, setLoadingFaculty] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
   const adminNoticesPerPage = 10;
+
+  // Filter states
+  const [professorFilter, setProfessorFilter] = useState("");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+  const [sortOption, setSortOption] = useState("most_recent");
 
   // Statistics state
   const [adminNoticeStats, setAdminNoticeStats] = useState({
@@ -40,19 +48,19 @@ export default function AdminNoticeManagement() {
   const [formData, setFormData] = useState({
     notice_id: "",
     prof_name: "",
-    faculty_id: "", // ADDED: Store faculty ID
+    faculty_id: "",
     document_type: "",
-    tos_type: "N/A", // ADDED: TOS type
+    tos_type: "N/A",
     due_date: "",
     notes: ""
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false); // ADDED: Calendar visibility
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Document type options - updated with new types
+  // Document type options
   const documentTypeOptions = [
     "Syllabus",
     "TOS",
@@ -138,6 +146,55 @@ export default function AdminNoticeManagement() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  // Get unique values for filters
+  const getUniqueValues = (key) => {
+    const values = new Set();
+    adminNotices.forEach(notice => {
+      if (key === 'prof_name' && notice.prof_name) {
+        values.add(notice.prof_name);
+      } else if (key === 'document_type' && notice.document_type) {
+        values.add(notice.document_type);
+      } else if (key === 'months') {
+        if (notice.created_at) {
+          const month = new Date(notice.created_at).getMonth();
+          const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          values.add(monthNames[month]);
+        }
+      } else if (key === 'years') {
+        if (notice.created_at) {
+          const year = new Date(notice.created_at).getFullYear();
+          values.add(year);
+        }
+      }
+    });
+    return Array.from(values).sort();
+  };
+
+  // Get unique years for filter
+  const getUniqueYears = () => {
+    const years = new Set();
+    adminNotices.forEach(notice => {
+      if (notice.created_at) {
+        const year = new Date(notice.created_at).getFullYear();
+        years.add(year);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setProfessorFilter("");
+    setDocumentTypeFilter("");
+    setMonthFilter("");
+    setYearFilter("");
+    setSortOption("most_recent");
+    setCurrentPage(1);
+  };
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -158,7 +215,6 @@ export default function AdminNoticeManagement() {
         }));
       }
     } else if (name === "document_type") {
-      // Reset TOS type if not TOS
       setFormData(prev => ({
         ...prev,
         document_type: value,
@@ -202,6 +258,77 @@ export default function AdminNoticeManagement() {
     setIsEditMode(false);
     setShowCalendar(false);
   };
+
+  // Search and filter function
+  const getFilteredAdminNotices = () => {
+    let filtered = (Array.isArray(adminNotices) ? adminNotices : []);
+
+    // Apply search filter
+    filtered = filtered.filter((notice) =>
+      [notice.notice_id, notice.prof_name, notice.document_type, notice.notes]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    // Apply advanced filters
+    if (professorFilter) {
+      filtered = filtered.filter(notice => notice.prof_name === professorFilter);
+    }
+    
+    if (documentTypeFilter) {
+      filtered = filtered.filter(notice => notice.document_type === documentTypeFilter);
+    }
+
+    // Apply month filter (created date)
+    if (monthFilter) {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthIndex = monthNames.indexOf(monthFilter);
+      
+      filtered = filtered.filter(notice => {
+        if (!notice.created_at) return false;
+        const noticeMonth = new Date(notice.created_at).getMonth();
+        return noticeMonth === monthIndex;
+      });
+    }
+
+    // Apply year filter (created date)
+    if (yearFilter) {
+      filtered = filtered.filter(notice => {
+        if (!notice.created_at) return false;
+        const noticeYear = new Date(notice.created_at).getFullYear();
+        return noticeYear === parseInt(yearFilter);
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      
+      switch (sortOption) {
+        case "most_recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return dateB - dateA;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredAdminNotices = getFilteredAdminNotices();
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAdminNotices.length / adminNoticesPerPage);
+  const startIndex = (currentPage - 1) * adminNoticesPerPage;
+  const currentAdminNotices = filteredAdminNotices.slice(startIndex, startIndex + adminNoticesPerPage);
+
+  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -412,21 +539,6 @@ export default function AdminNoticeManagement() {
     );
   };
 
-  // Search filter
-  const filteredAdminNotices = (Array.isArray(adminNotices) ? adminNotices : [])
-    .filter((notice) =>
-      [notice.notice_id, notice.prof_name, notice.document_type, notice.notes]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
-    );
-
-  // Pagination
-  const totalPages = Math.ceil(filteredAdminNotices.length / adminNoticesPerPage);
-  const startIndex = (currentPage - 1) * adminNoticesPerPage;
-  const currentAdminNotices = filteredAdminNotices.slice(startIndex, startIndex + adminNoticesPerPage);
-
-  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
-  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -436,15 +548,31 @@ export default function AdminNoticeManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Admin Notice</h1>
             <p className="text-sm text-gray-500">
-              Manage and track administrative notices and deadlines
+              Manage and track administrative notice and deadlines
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+              {showFilters && (
+                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </button>
+            
             <input
               type="text"
               placeholder="Search admin notices..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
             <button
@@ -462,6 +590,153 @@ export default function AdminNoticeManagement() {
             </button>
           </div>
         </div>
+
+        {/* Filtering and Sorting Options */}
+        {showFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Professor
+                </label>
+                <select
+                  value={professorFilter}
+                  onChange={(e) => {
+                    setProfessorFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Professors</option>
+                  {getUniqueValues('prof_name').map(prof => (
+                    <option key={prof} value={prof}>{prof}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Document Type
+                </label>
+                <select
+                  value={documentTypeFilter}
+                  onChange={(e) => {
+                    setDocumentTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Types</option>
+                  {documentTypeOptions.map(type => (
+                    <option key={type} value={type}>
+                      {type === 'all-files' ? 'All Files' : type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Month (Created At)
+                </label>
+                <select
+                  value={monthFilter}
+                  onChange={(e) => {
+                    setMonthFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Months</option>
+                  <option value="January">January</option>
+                  <option value="February">February</option>
+                  <option value="March">March</option>
+                  <option value="April">April</option>
+                  <option value="May">May</option>
+                  <option value="June">June</option>
+                  <option value="July">July</option>
+                  <option value="August">August</option>
+                  <option value="September">September</option>
+                  <option value="October">October</option>
+                  <option value="November">November</option>
+                  <option value="December">December</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Year (Created At)
+                </label>
+                <select
+                  value={yearFilter}
+                  onChange={(e) => {
+                    setYearFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Years</option>
+                  {getUniqueYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Sort by:
+                </label>
+                <select
+                  value={sortOption}
+                  onChange={(e) => {
+                    setSortOption(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="most_recent">Most Recent</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+              <div className="col-span-1">
+                <span className="text-xs text-gray-500">
+                  {filteredAdminNotices.length} of {adminNotices.length} notices
+                  {professorFilter || documentTypeFilter || monthFilter || yearFilter ? (
+                    <span className="ml-2 text-blue-600">
+                      ({[
+                        professorFilter && "Professor",
+                        documentTypeFilter && "Type",
+                        monthFilter && monthFilter,
+                        yearFilter && yearFilter
+                      ].filter(Boolean).join(", ")})
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              
+              <div className="col-span-1">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                </div>
+              </div>
+              
+              <div className="col-span-1 text-right">
+                {(professorFilter || documentTypeFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Statistics Cards - UPDATED */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -701,6 +976,10 @@ export default function AdminNoticeManagement() {
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentAdminNotices.length} of {filteredAdminNotices.length} admin notices
+            {yearFilter && ` from ${yearFilter}`}
+            {monthFilter && `, ${monthFilter}`}
+            {professorFilter && ` • Professor: ${professorFilter}`}
+            {documentTypeFilter && ` • Type: ${documentTypeFilter}`}
           </div>
           
           <div className="flex items-center gap-3">

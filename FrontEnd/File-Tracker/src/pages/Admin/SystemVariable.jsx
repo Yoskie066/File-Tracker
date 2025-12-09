@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, Filter, ArrowUpDown } from "lucide-react";
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -12,8 +12,14 @@ export default function SystemVariableManagement() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionDropdown, setActionDropdown] = useState(null);
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
   const variablesPerPage = 10;
+
+  // Filter states
+  const [typeFilter, setTypeFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+  const [sortOption, setSortOption] = useState("most_recent");
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -48,15 +54,6 @@ export default function SystemVariableManagement() {
     "semester"
   ];
 
-  // Filter buttons data
-  const filterButtons = [
-    { key: "all", label: "All Variables" },
-    { key: "subject_code", label: "Subject Code" },
-    { key: "course_section", label: "Course Section" },
-    { key: "academic_year", label: "Academic Year" },
-    { key: "semester", label: "Semester" }
-  ];
-
   // Fetch variables from backend 
   const fetchVariables = async () => {
     try {
@@ -87,6 +84,52 @@ export default function SystemVariableManagement() {
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
+
+  // Get unique values for filters
+  const getUniqueValues = (key) => {
+    const values = new Set();
+    variables.forEach(variable => {
+      if (key === 'variable_type' && variable.variable_type) {
+        values.add(variable.variable_type);
+      } else if (key === 'months') {
+        if (variable.created_at) {
+          const month = new Date(variable.created_at).getMonth();
+          const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          values.add(monthNames[month]);
+        }
+      } else if (key === 'years') {
+        if (variable.created_at) {
+          const year = new Date(variable.created_at).getFullYear();
+          values.add(year);
+        }
+      }
+    });
+    return Array.from(values).sort();
+  };
+
+  // Get unique years for filter
+  const getUniqueYears = () => {
+    const years = new Set();
+    variables.forEach(variable => {
+      if (variable.created_at) {
+        const year = new Date(variable.created_at).getFullYear();
+        years.add(year);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setTypeFilter("");
+    setMonthFilter("");
+    setYearFilter("");
+    setSortOption("most_recent");
+    setCurrentPage(1);
+  };
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -155,11 +198,107 @@ export default function SystemVariableManagement() {
     }
   };
 
-  // Handle filter button click
-  const handleFilterClick = (filterType) => {
-    setActiveFilter(filterType);
-    setCurrentPage(1);
+  // Search and filter function
+  const getFilteredVariables = () => {
+    let filtered = (Array.isArray(variables) ? variables : []);
+
+    // Apply search filter
+    filtered = filtered.filter((v) => {
+      const searchMatch = [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()));
+      
+      const typeMatch = !typeFilter || v.variable_type === typeFilter;
+      
+      return searchMatch && typeMatch;
+    });
+
+    // Apply month filter (created date)
+    if (monthFilter) {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthIndex = monthNames.indexOf(monthFilter);
+      
+      filtered = filtered.filter(variable => {
+        if (!variable.created_at) return false;
+        const variableMonth = new Date(variable.created_at).getMonth();
+        return variableMonth === monthIndex;
+      });
+    }
+
+    // Apply year filter (created date)
+    if (yearFilter) {
+      filtered = filtered.filter(variable => {
+        if (!variable.created_at) return false;
+        const variableYear = new Date(variable.created_at).getFullYear();
+        return variableYear === parseInt(yearFilter);
+      });
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      
+      switch (sortOption) {
+        case "most_recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return dateB - dateA;
+      }
+    });
+
+    return filtered;
   };
+
+  const filteredVariables = getFilteredVariables();
+
+  // Calculate stats for cards
+  const calculateStats = (variablesList) => {
+    if (!Array.isArray(variablesList) || variablesList.length === 0) {
+      return { total: 0, subject_code: 0, course_section: 0, academic_year: 0, semester: 0 };
+    }
+  
+    let subjectCodeCount = 0;
+    let courseSectionCount = 0;
+    let academicYearCount = 0;
+    let semesterCount = 0;
+  
+    variablesList.forEach(variable => {
+      const type = variable.variable_type?.toLowerCase().trim();
+      
+      if (type === 'subject_code') {
+        subjectCodeCount++;
+      } else if (type === 'course_section') {
+        courseSectionCount++;
+      } else if (type === 'academic_year') {
+        academicYearCount++;
+      } else if (type === 'semester') {
+        semesterCount++;
+      }
+    });
+  
+    return {
+      total: variablesList.length,
+      subject_code: subjectCodeCount,
+      course_section: courseSectionCount,
+      academic_year: academicYearCount,
+      semester: semesterCount
+    };
+  };
+
+  const variableStats = calculateStats(filteredVariables);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredVariables.length / variablesPerPage);
+  const startIndex = (currentPage - 1) * variablesPerPage;
+  const currentVariables = filteredVariables.slice(startIndex, startIndex + variablesPerPage);
+
+  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
   // Handle form submission 
   const handleSubmit = async (e) => {
@@ -311,34 +450,6 @@ export default function SystemVariableManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Calculate stats for cards
-  const variableStats = {
-    total: Array.isArray(variables) ? variables.length : 0,
-    subject_code: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'subject_code').length : 0,
-    course_section: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'course_section').length : 0,
-    academic_year: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'academic_year').length : 0,
-    semester: Array.isArray(variables) ? variables.filter(v => v.variable_type === 'semester').length : 0
-  };
-
-  // Search and type filter
-  const filteredVariables = (Array.isArray(variables) ? variables : [])
-    .filter((v) => {
-      const searchMatch = [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()));
-      
-      const typeMatch = activeFilter === "all" || v.variable_type === activeFilter;
-      
-      return searchMatch && typeMatch;
-    });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredVariables.length / variablesPerPage);
-  const startIndex = (currentPage - 1) * variablesPerPage;
-  const currentVariables = filteredVariables.slice(startIndex, startIndex + variablesPerPage);
-
-  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
-  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-
   // Render form fields based on variable type
   const renderFormFields = () => {
     switch(formData.variable_type) {
@@ -444,11 +555,27 @@ export default function SystemVariableManagement() {
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+              {showFilters && (
+                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </button>
+            
             <input
               type="text"
               placeholder="Search variables..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
             <button
@@ -466,22 +593,132 @@ export default function SystemVariableManagement() {
           </div>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {filterButtons.map((filter) => (
-            <button
-              key={filter.key}
-              onClick={() => handleFilterClick(filter.key)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeFilter === filter.key
-                  ? 'bg-black text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+        {/* Filtering and Sorting Options */}
+        {showFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Type
+                </label>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => {
+                    setTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Types</option>
+                  {variableTypeOptions.map(type => (
+                    <option key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Month (Created At)
+                </label>
+                <select
+                  value={monthFilter}
+                  onChange={(e) => {
+                    setMonthFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Months</option>
+                  <option value="January">January</option>
+                  <option value="February">February</option>
+                  <option value="March">March</option>
+                  <option value="April">April</option>
+                  <option value="May">May</option>
+                  <option value="June">June</option>
+                  <option value="July">July</option>
+                  <option value="August">August</option>
+                  <option value="September">September</option>
+                  <option value="October">October</option>
+                  <option value="November">November</option>
+                  <option value="December">December</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Year (Created At)
+                </label>
+                <select
+                  value={yearFilter}
+                  onChange={(e) => {
+                    setYearFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Years</option>
+                  {getUniqueYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Sort by:
+                </label>
+                <select
+                  value={sortOption}
+                  onChange={(e) => {
+                    setSortOption(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="most_recent">Most Recent</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                {(typeFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors w-full"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+              <div className="col-span-1">
+                <span className="text-xs text-gray-500">
+                  {filteredVariables.length} of {variables.length} variables
+                  {typeFilter || monthFilter || yearFilter ? (
+                    <span className="ml-2 text-blue-600">
+                      ({[
+                        typeFilter && "Type",
+                        monthFilter && monthFilter,
+                        yearFilter && yearFilter
+                      ].filter(Boolean).join(", ")})
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              
+              <div className="col-span-1">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
@@ -585,7 +822,7 @@ export default function SystemVariableManagement() {
               ) : (
                 <tr>
                   <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
-                    No system variables found {activeFilter !== "all" ? `for ${activeFilter.replace('_', ' ')}` : ""}.
+                    No system variables found {typeFilter ? `for ${typeFilter.replace('_', ' ')}` : ""}.
                   </td>
                 </tr>
               )}
@@ -666,7 +903,7 @@ export default function SystemVariableManagement() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              No system variables found {activeFilter !== "all" ? `for ${activeFilter.replace('_', ' ')}` : ""}.
+              No system variables found {typeFilter ? `for ${typeFilter.replace('_', ' ')}` : ""}.
             </div>
           )}
         </div>
@@ -675,7 +912,9 @@ export default function SystemVariableManagement() {
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
             Showing {currentVariables.length} of {filteredVariables.length} variables
-            {activeFilter !== "all" && ` (filtered by ${activeFilter.replace('_', ' ')})`}
+            {yearFilter && ` from ${yearFilter}`}
+            {monthFilter && `, ${monthFilter}`}
+            {typeFilter && ` • Type: ${typeFilter.replace('_', ' ')}`}
           </div>
           
           <div className="flex items-center gap-3">

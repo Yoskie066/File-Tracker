@@ -463,7 +463,7 @@ export default function TaskDeliverablesManagement() {
             <p className="text-sm text-gray-500">
               {historyView 
                 ? 'Viewing historical task deliverables data'
-                : 'Auto-synced with your faculty loads. Monitor the status of your submitted deliverables.'
+                : 'Monitor the status of your submitted deliverables.'
               }
             </p>
           </div>

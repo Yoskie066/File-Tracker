@@ -617,7 +617,7 @@ export default function FileManagement() {
             <p className="text-sm text-gray-500">
               {historyView 
                 ? 'Viewing historical file records and submissions'
-                : 'One record per file with auto-synced semester and academic year'
+                : 'A secure file management system for storing, organizing, and monitoring all details'
               }
             </p>
           </div>

@@ -228,7 +228,7 @@ export default function FileHistory() {
           <div className="text-left w-full md:w-auto">
             <h1 className="text-2xl font-bold text-gray-800">File History</h1>
             <p className="text-sm text-gray-500">
-              Collection of all your submitted files with auto-synced semester and academic year
+              Collection of all your submitted files
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
