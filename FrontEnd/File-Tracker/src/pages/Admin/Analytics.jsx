@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Doughnut } from 'react-chartjs-2';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -29,9 +31,14 @@ ChartJS.register(
 export default function Analytics() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [facultyPerformance, setFacultyPerformance] = useState([]);
+  const [availableYears, setAvailableYears] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [error, setError] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [dateRangeMode, setDateRangeMode] = useState('year'); // 'year' or 'custom'
 
   // Performance 
   const [search, setSearch] = useState("");
@@ -40,15 +47,43 @@ export default function Analytics() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
+  // Fetch available years
+  const fetchAvailableYears = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/analytics/available-years`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setAvailableYears(result.data || []);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching available years:", error);
+    }
+  };
+
   // Fetch analytics data
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
       setError(null);
       
+      let url = `${API_BASE_URL}/api/admin/analytics?`;
+      let facultyUrl = `${API_BASE_URL}/api/admin/analytics/faculty-performance?`;
+      
+      if (dateRangeMode === 'year' && selectedYear) {
+        url += `year=${selectedYear}`;
+        facultyUrl += `year=${selectedYear}`;
+      } else if (dateRangeMode === 'custom' && startDate && endDate) {
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        url += `startDate=${startStr}&endDate=${endStr}`;
+        facultyUrl += `startDate=${startStr}&endDate=${endStr}`;
+      }
+
       const [analyticsRes, facultyRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/admin/analytics`),
-        fetch(`${API_BASE_URL}/api/admin/analytics/faculty-performance`)
+        fetch(url),
+        fetch(facultyUrl)
       ]);
 
       // Handle analytics response
@@ -81,8 +116,12 @@ export default function Analytics() {
   };
 
   useEffect(() => {
-    fetchAnalyticsData();
+    fetchAvailableYears();
   }, []);
+
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, [selectedYear, startDate, endDate]);
 
   // Format file size
   const formatFileSize = (bytes) => {
@@ -91,6 +130,23 @@ export default function Analytics() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Format date
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Reset date filters
+  const resetFilters = () => {
+    setSelectedYear(new Date().getFullYear());
+    setStartDate(null);
+    setEndDate(null);
+    setDateRangeMode('year');
   };
 
   // Search filter 
@@ -207,7 +263,81 @@ export default function Analytics() {
     };
   };
 
-  // 5. Admin Notice Status Distribution
+  // 5. Semester Distribution
+  const getSemesterDistributionData = () => {
+    const semesters = analyticsData?.file_management?.semester_distribution || {
+      '1st_semester': 0,
+      '2nd_semester': 0,
+      'summer': 0
+    };
+    
+    const labels = ['1st Semester', '2nd Semester', 'Summer'];
+    const data = [
+      semesters['1st_semester'] || 0,
+      semesters['2nd_semester'] || 0,
+      semesters['summer'] || 0
+    ];
+    
+    const backgroundColors = [
+      '#4F46E5', // Indigo - 1st Semester
+      '#10B981', // Emerald - 2nd Semester
+      '#F59E0B', // Amber - Summer
+    ];
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 2,
+        }
+      ],
+    };
+  };
+
+  // 6. Admin Notice Document Type Distribution
+  const getAdminNoticeDocTypeData = () => {
+    const documentTypes = analyticsData?.admin_notice_management?.document_type_distribution || {};
+    
+    const labels = Object.keys(documentTypes).map(type => {
+      const typeMap = {
+        'syllabus': 'Syllabus',
+        'tos-midterm': 'TOS Midterm',
+        'tos-final': 'TOS Final',
+        'midterm-exam': 'Midterm Exam',
+        'final-exam': 'Final Exam',
+        'instructional-materials': 'Instructional Materials'
+      };
+      return typeMap[type] || type;
+    });
+
+    const data = Object.values(documentTypes);
+    
+    const backgroundColors = [
+      '#4F46E5', // Indigo - Syllabus
+      '#10B981', // Emerald - TOS Midterm
+      '#0EA5E9', // Sky - TOS Final
+      '#F59E0B', // Amber - Midterm Exam
+      '#EF4444', // Red - Final Exam
+      '#8B5CF6', // Violet - Instructional Materials
+    ];
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors.slice(0, data.length),
+          borderColor: backgroundColors.slice(0, data.length),
+          borderWidth: 2,
+        }
+      ],
+    };
+  };
+
+  // 7. Admin Notice Status Distribution
   const getAdminNoticeStatusData = () => ({
     labels: ['Overdue', 'Not Overdue'],
     datasets: [
@@ -223,7 +353,7 @@ export default function Analytics() {
     ],
   });
 
-  // 6. System Variables Distribution
+  // 8. System Variables Distribution
   const getSystemVariablesData = () => {
     const variableTypes = analyticsData?.system_variables?.variable_type_distribution || {
       subject_code: 0,
@@ -281,7 +411,7 @@ export default function Analytics() {
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header */}
+        {/* Header with Date Filters */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
@@ -294,27 +424,120 @@ export default function Analytics() {
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          
+          {/* Date Filter Controls */}
+          <div className="flex flex-col md:flex-row gap-3 items-center">
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => setDateRangeMode('year')}
+                className={`px-3 py-1.5 text-sm rounded-md ${dateRangeMode === 'year' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700'}`}
+              >
+                By Year
+              </button>
+              <button
+                onClick={() => setDateRangeMode('custom')}
+                className={`px-3 py-1.5 text-sm rounded-md ${dateRangeMode === 'custom' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700'}`}
+              >
+                Custom Range
+              </button>
+            </div>
+            
+            {dateRangeMode === 'year' ? (
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Year:</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  {availableYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col md:flex-row gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500 block">Start Date</label>
+                    <DatePicker
+                      selected={startDate}
+                      onChange={(date) => setStartDate(date)}
+                      selectsStart
+                      startDate={startDate}
+                      endDate={endDate}
+                      className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-full md:w-40 focus:outline-none focus:ring-2 focus:ring-black"
+                      placeholderText="Select start date"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block">End Date</label>
+                    <DatePicker
+                      selected={endDate}
+                      onChange={(date) => setEndDate(date)}
+                      selectsEnd
+                      startDate={startDate}
+                      endDate={endDate}
+                      minDate={startDate}
+                      className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-full md:w-40 focus:outline-none focus:ring-2 focus:ring-black"
+                      placeholderText="Select end date"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'overview'
-                  ? 'bg-black text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              onClick={resetFilters}
+              className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
             >
-              Overview
+              Reset
             </button>
-            <button
-              onClick={() => setActiveTab('performance')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'performance'
-                  ? 'bg-black text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Performance
-            </button>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'overview'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('performance')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'performance'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Performance
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Date Range Display */}
+        <div className="mb-6 p-3 bg-blue-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm text-gray-600">Currently viewing data for: </span>
+              <span className="font-medium">
+                {dateRangeMode === 'year' 
+                  ? `Year ${selectedYear}`
+                  : startDate && endDate 
+                    ? `${formatDate(startDate)} to ${formatDate(endDate)}`
+                    : 'All time'
+                }
+              </span>
+            </div>
+            {analyticsData?.filters && (
+              <div className="text-sm text-gray-500">
+                Data generated on {formatDate(analyticsData.generated_at)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -414,6 +637,24 @@ export default function Analytics() {
                     <span className="text-gray-600">Rejected:</span>
                     <span className="font-semibold text-red-600">{analyticsData?.file_management?.rejected_files || 0}</span>
                   </div>
+                  {/* Semester Distribution Summary */}
+                  <div className="pt-2 border-t">
+                    <div className="text-sm text-gray-500 mb-1">Semester Distribution:</div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center">
+                        <div className="font-semibold">{analyticsData?.file_management?.semester_distribution?.['1st_semester'] || 0}</div>
+                        <div className="text-gray-500">1st Sem</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-semibold">{analyticsData?.file_management?.semester_distribution?.['2nd_semester'] || 0}</div>
+                        <div className="text-gray-500">2nd Sem</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-semibold">{analyticsData?.file_management?.semester_distribution?.summer || 0}</div>
+                        <div className="text-gray-500">Summer</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -438,6 +679,21 @@ export default function Analytics() {
                     <span className="font-semibold text-blue-600">
                       {analyticsData?.admin_notice_management?.completion_rate || 0}%
                     </span>
+                  </div>
+                  {/* Document Type Summary */}
+                  <div className="pt-2 border-t">
+                    <div className="text-sm text-gray-500 mb-1">Document Types:</div>
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      {Object.entries(analyticsData?.admin_notice_management?.document_type_distribution || {})
+                        .filter(([_, count]) => count > 0)
+                        .slice(0, 4)
+                        .map(([type, count]) => (
+                          <div key={type} className="flex justify-between">
+                            <span className="truncate">{type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}:</span>
+                            <span className="font-semibold ml-1">{count}</span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -470,7 +726,7 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* 3x3 Charts Section */}
+            {/* 3x4 Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* 1. User Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -504,7 +760,23 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 5. Admin Notice Status */}
+              {/* 5. Semester Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Semester Distribution</h3>
+                <div className="h-64">
+                  <Doughnut data={getSemesterDistributionData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* 6. Admin Notice Document Type Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Document Types</h3>
+                <div className="h-64">
+                  <Doughnut data={getAdminNoticeDocTypeData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* 7. Admin Notice Status */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice Status</h3>
                 <div className="h-64">
@@ -512,7 +784,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 6. System Variables Distribution */}
+              {/* 8. System Variables Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">
@@ -555,6 +827,7 @@ export default function Analytics() {
                     <th className="px-4 py-3 text-left border-r border-gray-600">Completed</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Pending</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Rejected</th>
+                    <th className="px-4 py-3 text-left border-r border-gray-600">Completion Rate</th>
                     <th className="px-4 py-3 text-left border-gray-600">Avg File Size</th>
                   </tr>
                 </thead>
@@ -567,6 +840,17 @@ export default function Analytics() {
                         <td className="px-4 py-3 text-green-600 font-medium">{faculty.completed_submissions}</td>
                         <td className="px-4 py-3 text-yellow-600 font-medium">{faculty.pending_submissions}</td>
                         <td className="px-4 py-3 text-red-600 font-medium">{faculty.rejected_submissions}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-green-600 h-2 rounded-full" 
+                                style={{ width: `${Math.min(faculty.completion_rate || 0, 100)}%` }}
+                              ></div>
+                            </div>
+                            <span className="ml-2 text-xs font-medium">{Math.round(faculty.completion_rate || 0)}%</span>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-xs text-gray-700">
                           {formatFileSize(faculty.average_file_size)}
                         </td>
@@ -574,8 +858,8 @@ export default function Analytics() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="text-center py-8 text-gray-500 font-medium">
-                        {search ? 'No faculty found matching your search.' : 'No faculty performance data available.'}
+                      <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
+                        {search ? 'No faculty found matching your search.' : 'No faculty performance data available for the selected period.'}
                       </td>
                     </tr>
                   )}
@@ -611,6 +895,19 @@ export default function Analytics() {
                       </div>
                     </div>
 
+                    <div className="mb-3">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-500">Completion Rate:</span>
+                        <span className="font-medium">{Math.round(faculty.completion_rate || 0)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full" 
+                          style={{ width: `${Math.min(faculty.completion_rate || 0, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
                     <div className="text-sm text-gray-600">
                       <span className="text-gray-500">Avg File Size:</span>
                       <span className="font-medium ml-2">{formatFileSize(faculty.average_file_size)}</span>
@@ -619,7 +916,7 @@ export default function Analytics() {
                 ))
               ) : (
                 <div className="text-center py-8 text-gray-500 font-medium">
-                  {search ? 'No faculty found matching your search.' : 'No faculty performance data available.'}
+                  {search ? 'No faculty found matching your search.' : 'No faculty performance data available for the selected period.'}
                 </div>
               )}
             </div>

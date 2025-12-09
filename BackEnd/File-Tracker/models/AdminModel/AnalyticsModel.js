@@ -1,3 +1,4 @@
+// models/AdminModel/AnalyticsModel.js
 import mongoose from "mongoose";
 
 const analyticsSchema = new mongoose.Schema(
@@ -7,7 +8,7 @@ const analyticsSchema = new mongoose.Schema(
     date: { type: Date, required: true },
     
     // User Management Stats
-    user_stats: {
+    user_management: {
       total_users: Number,
       online_users: Number,
       offline_users: Number,
@@ -21,7 +22,7 @@ const analyticsSchema = new mongoose.Schema(
     },
     
     // File Management Stats
-    file_stats: {
+    file_management: {
       total_files: Number,
       pending_files: Number,
       completed_files: Number,
@@ -33,19 +34,32 @@ const analyticsSchema = new mongoose.Schema(
         'midterm-exam': Number,
         'final-exam': Number,
         'instructional-materials': Number
+      },
+      semester_distribution: {
+        '1st_semester': Number,
+        '2nd_semester': Number,
+        'summer': Number
       }
     },
     
     // Admin Notice Stats 
-    admin_notice_stats: {
+    admin_notice_management: {
       total_notices: Number,
       overdue_notices: Number,
       not_overdue_notices: Number,
-      completion_rate: Number
+      completion_rate: Number,
+      document_type_distribution: {
+        syllabus: Number,
+        'tos-midterm': Number,
+        'tos-final': Number,
+        'midterm-exam': Number,
+        'final-exam': Number,
+        'instructional-materials': Number
+      }
     },
     
     // System Variables Stats
-    system_variable_stats: {
+    system_variables: {
       total_variables: Number,
       variable_type_distribution: {
         subject_code: Number,

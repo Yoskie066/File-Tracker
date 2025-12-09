@@ -1,3 +1,4 @@
+// controllers/AdminController/AnalyticsController.js
 import Analytics from "../../models/AdminModel/AnalyticsModel.js";
 import User from "../../models/AdminModel/UserManagementModel.js";
 import FileManagement from "../../models/AdminModel/FileManagementModel.js";
@@ -6,11 +7,41 @@ import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
 
-// Get comprehensive analytics data
+// Get comprehensive analytics data with date filtering
 export const getAnalyticsData = async (req, res) => {
   try {
     console.log("Analytics endpoint hit");
     
+    // Get date range from query parameters
+    const { startDate, endDate, year } = req.query;
+    let dateFilter = {};
+    
+    // If year is provided, filter by year
+    if (year) {
+      const startOfYear = new Date(`${year}-01-01`);
+      const endOfYear = new Date(`${year}-12-31`);
+      endOfYear.setHours(23, 59, 59, 999);
+      dateFilter = {
+        created_at: {
+          $gte: startOfYear,
+          $lte: endOfYear
+        }
+      };
+    }
+    
+    // If specific date range is provided
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter = {
+        created_at: {
+          $gte: start,
+          $lte: end
+        }
+      };
+    }
+
     // Get user statistics from combined Admin and Faculty models
     const admins = await Admin.countDocuments();
     const faculties = await Faculty.countDocuments();
@@ -22,20 +53,75 @@ export const getAnalyticsData = async (req, res) => {
     const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
 
-    // Get file management statistics
-    const totalFiles = await FileManagement.countDocuments();
-    const pendingFiles = await FileManagement.countDocuments({ status: 'pending' });
-    const completedFiles = await FileManagement.countDocuments({ status: 'completed' });
-    const rejectedFiles = await FileManagement.countDocuments({ status: 'rejected' });
+    // Get file management statistics with date filter
+    const fileFilter = dateFilter.created_at ? { uploaded_at: dateFilter.created_at } : {};
+    const totalFiles = await FileManagement.countDocuments(fileFilter);
+    const pendingFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'pending' });
+    const completedFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'completed' });
+    const rejectedFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'rejected' });
 
-    // Get admin notice statistics (formerly requirement statistics)
-    const totalNotices = await AdminNotice.countDocuments();
+    // Get semester distribution from files
+    const semesterDistribution = await FileManagement.aggregate([
+      { $match: fileFilter },
+      {
+        $group: {
+          _id: '$semester',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert semester distribution to object format
+    const semesterDist = {
+      '1st_semester': 0,
+      '2nd_semester': 0,
+      'summer': 0
+    };
+
+    semesterDistribution.forEach(item => {
+      const semesterKey = item._id?.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      if (semesterDist.hasOwnProperty(semesterKey)) {
+        semesterDist[semesterKey] = item.count;
+      }
+    });
+
+    // Get admin notice statistics with date filter
+    const noticeFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
+    const totalNotices = await AdminNotice.countDocuments(noticeFilter);
     const overdueNotices = await AdminNotice.countDocuments({
+      ...noticeFilter,
       due_date: { $lt: new Date() }
     });
     const notOverdueNotices = totalNotices - overdueNotices;
     const noticeCompletionRate = totalNotices > 0 ? 
       Math.round(((totalNotices - overdueNotices) / totalNotices) * 100) : 0;
+
+    // Get admin notice document type distribution
+    const adminNoticeDocDistribution = await AdminNotice.aggregate([
+      { $match: noticeFilter },
+      {
+        $group: {
+          _id: '$document_type',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert admin notice document type distribution to object format
+    const adminNoticeDocDist = {
+      syllabus: 0,
+      'tos-midterm': 0,
+      'tos-final': 0,
+      'midterm-exam': 0,
+      'final-exam': 0,
+      'instructional-materials': 0
+    };
+
+    adminNoticeDocDistribution.forEach(item => {
+      if (adminNoticeDocDist.hasOwnProperty(item._id)) {
+        adminNoticeDocDist[item._id] = item.count;
+      }
+    });
 
     // Get system variables statistics
     const totalVariables = await SystemVariable.countDocuments();
@@ -50,6 +136,7 @@ export const getAnalyticsData = async (req, res) => {
 
     // Get document type distributions from FileManagement
     const documentTypeDistribution = await FileManagement.aggregate([
+      { $match: fileFilter },
       {
         $group: {
           _id: '$document_type',
@@ -115,13 +202,15 @@ export const getAnalyticsData = async (req, res) => {
         pending_files: pendingFiles,
         completed_files: completedFiles,
         rejected_files: rejectedFiles,
-        document_type_distribution: documentTypeDist
+        document_type_distribution: documentTypeDist,
+        semester_distribution: semesterDist
       },
       admin_notice_management: {
         total_notices: totalNotices,
         overdue_notices: overdueNotices,
         not_overdue_notices: notOverdueNotices,
-        completion_rate: noticeCompletionRate
+        completion_rate: noticeCompletionRate,
+        document_type_distribution: adminNoticeDocDist
       },
       system_variables: {
         total_variables: totalVariables,
@@ -131,23 +220,13 @@ export const getAnalyticsData = async (req, res) => {
         total_records: totalUsers + totalFiles + totalNotices + totalVariables,
         completion_rate: fileCompletionRate,
         system_health: systemHealth
+      },
+      filters: {
+        startDate: startDate || null,
+        endDate: endDate || null,
+        year: year || null
       }
     };
-
-    // Log analytics data for debugging
-    console.log("Analytics Data Summary:", {
-      totalUsers,
-      onlineUsers,
-      offlineUsers,
-      admins,
-      faculties,
-      totalFiles,
-      completedFiles,
-      totalNotices,
-      overdueNotices,
-      totalVariables,
-      systemHealth
-    });
 
     res.status(200).json({
       success: true,
@@ -165,12 +244,42 @@ export const getAnalyticsData = async (req, res) => {
   }
 };
 
-// Get faculty performance analytics
+// Get faculty performance analytics with date filtering
 export const getFacultyPerformance = async (req, res) => {
   try {
     console.log("Faculty performance endpoint hit");
 
+    const { startDate, endDate, year } = req.query;
+    let dateFilter = {};
+    
+    // If year is provided, filter by year
+    if (year) {
+      const startOfYear = new Date(`${year}-01-01`);
+      const endOfYear = new Date(`${year}-12-31`);
+      endOfYear.setHours(23, 59, 59, 999);
+      dateFilter = {
+        uploaded_at: {
+          $gte: startOfYear,
+          $lte: endOfYear
+        }
+      };
+    }
+    
+    // If specific date range is provided
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter = {
+        uploaded_at: {
+          $gte: start,
+          $lte: end
+        }
+      };
+    }
+
     const facultyPerformance = await FileManagement.aggregate([
+      { $match: dateFilter },
       {
         $group: {
           _id: "$faculty_id",
@@ -212,7 +321,12 @@ export const getFacultyPerformance = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: facultyPerformance
+      data: facultyPerformance,
+      filters: {
+        startDate: startDate || null,
+        endDate: endDate || null,
+        year: year || null
+      }
     });
 
   } catch (error) {
@@ -220,6 +334,50 @@ export const getFacultyPerformance = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while fetching faculty performance",
+      error: error.message
+    });
+  }
+};
+
+// Get available years for analytics
+export const getAvailableYears = async (req, res) => {
+  try {
+    // Get distinct years from FileManagement
+    const fileYears = await FileManagement.aggregate([
+      {
+        $group: {
+          _id: { $year: "$uploaded_at" }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
+    // Get distinct years from AdminNotice
+    const noticeYears = await AdminNotice.aggregate([
+      {
+        $group: {
+          _id: { $year: "$created_at" }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
+    // Combine and deduplicate years
+    const allYears = [...new Set([
+      ...fileYears.map(item => item._id),
+      ...noticeYears.map(item => item._id),
+      new Date().getFullYear() // Include current year
+    ])].sort((a, b) => b - a);
+
+    res.status(200).json({
+      success: true,
+      data: allYears
+    });
+  } catch (error) {
+    console.error("Error fetching available years:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching available years",
       error: error.message
     });
   }
@@ -246,5 +404,6 @@ const calculateSystemHealth = (activeRate, completedFiles, totalFiles, overdueNo
 // Export functions
 export default {
   getAnalyticsData,
-  getFacultyPerformance
+  getFacultyPerformance,
+  getAvailableYears
 };

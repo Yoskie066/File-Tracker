@@ -5,7 +5,7 @@ import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
 import { getFiles, getFileById, deleteFile, updateFileStatus, bulkCompleteAllFiles } from "../../controllers/FacultyController/FileUploadController.js";
 import { getAdminNotices, getAllFaculty, getAdminNoticeStats, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
-import { getAnalyticsData, getFacultyPerformance } from "../../controllers/AdminController/AnalyticsController.js";
+import { getAnalyticsData, getFacultyPerformance, getAvailableYears } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
 
 const router = express.Router();
@@ -40,6 +40,7 @@ router.delete("/admin-notice/:id", deleteAdminNotice);
 // Analytics Routes 
 router.get("/analytics", getAnalyticsData);
 router.get("/analytics/faculty-performance", getFacultyPerformance);
+router.get("/analytics/available-years", getAvailableYears);
 
 // System Variable Routes
 router.get("/system-variables", getSystemVariables);
