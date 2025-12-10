@@ -17,19 +17,64 @@ const AdminForgotPassword = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("success"); 
   const [modalMessage, setModalMessage] = useState("");
+  const [errors, setErrors] = useState({});
 
   const navigate = useNavigate();
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Validate admin name (minimum 8 characters)
+    if (formData.adminName.length < 8) {
+      newErrors.adminName = "Admin name must be at least 8 characters long";
+    }
+    
+    // Validate admin number (at least 8 digits)
+    const adminNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    if (!adminNumberRegex.test(formData.adminNumber)) {
+      newErrors.adminNumber = "Admin number must be at least 8 digits";
+    }
+    
+    // Validate password
+    if (formData.newPassword.length < 4) {
+      newErrors.newPassword = "Password must be at least 4 characters long";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+    // Remove non-numeric characters for adminNumber
+    if (name === "adminNumber") {
+      const numericValue = value.replace(/\D/g, '');
+      setFormData((prevState) => ({
+        ...prevState,
+        [name]: numericValue,
+      }));
+    } else {
+      setFormData((prevState) => ({
+        ...prevState,
+        [name]: value,
+      }));
+    }
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      setModalType("error");
+      setModalMessage("Please fix the errors in the form");
+      setModalOpen(true);
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/admin-forgot-password`, {
@@ -88,10 +133,16 @@ const AdminForgotPassword = () => {
                 name="adminName"
                 value={formData.adminName}
                 onChange={handleChange}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
-                placeholder="Enter your admin name"
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.adminName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter your admin name (min 8 characters)"
+                title="Admin name must be at least 8 characters long"
                 required
               />
+              {errors.adminName && (
+                <p className="text-red-500 text-xs mt-1">{errors.adminName}</p>
+              )}
             </div>
 
             {/* Admin Number - Second Field */}
@@ -105,10 +156,19 @@ const AdminForgotPassword = () => {
                 name="adminNumber"
                 value={formData.adminNumber}
                 onChange={handleChange}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
-                placeholder="Enter your admin number"
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.adminNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter your admin number (minimum 8 digits)"
+                title="Admin number must be at least 8 digits"
                 required
               />
+              {errors.adminNumber && (
+                <p className="text-red-500 text-xs mt-1">{errors.adminNumber}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Must be at least 8 digits (numbers only)
+              </p>
             </div>
             
             {/* New Password - Third Field */}
@@ -122,11 +182,15 @@ const AdminForgotPassword = () => {
                 name="newPassword"
                 value={formData.newPassword}
                 onChange={handleChange}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
-                placeholder="Enter your new password"
-                minLength="4"
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.newPassword ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter your new password (min 4 characters)"
                 required
               />
+              {errors.newPassword && (
+                <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Password must be at least 4 characters long
               </p>

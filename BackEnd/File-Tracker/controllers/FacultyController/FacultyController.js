@@ -34,6 +34,21 @@ export const registerFaculty = async (req, res) => {
   try {
     const { facultyName, facultyNumber, password } = req.body;
 
+    // Validate faculty name length
+    if (facultyName.length < 8) {
+      return res.status(400).json({ 
+        message: "Faculty name must be at least 8 characters long" 
+      });
+    }
+
+    // Validate faculty number format 
+    const facultyNumberRegex = /^\d{8,}$/;  
+    if (!facultyNumberRegex.test(facultyNumber)) {
+      return res.status(400).json({ 
+        message: "Faculty number must be at least 8 digits" 
+      });
+    }
+
     const existingFaculty = await Faculty.findOne({ facultyNumber });
     if (existingFaculty) {
       return res.status(400).json({ message: "Faculty already registered" });
@@ -59,6 +74,13 @@ export const registerFaculty = async (req, res) => {
       facultyId: newFaculty.facultyId,
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: "Validation Error", 
+        errors: messages 
+      });
+    }
     res.status(500).json({
       message: "Error registering faculty",
       error: error.message,
@@ -70,6 +92,14 @@ export const registerFaculty = async (req, res) => {
 export const loginFaculty = async (req, res) => {
   try {
     const { facultyNumber, password } = req.body;
+
+    // Validate faculty number format 
+    const facultyNumberRegex = /^\d{8,}$/;  
+    if (!facultyNumberRegex.test(facultyNumber)) {
+      return res.status(400).json({ 
+        message: "Faculty number must be at least 8 digits" 
+      });
+    }
 
     let faculty = await Faculty.findOne({ facultyNumber });
     if (!faculty) {
@@ -171,6 +201,21 @@ export const refreshTokenFaculty = async (req, res) => {
 export const forgotPasswordFaculty = async (req, res) => {
   try {
     const { facultyNumber, facultyName, newPassword } = req.body;
+
+    // Validate faculty name length
+    if (facultyName.length < 8) {
+      return res.status(400).json({ 
+        message: "Faculty name must be at least 8 characters long" 
+      });
+    }
+
+    // Validate faculty number format 
+    const facultyNumberRegex = /^\d{8,}$/;  
+    if (!facultyNumberRegex.test(facultyNumber)) {
+      return res.status(400).json({ 
+        message: "Faculty number must be at least 8 digits" 
+      });
+    }
 
     const faculty = await Faculty.findOne({ 
       facultyNumber, 

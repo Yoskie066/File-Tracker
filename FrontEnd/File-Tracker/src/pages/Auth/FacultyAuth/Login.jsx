@@ -13,16 +13,52 @@ const FacultyLogin = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("success"); 
   const [modalMessage, setModalMessage] = useState("");
+  const [errors, setErrors] = useState({});
 
   const navigate = useNavigate();
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Validate faculty number (at least 8 digits)
+    const facultyNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    if (!facultyNumberRegex.test(formData.facultyNumber)) {
+      newErrors.facultyNumber = "Faculty number must be at least 8 digits";
+    }
+    
+    // Validate password
+    if (formData.password.length < 4) {
+      newErrors.password = "Password must be at least 4 characters long";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Remove non-numeric characters
+    if (name === "facultyNumber") {
+      const numericValue = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      setModalType("error");
+      setModalMessage("Please fix the errors in the form");
+      setModalOpen(true);
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/faculty/login`, {
@@ -83,10 +119,19 @@ const FacultyLogin = () => {
                 name="facultyNumber"
                 value={formData.facultyNumber}
                 onChange={handleChange}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="Enter your faculty number"
+                title="Faculty number must be at least 8 digits"
                 required
               />
+              {errors.facultyNumber && (
+                <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Must be at least 8 digits (numbers only)
+              </p>
             </div>
             
             <div className="mb-4 sm:mb-6">
@@ -99,10 +144,15 @@ const FacultyLogin = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.password ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="Enter your password"
                 required
               />
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
             </div>
 
             <div className="flex justify-end mb-4 sm:mb-6">

@@ -34,6 +34,21 @@ export const registerAdmin = async (req, res) => {
   try {
     const { adminName, adminNumber, password } = req.body;
 
+    // Validate admin name length
+    if (adminName.length < 8) {
+      return res.status(400).json({ 
+        message: "Admin name must be at least 8 characters long" 
+      });
+    }
+
+    // Validate admin number format 
+    const adminNumberRegex = /^\d{8,}$/;  
+    if (!adminNumberRegex.test(adminNumber)) {
+      return res.status(400).json({ 
+        message: "Admin number must be at least 8 digits" 
+      });
+    }
+
     const existingAdmin = await Admin.findOne({ adminNumber });
     if (existingAdmin) {
       return res.status(400).json({ message: "Admin already registered" });
@@ -59,6 +74,13 @@ export const registerAdmin = async (req, res) => {
       adminId: newAdmin.adminId,
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: "Validation Error", 
+        errors: messages 
+      });
+    }
     res.status(500).json({
       message: "Error registering admin",
       error: error.message,
@@ -70,6 +92,14 @@ export const registerAdmin = async (req, res) => {
 export const loginAdmin = async (req, res) => {
   try {
     const { adminNumber, password } = req.body;
+
+    // Validate admin number format 
+    const adminNumberRegex = /^\d{8,}$/;  
+    if (!adminNumberRegex.test(adminNumber)) {
+      return res.status(400).json({ 
+        message: "Admin number must be at least 8 digits" 
+      });
+    }
 
     let admin = await Admin.findOne({ adminNumber });
     if (!admin) {
@@ -169,6 +199,21 @@ export const refreshTokenAdmin = async (req, res) => {
 export const forgotPasswordAdmin = async (req, res) => {
   try {
     const { adminNumber, adminName, newPassword } = req.body;
+
+    // Validate admin name length
+    if (adminName.length < 8) {
+      return res.status(400).json({ 
+        message: "Admin name must be at least 8 characters long" 
+      });
+    }
+
+    // Validate admin number format 
+    const adminNumberRegex = /^\d{8,}$/;  
+    if (!adminNumberRegex.test(adminNumber)) {
+      return res.status(400).json({ 
+        message: "Admin number must be at least 8 digits" 
+      });
+    }
 
     const admin = await Admin.findOne({ 
       adminNumber, 

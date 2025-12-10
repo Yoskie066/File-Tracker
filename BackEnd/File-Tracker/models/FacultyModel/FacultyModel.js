@@ -11,11 +11,25 @@ const facultySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      minlength: 8,
+      validate: {
+        validator: function(v) {
+          return v.length >= 8;
+        },
+        message: "Faculty name must be at least 8 characters long"
+      }
     },
     facultyNumber: {
       type: String,
       required: true,
       unique: true,
+      match: [/^\d{8,}$/, "Faculty number must be at least 8 digits"],
+      validate: {
+        validator: function(v) {
+          return /^\d{8,}$/.test(v); 
+        },
+        message: "Faculty number must contain at least 8 digits"
+      }
     },
     password: {
       type: String,
