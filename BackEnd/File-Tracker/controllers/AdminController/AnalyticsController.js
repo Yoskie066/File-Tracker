@@ -41,11 +41,12 @@ export const getAnalyticsData = async (req, res) => {
       };
     }
 
-    // Get user statistics from combined Admin and Faculty models
-    const admins = await Admin.countDocuments();
-    const faculties = await Faculty.countDocuments();
-    const onlineAdmins = await Admin.countDocuments({ status: 'online' });
-    const onlineFaculties = await Faculty.countDocuments({ status: 'online' });
+    // Get user statistics from combined Admin and Faculty models with date filter
+    const userFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
+    const admins = await Admin.countDocuments(userFilter);
+    const faculties = await Faculty.countDocuments(userFilter);
+    const onlineAdmins = await Admin.countDocuments({ ...userFilter, status: 'online' });
+    const onlineFaculties = await Faculty.countDocuments({ ...userFilter, status: 'online' });
 
     const totalUsers = admins + faculties;
     const onlineUsers = onlineAdmins + onlineFaculties;
@@ -161,9 +162,11 @@ export const getAnalyticsData = async (req, res) => {
       }
     });
 
-    // Get system variables statistics
-    const totalVariables = await SystemVariable.countDocuments();
+    // Get system variables statistics with date filter
+    const systemVariableFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
+    const totalVariables = await SystemVariable.countDocuments(systemVariableFilter);
     const variableTypeDistribution = await SystemVariable.aggregate([
+      { $match: systemVariableFilter },
       {
         $group: {
           _id: '$variable_type',
@@ -394,6 +397,16 @@ export const getAvailableYears = async (req, res) => {
       { $sort: { _id: -1 } }
     ]);
 
+    // Get distinct years from SystemVariable
+    const systemVariableYears = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: { $year: "$created_at" }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
     // Combine and deduplicate years
     const allYears = [
       ...new Set([
@@ -401,6 +414,7 @@ export const getAvailableYears = async (req, res) => {
         ...noticeYears.map(item => item._id),
         ...adminYears.map(item => item._id),
         ...facultyYears.map(item => item._id),
+        ...systemVariableYears.map(item => item._id),
         new Date().getFullYear() // Include current year
       ])
     ]

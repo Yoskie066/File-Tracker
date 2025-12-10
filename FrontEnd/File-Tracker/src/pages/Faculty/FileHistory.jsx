@@ -4,9 +4,7 @@ import {
   FileText,
   File,
   Calendar,
-  Download,
-  Filter,
-  ArrowUpDown
+  Download
 } from "lucide-react";
 import tokenService from '../../services/tokenService';
 
@@ -17,12 +15,6 @@ export default function FileHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({});
   const itemsPerPage = 12;
-  
-  //  filter states
-  const [documentTypeFilter, setDocumentTypeFilter] = useState("");
-  const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [sortOption, setSortOption] = useState("most_recent");
-  const [showFilters, setShowFilters] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -121,70 +113,6 @@ export default function FileHistory() {
     });
   };
 
-  // UPDATED: Get unique values for filters 
-  const getUniqueValues = (key) => {
-    const values = new Set();
-    
-    files.forEach(file => {
-      if (key === 'document_type') {
-        values.add(getDocumentTypeDetails(file.document_type, file.tos_type).label);
-      } else if (key === 'subject_code' && file.subject_code) {
-        values.add(file.subject_code);
-      }
-    });
-
-    return Array.from(values).sort();
-  };
-
-  // UPDATED: Reset all filters 
-  const resetFilters = () => {
-    setDocumentTypeFilter("");
-    setSubjectCodeFilter("");
-    setSortOption("most_recent");
-    setCurrentPage(1);
-  };
-
-  // UPDATED: Apply filters to files 
-  const getFilteredFiles = () => {
-    let filtered = (Array.isArray(files) ? files : []);
-
-    // Apply search filter
-    filtered = filtered.filter((file) =>
-      [file.file_name, file.document_type, file.subject_code]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
-    );
-
-    // Apply advanced filters
-    if (documentTypeFilter) {
-      filtered = filtered.filter(file => 
-        getDocumentTypeDetails(file.document_type, file.tos_type).label === documentTypeFilter
-      );
-    }
-    
-    if (subjectCodeFilter) {
-      filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      const dateA = new Date(a.date_submitted);
-      const dateB = new Date(b.date_submitted);
-      
-      switch (sortOption) {
-        case "most_recent":
-          return dateB - dateA;
-        case "oldest":
-          return dateA - dateB;
-        default:
-          return dateB - dateA;
-      }
-    });
-
-    return filtered;
-  };
-
-  const filteredFiles = getFilteredFiles();
-
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -198,13 +126,6 @@ export default function FileHistory() {
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-            </button>
             <input
               type="text"
               placeholder="Search files..."
@@ -215,102 +136,7 @@ export default function FileHistory() {
           </div>
         </div>
 
-        {/* UPDATED: Filtering Options */}
-        {showFilters && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
-            {/* First Row - 2 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Document Type
-                </label>
-                <select
-                  value={documentTypeFilter}
-                  onChange={(e) => {
-                    setDocumentTypeFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Types</option>
-                  {getUniqueValues('document_type').map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Subject Code
-                </label>
-                <select
-                  value={subjectCodeFilter}
-                  onChange={(e) => {
-                    setSubjectCodeFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Subjects</option>
-                  {getUniqueValues('subject_code').map(code => (
-                    <option key={code} value={code}>{code}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Sort by:
-                </label>
-                <select
-                  value={sortOption}
-                  onChange={(e) => {
-                    setSortOption(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="most_recent">Most Recent</option>
-                  <option value="oldest">Oldest</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Second Row - Sort info and Reset */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
-              </div>
-              
-              <div className="text-right">
-                {(documentTypeFilter || subjectCodeFilter || sortOption !== "most_recent") && (
-                  <button
-                    onClick={resetFilters}
-                    className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    Reset All Filters
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Filter Summary */}
-            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
-              {filteredFiles.length} of {files.length} files
-              {documentTypeFilter || subjectCodeFilter ? (
-                <span className="ml-2 text-blue-600">
-                  ({[
-                    documentTypeFilter && `Type: ${documentTypeFilter}`,
-                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`
-                  ].filter(Boolean).join(", ")})
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {/* UPDATED: Desktop Grid Header  */}
+        {/* Desktop Grid Header */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg">
           <div className="col-span-4 text-sm font-semibold text-gray-600">File Name</div>
           <div className="col-span-3 text-sm font-semibold text-gray-600">Document Type</div>
@@ -325,11 +151,11 @@ export default function FileHistory() {
               <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
               <span className="ml-3 text-gray-500">Loading files...</span>
             </div>
-          ) : filteredFiles.length > 0 ? (
+          ) : files.length > 0 ? (
             <>
-              {/* UPDATED: Desktop Grid Layout */}
+              {/* Desktop Grid Layout */}
               <div className="hidden md:block">
-                {filteredFiles.map((file) => {
+                {files.map((file) => {
                   const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
                   const DocumentTypeIcon = documentTypeDetails.icon;
                   
@@ -389,30 +215,27 @@ export default function FileHistory() {
                 })}
               </div>
 
-              {/* UPDATED: Mobile Cards Layout  */}
+              {/* Mobile Cards Layout - FIXED NA WALANG OVERLAP */}
               <div className="md:hidden grid grid-cols-1 gap-4 p-4">
-                {filteredFiles.map((file) => {
+                {files.map((file) => {
                   const documentTypeDetails = getDocumentTypeDetails(file.document_type, file.tos_type);
                   const DocumentTypeIcon = documentTypeDetails.icon;
                   
                   return (
                     <div key={file._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                       <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
-                            <DocumentTypeIcon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h2 className="font-semibold text-gray-800 text-sm">{file.file_name}</h2>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {file.subject_code}
-                            </p>
-                          </div>
+                        <div className="flex-1 min-w-0 mr-2">
+                          <h2 className="font-semibold text-gray-800 truncate">{file.file_name}</h2>
+                          <p className="text-xs text-gray-600 mt-1 truncate">
+                            {file.subject_code}
+                          </p>
                         </div>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${documentTypeDetails.color} border`}>
-                          <DocumentTypeIcon className="w-3 h-3" />
-                          {documentTypeDetails.label}
-                        </span>
+                        <div className="flex-shrink-0">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${documentTypeDetails.color} border truncate max-w-[120px]`}>
+                            <DocumentTypeIcon className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{documentTypeDetails.label}</span>
+                          </span>
+                        </div>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3 text-sm mb-3">
@@ -438,32 +261,24 @@ export default function FileHistory() {
             <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                {search || documentTypeFilter || subjectCodeFilter
-                  ? "No files found with current filters" 
+                {search
+                  ? "No files found with current search" 
                   : "No files submitted yet"}
               </h3>
               <p className="text-gray-500 max-w-md mx-auto text-sm">
-                {search || documentTypeFilter || subjectCodeFilter
-                  ? "Try adjusting your search terms or filters to find what you're looking for."
+                {search
+                  ? "Try adjusting your search terms to find what you're looking for."
                   : "Files you submit will appear in your history here."}
               </p>
             </div>
           )}
         </div>
 
-        {/* UPDATED: Pagination  */}
+        {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
             <div className="text-sm text-gray-600">
-              Showing {filteredFiles.length} of {files.length} files
-              {documentTypeFilter || subjectCodeFilter ? (
-                <span className="ml-2 text-blue-600">
-                  ({[
-                    documentTypeFilter && `Type: ${documentTypeFilter}`,
-                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`
-                  ].filter(Boolean).join(", ")})
-                </span>
-              ) : null}
+              Showing {files.length} files
             </div>
             
             <div className="flex items-center gap-3">

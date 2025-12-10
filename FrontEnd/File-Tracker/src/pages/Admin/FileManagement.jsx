@@ -82,10 +82,15 @@ export default function FileManagement() {
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => setActionDropdown(null);
+    const handleClickOutside = (e) => {
+      if (actionDropdown && !e.target.closest('.action-dropdown-container')) {
+        setActionDropdown(null);
+      }
+    };
+    
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
+  }, [actionDropdown]);
 
   // Show feedback modal
   const showFeedback = (type, message) => {
@@ -808,7 +813,7 @@ export default function FileManagement() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Semester (Auto-sync)
+                    Semester
                   </label>
                   <select
                     value={semesterFilter}
@@ -827,7 +832,7 @@ export default function FileManagement() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Academic Year (Auto-sync)
+                    Academic Year
                   </label>
                   <select
                     value={schoolYearFilter}
@@ -1077,7 +1082,7 @@ export default function FileManagement() {
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {formatDate(file.uploaded_at)}
                     </td>
-                    <td className="px-4 py-3 relative">
+                    <td className="px-4 py-3 relative action-dropdown-container">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1089,7 +1094,7 @@ export default function FileManagement() {
                       </button>
                       
                       {actionDropdown === file.file_id && (
-                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                           <button
                             onClick={() => handlePreview(file)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -1131,22 +1136,22 @@ export default function FileManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED with auto-synced fields */}
+        {/* Mobile Cards - FIXED LAYOUT */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentFiles.length > 0 ? (
             currentFiles.map((file) => (
-              <div key={file._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+              <div key={file._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white relative">
                 <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h2 className="font-semibold text-gray-800">{file.file_name}</h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {file.file_id}</p>
+                  <div className="flex-1 min-w-0 mr-2">
+                    <h2 className="font-semibold text-gray-800 truncate">{file.file_name}</h2>
+                    <p className="text-xs text-gray-600 font-mono truncate">ID: {file.file_id}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
                       {file.status}
                     </span>
                     
-                    <div className="relative">
+                    <div className="relative action-dropdown-container">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1158,7 +1163,7 @@ export default function FileManagement() {
                       </button>
                       
                       {actionDropdown === file.file_id && (
-                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                           <button
                             onClick={() => handlePreview(file)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -1191,37 +1196,37 @@ export default function FileManagement() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                  <div>
-                    <span className="text-gray-500">Faculty:</span>
-                    <p className="font-medium">{file.faculty_name}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">Faculty:</span>
+                    <p className="font-medium truncate">{file.faculty_name}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Document Type:</span>
-                    <p className="font-medium">{getDocumentTypeLabel(file.document_type, file.tos_type)}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">Document Type:</span>
+                    <p className="font-medium truncate">{getDocumentTypeLabel(file.document_type, file.tos_type)}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">TOS Type:</span>
-                    <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">TOS Type:</span>
+                    <p className="font-medium truncate capitalize">{file.tos_type || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Subject Code:</span>
-                    <p className="font-medium">{file.subject_code}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">Subject Code:</span>
+                    <p className="font-medium truncate">{file.subject_code}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Semester:</span>
-                    <p className="font-medium">{file.semester}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">Semester:</span>
+                    <p className="font-medium truncate">{file.semester}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Academic Year:</span>
-                    <p className="font-medium">{file.school_year}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">Academic Year:</span>
+                    <p className="font-medium truncate">{file.school_year}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Size:</span>
-                    <p className="font-medium">{formatFileSize(file.file_size)}</p>
+                  <div className="truncate">
+                    <span className="text-gray-500 block truncate">Size:</span>
+                    <p className="font-medium truncate">{formatFileSize(file.file_size)}</p>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Uploaded:</span>
-                    <p className="font-medium text-xs">{formatDate(file.uploaded_at)}</p>
+                  <div className="col-span-2 truncate">
+                    <span className="text-gray-500 block truncate">Uploaded:</span>
+                    <p className="font-medium text-xs truncate">{formatDate(file.uploaded_at)}</p>
                   </div>
                 </div>
 
@@ -1232,7 +1237,7 @@ export default function FileManagement() {
                       file.course_sections.map((section, index) => (
                         <span 
                           key={index}
-                          className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                          className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded truncate max-w-[120px]"
                         >
                           {section}
                         </span>

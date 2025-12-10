@@ -281,7 +281,7 @@ export default function UserManagement() {
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header */}
+        {/* Header - UPDATED STRUCTURE */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
@@ -291,19 +291,6 @@ export default function UserManagement() {
           </div>
           
           <div className="flex gap-3 w-full md:w-auto">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-              {showFilters && (
-                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              )}
-            </button>
-            
             <input
               type="text"
               placeholder="Search users..."
@@ -317,168 +304,184 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* Filtering and Sorting Options */}
-        {showFilters && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <select
-                  value={nameFilter}
-                  onChange={(e) => {
-                    setNameFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Names</option>
-                  {getUniqueValues('name').map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
+        {/* Show Filters Button - MOVED BELOW HEADER LIKE FACULTY LOAD */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+          >
+            <Filter className="w-4 h-4" />
+            {showFilters ? "Hide Filters" : "Show Filters"}
+            {showFilters && (
+              <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                Active
+              </span>
+            )}
+          </button>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Role
-                </label>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => {
-                    setRoleFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Roles</option>
-                  <option value="admin">Admin</option>
-                  <option value="faculty">Faculty</option>
-                </select>
-              </div>
+          {/* Filtering and Sorting Options */}
+          {showFilters && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <select
+                    value={nameFilter}
+                    onChange={(e) => {
+                      setNameFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Names</option>
+                    {getUniqueValues('name').map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Status</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Role
+                  </label>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                      setRoleFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="faculty">Faculty</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Month (Created At)
-                </label>
-                <select
-                  value={monthFilter}
-                  onChange={(e) => {
-                    setMonthFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Months</option>
-                  <option value="January">January</option>
-                  <option value="February">February</option>
-                  <option value="March">March</option>
-                  <option value="April">April</option>
-                  <option value="May">May</option>
-                  <option value="June">June</option>
-                  <option value="July">July</option>
-                  <option value="August">August</option>
-                  <option value="September">September</option>
-                  <option value="October">October</option>
-                  <option value="November">November</option>
-                  <option value="December">December</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Status</option>
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Year (Created At)
-                </label>
-                <select
-                  value={yearFilter}
-                  onChange={(e) => {
-                    setYearFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="">All Years</option>
-                  {getUniqueYears().map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Month (Created At)
+                  </label>
+                  <select
+                    value={monthFilter}
+                    onChange={(e) => {
+                      setMonthFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Months</option>
+                    <option value="January">January</option>
+                    <option value="February">February</option>
+                    <option value="March">March</option>
+                    <option value="April">April</option>
+                    <option value="May">May</option>
+                    <option value="June">June</option>
+                    <option value="July">July</option>
+                    <option value="August">August</option>
+                    <option value="September">September</option>
+                    <option value="October">October</option>
+                    <option value="November">November</option>
+                    <option value="December">December</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Sort by:
-                </label>
-                <select
-                  value={sortOption}
-                  onChange={(e) => {
-                    setSortOption(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                >
-                  <option value="most_recent">Most Recent</option>
-                  <option value="oldest">Oldest</option>
-                </select>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Year (Created At)
+                  </label>
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => {
+                      setYearFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Years</option>
+                    {getUniqueYears().map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-              <div className="col-span-1">
-                <span className="text-xs text-gray-500">
-                  {filteredUsers.length} of {users.length} users
-                  {nameFilter || roleFilter || statusFilter || monthFilter || yearFilter ? (
-                    <span className="ml-2 text-blue-600">
-                      ({[
-                        nameFilter && "Name",
-                        roleFilter && "Role",
-                        statusFilter && "Status",
-                        monthFilter && monthFilter,
-                        yearFilter && yearFilter
-                      ].filter(Boolean).join(", ")})
-                    </span>
-                  ) : null}
-                </span>
-              </div>
-              
-              <div className="col-span-1">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Sort by:
+                  </label>
+                  <select
+                    value={sortOption}
+                    onChange={(e) => {
+                      setSortOption(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="most_recent">Most Recent</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
                 </div>
               </div>
-              
-              <div className="col-span-1 text-right">
-                {(nameFilter || roleFilter || statusFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
-                  <button
-                    onClick={resetFilters}
-                    className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    Reset All Filters
-                  </button>
-                )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                <div className="col-span-1">
+                  <span className="text-xs text-gray-500">
+                    {filteredUsers.length} of {users.length} users
+                    {nameFilter || roleFilter || statusFilter || monthFilter || yearFilter ? (
+                      <span className="ml-2 text-blue-600">
+                        ({[
+                          nameFilter && "Name",
+                          roleFilter && "Role",
+                          statusFilter && "Status",
+                          monthFilter && monthFilter,
+                          yearFilter && yearFilter
+                        ].filter(Boolean).join(", ")})
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                
+                <div className="col-span-1">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
+                  </div>
+                </div>
+                
+                <div className="col-span-1 text-right">
+                  {(nameFilter || roleFilter || statusFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

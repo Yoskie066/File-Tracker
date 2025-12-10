@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { Doughnut } from 'react-chartjs-2';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -14,7 +12,7 @@ import {
   Legend, 
   ArcElement 
 } from 'chart.js';
-import { Filter, ArrowUpDown } from 'lucide-react';
+import { Filter, ArrowUpDown, Calendar } from 'lucide-react';
 
 // Register Chart.js components
 ChartJS.register(
@@ -40,9 +38,15 @@ export default function Analytics() {
   
   // Filter states
   const [dateRangeMode, setDateRangeMode] = useState('year');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState("all");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  
+  // Calendar states
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const [startCurrentMonth, setStartCurrentMonth] = useState(new Date());
+  const [endCurrentMonth, setEndCurrentMonth] = useState(new Date());
   
   // Performance 
   const [search, setSearch] = useState("");
@@ -75,7 +79,7 @@ export default function Analytics() {
       let url = `${API_BASE_URL}/api/admin/analytics?`;
       let facultyUrl = `${API_BASE_URL}/api/admin/analytics/faculty-performance?`;
       
-      if (dateRangeMode === 'year' && selectedYear) {
+      if (dateRangeMode === 'year' && selectedYear && selectedYear !== "all") {
         url += `year=${selectedYear}`;
         facultyUrl += `year=${selectedYear}`;
       } else if (dateRangeMode === 'custom' && startDate && endDate) {
@@ -139,6 +143,7 @@ export default function Analytics() {
 
   // Format date
   const formatDate = (date) => {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-PH', {
       year: 'numeric',
       month: 'short',
@@ -148,7 +153,7 @@ export default function Analytics() {
 
   // Reset all filters
   const resetFilters = () => {
-    setSelectedYear(new Date().getFullYear());
+    setSelectedYear("all");
     setStartDate(null);
     setEndDate(null);
     setDateRangeMode('year');
@@ -178,18 +183,6 @@ export default function Analytics() {
         position: 'bottom',
       },
     },
-  };
-
-  // Calculate TOS total (tos-midterm + tos-final)
-  const calculateTOSTotal = () => {
-    const docDist = analyticsData?.admin_notice_management?.document_type_distribution || {};
-    return (docDist['tos-midterm'] || 0) + (docDist['tos-final'] || 0);
-  };
-
-  // Calculate All Files total for admin notice
-  const calculateAllFilesTotal = () => {
-    const docDist = analyticsData?.admin_notice_management?.document_type_distribution || {};
-    return Object.values(docDist).reduce((sum, count) => sum + count, 0);
   };
 
   // 1. User Distribution (Admin vs Faculty)
@@ -421,14 +414,119 @@ export default function Analytics() {
     };
   };
 
+  // Custom Calendar Component
+  const CustomCalendar = ({ 
+    selectedDate, 
+    onDateChange, 
+    showCalendar, 
+    setShowCalendar, 
+    currentMonth, 
+    setCurrentMonth 
+  }) => {
+    const handleDateClick = (date) => {
+      onDateChange(date);
+      setShowCalendar(false);
+    };
+
+    const handlePrevMonth = () => {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    };
+
+    const generateCalendar = () => {
+      const today = new Date();
+      const currentYear = currentMonth.getFullYear();
+      const currentMonthIndex = currentMonth.getMonth();
+      
+      const firstDay = new Date(currentYear, currentMonthIndex, 1);
+      const lastDay = new Date(currentYear, currentMonthIndex + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      
+      const days = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        days.push(i);
+      }
+      
+      return (
+        <div className="absolute z-50 mt-1 p-4 bg-white border border-gray-300 rounded-lg shadow-lg w-64">
+          <div className="flex justify-between items-center mb-2">
+            <button 
+              onClick={handlePrevMonth}
+              className="p-1 hover:bg-gray-100 rounded"
+              type="button"
+            >
+              ←
+            </button>
+            <span className="font-semibold">
+              {new Date(currentYear, currentMonthIndex).toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </span>
+            <button 
+              onClick={handleNextMonth}
+              className="p-1 hover:bg-gray-100 rounded"
+              type="button"
+            >
+              →
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="text-center text-xs font-medium text-gray-500">
+                {day}
+              </div>
+            ))}
+            {Array(firstDay.getDay()).fill(null).map((_, i) => (
+              <div key={`empty-${i}`} className="h-8"></div>
+            ))}
+            {days.map(day => {
+              const dateStr = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const date = new Date(dateStr);
+              const isToday = day === today.getDate() && currentMonthIndex === today.getMonth();
+              const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+              
+              return (
+                <button
+                  key={day}
+                  onClick={() => handleDateClick(date)}
+                  className={`h-8 w-8 flex items-center justify-center text-sm rounded-full ${
+                    isSelected 
+                      ? 'bg-black text-white' 
+                      : isToday 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'hover:bg-gray-100'
+                  }`}
+                  type="button"
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 pt-2 border-t">
+            <input
+              type="date"
+              value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
+              onChange={(e) => handleDateClick(new Date(e.target.value))}
+              className="w-full p-2 border rounded text-sm"
+            />
+          </div>
+        </div>
+      );
+    };
+
+    return showCalendar ? generateCalendar() : null;
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header */}
+        {/* Header - UPDATED STRUCTURE */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Analytics </h1>
             <p className="text-sm text-gray-500">
               Comprehensive insights across all system modules and performance metrics
             </p>
@@ -439,20 +537,7 @@ export default function Analytics() {
             )}
           </div>
           
-          <div className="flex gap-3 w-full md:w-auto">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-              {showFilters && (
-                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              )}
-            </button>
-            
+          <div className="flex gap-2 w-full md:w-auto">
             <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab('overview')}
@@ -478,130 +563,184 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Filtering Options */}
-        {showFilters && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Date Range Mode Toggle */}
-              <div className="col-span-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Date Range Mode
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setDateRangeMode('year')}
-                    className={`flex-1 px-3 py-2 text-sm rounded-md border ${
-                      dateRangeMode === 'year' 
-                        ? 'bg-black text-white border-black' 
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    By Year
-                  </button>
-                  <button
-                    onClick={() => setDateRangeMode('custom')}
-                    className={`flex-1 px-3 py-2 text-sm rounded-md border ${
-                      dateRangeMode === 'custom' 
-                        ? 'bg-black text-white border-black' 
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    Custom Range
-                  </button>
-                </div>
-              </div>
+        {/* Show Filters Button - MOVED BELOW HEADER LIKE FACULTY LOAD */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+          >
+            <Filter className="w-4 h-4" />
+            {showFilters ? "Hide Filters" : "Show Filters"}
+            {showFilters && (
+              <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                Active
+              </span>
+            )}
+          </button>
 
-              {/* Year Filter */}
-              {dateRangeMode === 'year' && (
-                <div>
+          {/* Filtering Options - MOVED TO SHOW BELOW THE BUTTON */}
+          {showFilters && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Date Range Mode Toggle */}
+                <div className="col-span-1">
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Year *
+                    Date Range Mode
                   </label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDateRangeMode('year')}
+                      className={`flex-1 px-3 py-2 text-sm rounded-md border ${
+                        dateRangeMode === 'year' 
+                          ? 'bg-black text-white border-black' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      By Year
+                    </button>
+                    <button
+                      onClick={() => setDateRangeMode('custom')}
+                      className={`flex-1 px-3 py-2 text-sm rounded-md border ${
+                        dateRangeMode === 'custom' 
+                          ? 'bg-black text-white border-black' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Date Range
+                    </button>
+                  </div>
+                </div>
+
+                {/* Year Filter */}
+                {dateRangeMode === 'year' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Year
+                    </label>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                    >
+                      <option value="all">All Years</option>
+                      {availableYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Custom Date Range */}
+                {dateRangeMode === 'custom' && (
+                  <>
+                    <div className="relative">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Start Date *
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={startDate ? formatDate(startDate) : ''}
+                          readOnly
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                          placeholder="Select start date"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowStartCalendar(!showStartCalendar);
+                            setShowEndCalendar(false);
+                          }}
+                          className="border border-gray-300 rounded-md px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <CustomCalendar
+                        selectedDate={startDate}
+                        onDateChange={setStartDate}
+                        showCalendar={showStartCalendar}
+                        setShowCalendar={setShowStartCalendar}
+                        currentMonth={startCurrentMonth}
+                        setCurrentMonth={setStartCurrentMonth}
+                      />
+                    </div>
+                    <div className="relative">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        End Date *
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={endDate ? formatDate(endDate) : ''}
+                          readOnly
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                          placeholder="Select end date"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowEndCalendar(!showEndCalendar);
+                            setShowStartCalendar(false);
+                          }}
+                          className="border border-gray-300 rounded-md px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <CustomCalendar
+                        selectedDate={endDate}
+                        onDateChange={setEndDate}
+                        showCalendar={showEndCalendar}
+                        setShowCalendar={setShowEndCalendar}
+                        currentMonth={endCurrentMonth}
+                        setCurrentMonth={setEndCurrentMonth}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Reset Button */}
+                <div className="flex items-end">
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors w-full"
                   >
-                    {availableYears.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
+                    Reset Filters
+                  </button>
                 </div>
-              )}
-
-              {/* Custom Date Range */}
-              {dateRangeMode === 'custom' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Start Date *
-                    </label>
-                    <DatePicker
-                      selected={startDate}
-                      onChange={(date) => setStartDate(date)}
-                      selectsStart
-                      startDate={startDate}
-                      endDate={endDate}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                      placeholderText="Select start date"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      End Date *
-                    </label>
-                    <DatePicker
-                      selected={endDate}
-                      onChange={(date) => setEndDate(date)}
-                      selectsEnd
-                      startDate={startDate}
-                      endDate={endDate}
-                      minDate={startDate}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                      placeholderText="Select end date"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Reset Button */}
-              <div className="flex items-end">
-                <button
-                  onClick={resetFilters}
-                  className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors w-full"
-                >
-                  Reset Filters
-                </button>
               </div>
-            </div>
 
-            {/* Filter Status */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-              <div className="col-span-1">
-                <span className="text-xs text-gray-500">
-                  Currently viewing data for:{" "}
-                  <span className="font-medium text-gray-700">
-                    {dateRangeMode === 'year' 
-                      ? `Year ${selectedYear}`
-                      : startDate && endDate 
-                        ? `${formatDate(startDate)} to ${formatDate(endDate)}`
-                        : 'Please select date range'
-                    }
+              {/* Filter Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+                <div className="col-span-1">
+                  <span className="text-xs text-gray-500">
+                    Currently viewing data for:{" "}
+                    <span className="font-medium text-gray-700">
+                      {dateRangeMode === 'year' 
+                        ? selectedYear === "all" 
+                          ? "All Years" 
+                          : `Year ${selectedYear}`
+                        : startDate && endDate 
+                          ? `${formatDate(startDate)} to ${formatDate(endDate)}`
+                          : 'Please select date range'
+                      }
+                    </span>
                   </span>
-                </span>
-              </div>
-              
-              <div className="col-span-1">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-700">
-                    Mode: {dateRangeMode === 'year' ? 'By Year' : 'Custom Range'}
-                  </span>
+                </div>
+                
+                <div className="col-span-1">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700">
+                      Mode: {dateRangeMode === 'year' ? 'By Year' : 'Custom Range'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Date Range Display */}
         <div className="mb-6 p-3 bg-blue-50 rounded-lg">
@@ -610,7 +749,9 @@ export default function Analytics() {
               <span className="text-sm text-gray-600">Currently viewing data for: </span>
               <span className="font-medium">
                 {dateRangeMode === 'year' 
-                  ? `Year ${selectedYear}`
+                  ? selectedYear === "all" 
+                    ? "All Years" 
+                    : `Year ${selectedYear}`
                   : startDate && endDate 
                     ? `${formatDate(startDate)} to ${formatDate(endDate)}`
                     : 'Please select date range'
