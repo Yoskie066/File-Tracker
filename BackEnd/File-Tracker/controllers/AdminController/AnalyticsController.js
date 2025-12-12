@@ -17,7 +17,7 @@ export const getAnalyticsData = async (req, res) => {
     let fileFilter = {};
     let noticeFilter = {};
     let systemVariableFilter = {};
-    let userFilter = {}; // NEW: User filter for date range mode
+    let userFilter = {}; // User filter for date range mode
 
     // If year is provided, filter by year
     if (year) {
@@ -41,21 +41,27 @@ export const getAnalyticsData = async (req, res) => {
       fileFilter = { uploaded_at: { $gte: start, $lte: end } };
       noticeFilter = { created_at: { $gte: start, $lte: end } };
       systemVariableFilter = { created_at: { $gte: start, $lte: end } };
-      // For "Date Range" mode, filter users by created_at
-      userFilter = { created_at: { $gte: start, $lte: end } };
+      
+      // For "Date Range" mode, filter users by registeredAt (when they registered)
+      // This will show only users who registered within the selected date range
+      userFilter = {
+        $or: [
+          { registeredAt: { $gte: start, $lte: end } },
+          { createdAt: { $gte: start, $lte: end } }
+        ]
+      };
     }
 
     // Get user statistics with conditional filtering
-    // When userFilter is empty (By Year mode), get ALL users
-    // When userFilter has dates (Date Range mode), get users created in that range
+    // Query Admin model (uses registeredAt)
     const admins = await Admin.countDocuments(userFilter);
-    const faculties = await Faculty.countDocuments(userFilter);
-    
-    // Online/Offline counts should still consider the date filter
     const onlineAdmins = await Admin.countDocuments({ 
       ...userFilter, 
       status: 'online' 
     });
+    
+    // Query Faculty model (uses registeredAt)
+    const faculties = await Faculty.countDocuments(userFilter);
     const onlineFaculties = await Faculty.countDocuments({ 
       ...userFilter, 
       status: 'online' 
@@ -65,6 +71,10 @@ export const getAnalyticsData = async (req, res) => {
     const onlineUsers = onlineAdmins + onlineFaculties;
     const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
+
+    // Debug logging
+    console.log('User Filter Applied:', JSON.stringify(userFilter));
+    console.log(`User Stats - Total: ${totalUsers}, Admins: ${admins}, Faculty: ${faculties}, Online: ${onlineUsers}, Offline: ${offlineUsers}`);
 
     // Get file management statistics with date filter
     const totalFiles = await FileManagement.countDocuments(fileFilter);
@@ -366,15 +376,31 @@ export const getAvailableYears = async (req, res) => {
       { $sort: { _id: -1 } }
     ]);
 
-    // Get distinct years from Admin
+    // Get distinct years from Admin (registeredAt)
     const adminYears = await Admin.aggregate([
-      { $group: { _id: { $year: "$created_at" } } },
+      { 
+        $group: { 
+          _id: { 
+            $year: { 
+              $ifNull: ["$registeredAt", "$createdAt"] 
+            } 
+          } 
+        } 
+      },
       { $sort: { _id: -1 } }
     ]);
 
-    // Get distinct years from Faculty
+    // Get distinct years from Faculty (registeredAt)
     const facultyYears = await Faculty.aggregate([
-      { $group: { _id: { $year: "$created_at" } } },
+      { 
+        $group: { 
+          _id: { 
+            $year: { 
+              $ifNull: ["$registeredAt", "$createdAt"] 
+            } 
+          } 
+        } 
+      },
       { $sort: { _id: -1 } }
     ]);
 
