@@ -83,18 +83,17 @@ export default function Analytics() {
         url += `year=${selectedYear}`;
         facultyUrl += `year=${selectedYear}`;
       } else if (dateRangeMode === 'custom' && startDate && endDate) {
-        // Format dates to YYYY-MM-DD
         const startStr = startDate.toISOString().split('T')[0];
         const endStr = endDate.toISOString().split('T')[0];
         url += `startDate=${startStr}&endDate=${endStr}`;
         facultyUrl += `startDate=${startStr}&endDate=${endStr}`;
       }
-  
+
       const [analyticsRes, facultyRes] = await Promise.all([
         fetch(url),
         fetch(facultyUrl)
       ]);
-  
+
       // Handle analytics response
       if (analyticsRes.ok) {
         const analyticsResult = await analyticsRes.json();
@@ -106,7 +105,7 @@ export default function Analytics() {
       } else {
         throw new Error(`Analytics endpoint returned ${analyticsRes.status}`);
       }
-  
+
       // Handle faculty performance response
       if (facultyRes.ok) {
         const facultyResult = await facultyRes.json();

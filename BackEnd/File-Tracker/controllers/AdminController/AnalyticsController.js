@@ -6,7 +6,6 @@ import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
 
-// Get comprehensive analytics data with date filtering
 export const getAnalyticsData = async (req, res) => {
   try {
     console.log("Analytics endpoint hit");
@@ -18,9 +17,8 @@ export const getAnalyticsData = async (req, res) => {
     // If year is provided, filter by year
     if (year) {
       const startOfYear = new Date(`${year}-01-01`);
-      startOfYear.setUTCHours(0, 0, 0, 0);
       const endOfYear = new Date(`${year}-12-31`);
-      endOfYear.setUTCHours(23, 59, 59, 999);
+      endOfYear.setHours(23, 59, 59, 999);
       dateFilter = {
         created_at: {
           $gte: startOfYear,
@@ -32,9 +30,8 @@ export const getAnalyticsData = async (req, res) => {
     // If specific date range is provided
     if (startDate && endDate) {
       const start = new Date(startDate);
-      start.setUTCHours(0, 0, 0, 0);
       const end = new Date(endDate);
-      end.setUTCHours(23, 59, 59, 999);
+      end.setHours(23, 59, 59, 999);
       dateFilter = {
         created_at: {
           $gte: start,
@@ -43,21 +40,31 @@ export const getAnalyticsData = async (req, res) => {
       };
     }
 
-    // USER MANAGEMENT - Using created_at
+    // **FIXED: Get user statistics from UserManagement model instead of Admin/Faculty**
     const userFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
-    const admins = await Admin.countDocuments(userFilter);
-    const faculties = await Faculty.countDocuments(userFilter);
     
-    // For online users, we check current status (not based on created_at)
-    const onlineAdmins = await Admin.countDocuments({ status: 'online' });
-    const onlineFaculties = await Faculty.countDocuments({ status: 'online' });
-
-    const totalUsers = admins + faculties;
-    const onlineUsers = onlineAdmins + onlineFaculties;
+    // Count total users
+    const totalUsers = await User.countDocuments(userFilter);
+    
+    // Count admins and faculties
+    const admins = await User.countDocuments({ 
+      ...userFilter, 
+      role: 'admin' 
+    });
+    const faculties = await User.countDocuments({ 
+      ...userFilter, 
+      role: 'faculty' 
+    });
+    
+    // Count online/offline users
+    const onlineUsers = await User.countDocuments({ 
+      ...userFilter, 
+      status: 'online' 
+    });
     const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
 
-    // FILE MANAGEMENT - Using uploaded_at
+    // Get file management statistics - use uploaded_at for FileManagement
     const fileFilter = dateFilter.created_at ? { uploaded_at: dateFilter.created_at } : {};
     const totalFiles = await FileManagement.countDocuments(fileFilter);
     const pendingFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'pending' });
@@ -119,7 +126,7 @@ export const getAnalyticsData = async (req, res) => {
       }
     });
 
-    // ADMIN NOTICE MANAGEMENT - Using created_at
+    // Get admin notice statistics - use created_at for AdminNotice
     const noticeFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
     const totalNotices = await AdminNotice.countDocuments(noticeFilter);
     const overdueNotices = await AdminNotice.countDocuments({
@@ -145,7 +152,7 @@ export const getAnalyticsData = async (req, res) => {
     };
 
     adminNoticeData.forEach(notice => {
-      const docType = notice.document_type?.toLowerCase() || '';
+      const docType = notice.document_type.toLowerCase();
       
       if (docType.includes('syllabus')) {
         adminNoticeDocDist.syllabus++;
@@ -153,10 +160,6 @@ export const getAnalyticsData = async (req, res) => {
         if (notice.tos_type === 'MIDTERM TOS') {
           adminNoticeDocDist['tos-midterm']++;
         } else if (notice.tos_type === 'FINAL TOS') {
-          adminNoticeDocDist['tos-final']++;
-        } else if (docType.includes('midterm')) {
-          adminNoticeDocDist['tos-midterm']++;
-        } else if (docType.includes('final')) {
           adminNoticeDocDist['tos-final']++;
         }
       } else if (docType.includes('midterm') || docType.includes('midterm exam')) {
@@ -170,7 +173,7 @@ export const getAnalyticsData = async (req, res) => {
       }
     });
 
-    // SYSTEM VARIABLES - Using created_at
+    // Get system variables statistics - use created_at for SystemVariable
     const systemVariableFilter = dateFilter.created_at ? { created_at: dateFilter.created_at } : {};
     const totalVariables = await SystemVariable.countDocuments(systemVariableFilter);
     const variableTypeDistribution = await SystemVariable.aggregate([
@@ -278,9 +281,8 @@ export const getFacultyPerformance = async (req, res) => {
     // If year is provided, filter by year
     if (year) {
       const startOfYear = new Date(`${year}-01-01`);
-      startOfYear.setUTCHours(0, 0, 0, 0);
       const endOfYear = new Date(`${year}-12-31`);
-      endOfYear.setUTCHours(23, 59, 59, 999);
+      endOfYear.setHours(23, 59, 59, 999);
       dateFilter = {
         uploaded_at: {
           $gte: startOfYear,
@@ -292,9 +294,8 @@ export const getFacultyPerformance = async (req, res) => {
     // If specific date range is provided
     if (startDate && endDate) {
       const start = new Date(startDate);
-      start.setUTCHours(0, 0, 0, 0);
       const end = new Date(endDate);
-      end.setUTCHours(23, 59, 59, 999);
+      end.setHours(23, 59, 59, 999);
       dateFilter = {
         uploaded_at: {
           $gte: start,
@@ -364,10 +365,20 @@ export const getFacultyPerformance = async (req, res) => {
   }
 };
 
-// Get available years for analytics
+
 export const getAvailableYears = async (req, res) => {
   try {
-    // Get distinct years from FileManagement (uploaded_at)
+    // Get distinct years from UserManagement
+    const userYears = await User.aggregate([
+      {
+        $group: {
+          _id: { $year: "$created_at" }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
+    // Get distinct years from FileManagement
     const fileYears = await FileManagement.aggregate([
       {
         $group: {
@@ -377,7 +388,7 @@ export const getAvailableYears = async (req, res) => {
       { $sort: { _id: -1 } }
     ]);
 
-    // Get distinct years from AdminNotice (created_at)
+    // Get distinct years from AdminNotice
     const noticeYears = await AdminNotice.aggregate([
       {
         $group: {
@@ -387,27 +398,7 @@ export const getAvailableYears = async (req, res) => {
       { $sort: { _id: -1 } }
     ]);
 
-    // Get distinct years from Admin (created_at)
-    const adminYears = await Admin.aggregate([
-      {
-        $group: {
-          _id: { $year: "$created_at" }
-        }
-      },
-      { $sort: { _id: -1 } }
-    ]);
-
-    // Get distinct years from Faculty (created_at)
-    const facultyYears = await Faculty.aggregate([
-      {
-        $group: {
-          _id: { $year: "$created_at" }
-        }
-      },
-      { $sort: { _id: -1 } }
-    ]);
-
-    // Get distinct years from SystemVariable (created_at)
+    // Get distinct years from SystemVariable
     const systemVariableYears = await SystemVariable.aggregate([
       {
         $group: {
@@ -420,10 +411,9 @@ export const getAvailableYears = async (req, res) => {
     // Combine and deduplicate years
     const allYears = [
       ...new Set([
+        ...userYears.map(item => item._id),
         ...fileYears.map(item => item._id),
         ...noticeYears.map(item => item._id),
-        ...adminYears.map(item => item._id),
-        ...facultyYears.map(item => item._id),
         ...systemVariableYears.map(item => item._id),
         new Date().getFullYear() // Include current year
       ])
