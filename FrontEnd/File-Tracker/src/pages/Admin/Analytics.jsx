@@ -79,25 +79,21 @@ export default function Analytics() {
       let url = `${API_BASE_URL}/api/admin/analytics?`;
       let facultyUrl = `${API_BASE_URL}/api/admin/analytics/faculty-performance?`;
       
-      if (dateRangeMode === 'year') {
-        if (selectedYear && selectedYear !== "all") {
-          url += `year=${selectedYear}`;
-          facultyUrl += `year=${selectedYear}`;
-        }
-        // If selectedYear is "all", don't add any year parameter (will get overall data)
+      if (dateRangeMode === 'year' && selectedYear && selectedYear !== "all") {
+        url += `year=${selectedYear}`;
+        facultyUrl += `year=${selectedYear}`;
       } else if (dateRangeMode === 'custom' && startDate && endDate) {
-        // Format dates to YYYY-MM-DD
         const startStr = startDate.toISOString().split('T')[0];
         const endStr = endDate.toISOString().split('T')[0];
         url += `startDate=${startStr}&endDate=${endStr}`;
         facultyUrl += `startDate=${startStr}&endDate=${endStr}`;
       }
-  
+
       const [analyticsRes, facultyRes] = await Promise.all([
         fetch(url),
         fetch(facultyUrl)
       ]);
-  
+
       // Handle analytics response
       if (analyticsRes.ok) {
         const analyticsResult = await analyticsRes.json();
@@ -109,7 +105,7 @@ export default function Analytics() {
       } else {
         throw new Error(`Analytics endpoint returned ${analyticsRes.status}`);
       }
-  
+
       // Handle faculty performance response
       if (facultyRes.ok) {
         const facultyResult = await facultyRes.json();
@@ -626,7 +622,7 @@ export default function Analytics() {
                       onChange={(e) => setSelectedYear(e.target.value)}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                     >
-                      <option value="all">All Years (Overall)</option>
+                      <option value="all">All Years</option>
                       {availableYears.map(year => (
                         <option key={year} value={year}>{year}</option>
                       ))}
@@ -723,7 +719,7 @@ export default function Analytics() {
                     <span className="font-medium text-gray-700">
                       {dateRangeMode === 'year' 
                         ? selectedYear === "all" 
-                          ? "All Years (Overall)" 
+                          ? "All Years" 
                           : `Year ${selectedYear}`
                         : startDate && endDate 
                           ? `${formatDate(startDate)} to ${formatDate(endDate)}`
@@ -754,7 +750,7 @@ export default function Analytics() {
               <span className="font-medium">
                 {dateRangeMode === 'year' 
                   ? selectedYear === "all" 
-                    ? "All Years (Overall)" 
+                    ? "All Years" 
                     : `Year ${selectedYear}`
                   : startDate && endDate 
                     ? `${formatDate(startDate)} to ${formatDate(endDate)}`
@@ -843,9 +839,6 @@ export default function Analytics() {
                     <span className="text-gray-600">Faculty:</span>
                     <span className="font-semibold">{analyticsData?.user_management?.faculty_count || 0}</span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    Based on created_at field
-                  </div>
                 </div>
               </div>
 
@@ -868,9 +861,6 @@ export default function Analytics() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Rejected:</span>
                     <span className="font-semibold text-red-600">{analyticsData?.file_management?.rejected_files || 0}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    Based on uploaded_at field
                   </div>
                 </div>
               </div>
@@ -911,9 +901,6 @@ export default function Analytics() {
                     <span className="text-gray-600 font-medium">All Files:</span>
                     <span className="font-semibold text-gray-800">{analyticsData?.admin_notice_management?.document_type_distribution?.['all-files'] || 0}</span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    Based on created_at field
-                  </div>
                 </div>
               </div>
 
@@ -940,9 +927,6 @@ export default function Analytics() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Semesters:</span>
                     <span className="font-semibold text-red-600">{analyticsData?.system_variables?.variable_type_distribution?.semester || 0}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    Based on created_at field
                   </div>
                 </div>
               </div>
