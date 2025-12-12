@@ -20,30 +20,25 @@ export default function Header() {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   const handleLogout = async () => {
-    try {
-      const token = tokenService.getAdminAccessToken();
-      
-      if (token) {
-        await fetch(`${API_BASE_URL}/api/admin/admin-logout`, {
-          method: "POST",
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Logout API call failed:", error);
-    } finally {
-      // Always clear local storage completely
-      tokenService.clearAdminTokens();
-      localStorage.removeItem("admin");
-      localStorage.removeItem("adminAccessToken");
-      localStorage.removeItem("adminRefreshToken");
-      
-      // Use replace to prevent back navigation
-      navigate("/auth/admin-login", { replace: true });
+  try {
+    const token = tokenService.getAdminAccessToken();
+    
+    if (token) {
+      await fetch(`${API_BASE_URL}/api/admin/admin-logout`, {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
     }
-  };
+  } catch (error) {
+    console.error("Logout API call failed:", error);
+  } finally {
+    // Always clear local storage and redirect
+    tokenService.clearAdminTokens();
+    navigate("/auth/admin-login");
+  }
+};
 
   // Get admin info from localStorage
   const storedAdmin = JSON.parse(localStorage.getItem("admin"));
