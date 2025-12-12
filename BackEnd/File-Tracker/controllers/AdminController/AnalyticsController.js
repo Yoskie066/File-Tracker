@@ -17,6 +17,7 @@ export const getAnalyticsData = async (req, res) => {
     let fileFilter = {};
     let noticeFilter = {};
     let systemVariableFilter = {};
+    let userFilter = {}; // NEW: User filter for date range mode
 
     // If year is provided, filter by year
     if (year) {
@@ -27,9 +28,11 @@ export const getAnalyticsData = async (req, res) => {
       fileFilter = { uploaded_at: { $gte: startOfYear, $lte: endOfYear } };
       noticeFilter = { created_at: { $gte: startOfYear, $lte: endOfYear } };
       systemVariableFilter = { created_at: { $gte: startOfYear, $lte: endOfYear } };
+      // For "By Year" mode, show ALL current users (no date filter)
+      userFilter = {};
     }
 
-    // If specific date range is provided
+    // If specific date range is provided (Custom Date Range mode)
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -38,14 +41,25 @@ export const getAnalyticsData = async (req, res) => {
       fileFilter = { uploaded_at: { $gte: start, $lte: end } };
       noticeFilter = { created_at: { $gte: start, $lte: end } };
       systemVariableFilter = { created_at: { $gte: start, $lte: end } };
+      // For "Date Range" mode, filter users by created_at
+      userFilter = { created_at: { $gte: start, $lte: end } };
     }
 
-    // Get user statistics - ALWAYS GET ALL USERS (no date filter)
-    // User counts should show total registered users regardless of date filter
-    const admins = await Admin.countDocuments();
-    const faculties = await Faculty.countDocuments();
-    const onlineAdmins = await Admin.countDocuments({ status: 'online' });
-    const onlineFaculties = await Faculty.countDocuments({ status: 'online' });
+    // Get user statistics with conditional filtering
+    // When userFilter is empty (By Year mode), get ALL users
+    // When userFilter has dates (Date Range mode), get users created in that range
+    const admins = await Admin.countDocuments(userFilter);
+    const faculties = await Faculty.countDocuments(userFilter);
+    
+    // Online/Offline counts should still consider the date filter
+    const onlineAdmins = await Admin.countDocuments({ 
+      ...userFilter, 
+      status: 'online' 
+    });
+    const onlineFaculties = await Faculty.countDocuments({ 
+      ...userFilter, 
+      status: 'online' 
+    });
 
     const totalUsers = admins + faculties;
     const onlineUsers = onlineAdmins + onlineFaculties;
@@ -54,9 +68,18 @@ export const getAnalyticsData = async (req, res) => {
 
     // Get file management statistics with date filter
     const totalFiles = await FileManagement.countDocuments(fileFilter);
-    const pendingFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'pending' });
-    const completedFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'completed' });
-    const rejectedFiles = await FileManagement.countDocuments({ ...fileFilter, status: 'rejected' });
+    const pendingFiles = await FileManagement.countDocuments({ 
+      ...fileFilter, 
+      status: 'pending' 
+    });
+    const completedFiles = await FileManagement.countDocuments({ 
+      ...fileFilter, 
+      status: 'completed' 
+    });
+    const rejectedFiles = await FileManagement.countDocuments({ 
+      ...fileFilter, 
+      status: 'rejected' 
+    });
 
     // Get document type distributions from FileManagement
     const documentTypeDistribution = await FileManagement.aggregate([
