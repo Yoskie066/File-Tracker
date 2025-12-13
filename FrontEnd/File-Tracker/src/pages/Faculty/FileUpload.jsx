@@ -348,7 +348,6 @@ export default function FileUpload() {
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
-            <li>• You can now select multiple files (no limit)</li>
             <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Course sections are automatically synced from your Faculty Load</li>

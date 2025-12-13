@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { Filter, Calendar, BarChart } from "lucide-react";
+import { Filter, Calendar, BarChart, Eye, Trash2, XCircle, MoreVertical } from "lucide-react";
+import Modal from "react-modal";
+
+Modal.setAppElement("#root");
 
 export default function AdminArchive() {
   const [archives, setArchives] = useState([]);
@@ -13,7 +16,6 @@ export default function AdminArchive() {
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
   const [courseSectionFilter, setCourseSectionFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
   const [schoolYearFilter, setSchoolYearFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -32,6 +34,20 @@ export default function AdminArchive() {
     active_years: []
   });
 
+  // Action dropdown
+  const [actionDropdown, setActionDropdown] = useState(null);
+
+  // Modals
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [archiveToPreview, setArchiveToPreview] = useState(null);
+  const [archiveToDelete, setArchiveToDelete] = useState(null);
+
+  // Feedback modal
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState("success");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   // Fetch archived files
@@ -46,7 +62,6 @@ export default function AdminArchive() {
       if (documentTypeFilter) params.append('document_type', documentTypeFilter);
       if (subjectCodeFilter) params.append('subject_code', subjectCodeFilter);
       if (courseSectionFilter) params.append('course_section', courseSectionFilter);
-      if (statusFilter) params.append('status', statusFilter);
       if (semesterFilter) params.append('semester', semesterFilter);
       if (schoolYearFilter) params.append('school_year', schoolYearFilter);
       if (yearFilter) params.append('year', yearFilter);
@@ -96,6 +111,67 @@ export default function AdminArchive() {
     }
   };
 
+  // Delete archived file
+  const handleDeleteArchive = async () => {
+    if (!archiveToDelete) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/archive/${archiveToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_access_token')}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        fetchArchivedFiles();
+        setDeleteModalOpen(false);
+        setArchiveToDelete(null);
+        showFeedback("success", "Archived file deleted successfully!");
+      } else {
+        showFeedback("error", result.message || "Error deleting archived file");
+      }
+    } catch (error) {
+      console.error("Error deleting archived file:", error);
+      showFeedback("error", "Error deleting archived file");
+    }
+  };
+
+  // Show feedback
+  const showFeedback = (type, message) => {
+    setFeedbackType(type);
+    setFeedbackMessage(message);
+    setFeedbackModalOpen(true);
+  };
+
+  // Handle preview
+  const handlePreview = (archive) => {
+    setArchiveToPreview(archive);
+    setPreviewModalOpen(true);
+    setActionDropdown(null);
+  };
+
+  // Confirm delete
+  const confirmDelete = (fileId) => {
+    setArchiveToDelete(fileId);
+    setDeleteModalOpen(true);
+    setActionDropdown(null);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (actionDropdown && !e.target.closest('.action-dropdown-container')) {
+        setActionDropdown(null);
+      }
+    };
+    
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [actionDropdown]);
+
   useEffect(() => {
     fetchArchivedFiles();
     fetchArchiveStatistics();
@@ -120,7 +196,6 @@ export default function AdminArchive() {
     if (documentTypeFilter && archive.document_type !== documentTypeFilter) return false;
     if (subjectCodeFilter && archive.subject_code !== subjectCodeFilter) return false;
     if (courseSectionFilter && !archive.course_sections.includes(courseSectionFilter)) return false;
-    if (statusFilter && archive.status !== statusFilter) return false;
     if (semesterFilter && archive.semester !== semesterFilter) return false;
     if (schoolYearFilter && archive.school_year !== schoolYearFilter) return false;
     
@@ -166,6 +241,17 @@ export default function AdminArchive() {
     });
   };
 
+  // Format date with time
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // Get document type label
   const getDocumentTypeLabel = (documentType, tosType = null) => {
     if (documentType === 'tos-midterm' || (documentType === 'tos' && tosType === 'midterm')) {
@@ -185,6 +271,21 @@ export default function AdminArchive() {
     return typeMap[documentType] || documentType;
   };
 
+  // Get document type order for sorting
+  const getDocumentTypeOrder = (documentType, tosType = null) => {
+    const label = getDocumentTypeLabel(documentType, tosType);
+    const order = {
+      'Syllabus': 1,
+      'TOS (Midterm)': 2,
+      'TOS (Final)': 3,
+      'Midterm Exam': 4,
+      'Final Exam': 5,
+      'Instructional Materials': 6,
+      'TOS': 7 // fallback
+    };
+    return order[label] || 99;
+  };
+
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
@@ -202,18 +303,32 @@ export default function AdminArchive() {
     return 'bg-gray-100 text-gray-800';
   };
 
+  // Format course sections
+  const formatCourseSections = (sections) => {
+    if (!sections || !Array.isArray(sections)) return 'N/A';
+    return sections.join(', ');
+  };
+
   // Reset all filters
   const resetFilters = () => {
     setFacultyFilter("");
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
     setCourseSectionFilter("");
-    setStatusFilter("");
     setSemesterFilter("");
     setSchoolYearFilter("");
     setYearFilter("");
     setSortOption("most_recent");
     setCurrentPage(1);
+  };
+
+  // Sort document types for statistics display
+  const getSortedDocumentTypes = () => {
+    if (!archiveStats || !archiveStats.by_document_type) return [];
+    
+    return [...archiveStats.by_document_type].sort((a, b) => {
+      return getDocumentTypeOrder(a._id) - getDocumentTypeOrder(b._id);
+    }).slice(0, 5);
   };
 
   return (
@@ -247,9 +362,9 @@ export default function AdminArchive() {
                 <div className="col-span-1 md:col-span-3">
                   <div className="text-sm font-medium text-gray-700 mb-2">By Document Type</div>
                   <div className="space-y-2">
-                    {archiveStats.by_document_type.slice(0, 5).map((type, index) => (
+                    {getSortedDocumentTypes().map((type, index) => (
                       <div key={index} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{type._id}</span>
+                        <span className="text-sm text-gray-600">{getDocumentTypeLabel(type._id)}</span>
                         <span className="text-sm font-medium">{type.count} files</span>
                       </div>
                     ))}
@@ -265,10 +380,15 @@ export default function AdminArchive() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 mb-4">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
             >
               <Filter className="w-4 h-4" />
               {showFilters ? "Hide Filters" : "Show Filters"}
+              {showFilters && (
+                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
             </button>
             
             <input
@@ -345,20 +465,20 @@ export default function AdminArchive() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Status
+                    Subject Code
                   </label>
                   <select
-                    value={statusFilter}
+                    value={subjectCodeFilter}
                     onChange={(e) => {
-                      setStatusFilter(e.target.value);
+                      setSubjectCodeFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Status</option>
-                    <option value="completed">Completed</option>
-                    <option value="pending">Pending</option>
-                    <option value="rejected">Rejected</option>
+                    <option value="">All Subjects</option>
+                    {filterOptions.subject_codes?.map(code => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -451,7 +571,7 @@ export default function AdminArchive() {
           )}
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - UPDATED with Course/Section and Actions */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -461,17 +581,19 @@ export default function AdminArchive() {
                 <th className="px-4 py-3 text-left">File Name</th>
                 <th className="px-4 py-3 text-left">Document Type</th>
                 <th className="px-4 py-3 text-left">Subject Code</th>
+                <th className="px-4 py-3 text-left">Course/Section</th>
                 <th className="px-4 py-3 text-left">Semester</th>
                 <th className="px-4 py-3 text-left">Academic Year</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Uploaded At</th>
                 <th className="px-4 py-3 text-left">Archived At</th>
+                <th className="px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="text-center py-8">
+                  <td colSpan="12" className="text-center py-8">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
                     </div>
@@ -482,9 +604,25 @@ export default function AdminArchive() {
                   <tr key={archive._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{archive.file_id}</td>
                     <td className="px-4 py-3 text-gray-700">{archive.faculty_name}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{archive.file_name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{archive.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(archive.document_type, archive.tos_type)}</td>
                     <td className="px-4 py-3 text-gray-700">{archive.subject_code}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <div className="flex flex-wrap gap-1">
+                        {archive.course_sections && archive.course_sections.length > 0 ? (
+                          archive.course_sections.slice(0, 2).map((section, idx) => (
+                            <span key={idx} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                              {section}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-xs">N/A</span>
+                        )}
+                        {archive.course_sections && archive.course_sections.length > 2 && (
+                          <span className="text-xs text-gray-500">+{archive.course_sections.length - 2}</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(archive.semester)}`}>
                         {archive.semester}
@@ -502,11 +640,41 @@ export default function AdminArchive() {
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {formatDate(archive.archived_at)}
                     </td>
+                    <td className="px-4 py-3 relative action-dropdown-container">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActionDropdown(actionDropdown === archive.file_id ? null : archive.file_id);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      
+                      {actionDropdown === archive.file_id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                          <button
+                            onClick={() => handlePreview(archive)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Preview Details
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(archive.file_id)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center py-8 text-gray-500">
+                  <td colSpan="12" className="text-center py-8 text-gray-500">
                     No archived files found
                   </td>
                 </tr>
@@ -533,6 +701,37 @@ export default function AdminArchive() {
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(archive.status)}`}>
                       {archive.status}
                     </span>
+                    
+                    <div className="relative action-dropdown-container">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActionDropdown(actionDropdown === archive.file_id ? null : archive.file_id);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      
+                      {actionDropdown === archive.file_id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                          <button
+                            onClick={() => handlePreview(archive)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Preview Details
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(archive.file_id)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -544,6 +743,20 @@ export default function AdminArchive() {
                   <div>
                     <span className="text-gray-500">Subject:</span>
                     <p className="font-medium truncate">{archive.subject_code}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Course/Section:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {archive.course_sections && archive.course_sections.slice(0, 2).map((section, idx) => (
+                        <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {section}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Document Type:</span>
+                    <p className="font-medium truncate">{getDocumentTypeLabel(archive.document_type, archive.tos_type)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Academic Year:</span>
@@ -600,6 +813,200 @@ export default function AdminArchive() {
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      <Modal
+        isOpen={previewModalOpen}
+        onRequestClose={() => setPreviewModalOpen(false)}
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      >
+        {archiveToPreview && (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Archive Details
+              </h3>
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">File ID</label>
+                  <p className="mt-1 text-sm text-gray-900 font-mono">{archiveToPreview.file_id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(archiveToPreview.status)}`}>
+                    {archiveToPreview.status}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Faculty Name</label>
+                <p className="mt-1 text-sm text-gray-900">{archiveToPreview.faculty_name}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">File Name</label>
+                <p className="mt-1 text-sm text-gray-900">{archiveToPreview.file_name}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Original File Name</label>
+                <p className="mt-1 text-sm text-gray-900">{archiveToPreview.original_name}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Document Type</label>
+                  <p className="mt-1 text-sm text-gray-900">{getDocumentTypeLabel(archiveToPreview.document_type, archiveToPreview.tos_type)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">File Size</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatFileSize(archiveToPreview.file_size)}</p>
+                </div>
+              </div>
+
+              {archiveToPreview.tos_type && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">TOS Type</label>
+                  <p className="mt-1 text-sm text-gray-900 capitalize">{archiveToPreview.tos_type}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subject Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{archiveToPreview.subject_code}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subject Title</label>
+                  <p className="mt-1 text-sm text-gray-900">{archiveToPreview.subject_title}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Course Sections</label>
+                <div className="mt-1">
+                  <div className="flex flex-wrap gap-2">
+                    {archiveToPreview.course_sections && Array.isArray(archiveToPreview.course_sections) ? (
+                      archiveToPreview.course_sections.map((section, index) => (
+                        <span 
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                        >
+                          {section}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 text-sm">N/A</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Total: {archiveToPreview.course_sections?.length || 0} sections
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Semester</label>
+                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(archiveToPreview.semester)}`}>
+                    {archiveToPreview.semester}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Academic Year</label>
+                  <p className="mt-1 text-sm text-gray-900">{archiveToPreview.school_year}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">File Path</label>
+                <p className="mt-1 text-sm text-gray-900 break-all">{archiveToPreview.file_path}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatDateTime(archiveToPreview.uploaded_at)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Archived At</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatDateTime(archiveToPreview.archived_at)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onRequestClose={() => setDeleteModalOpen(false)}
+        className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      >
+        <div className="flex flex-col items-center text-center">
+          <XCircle className="text-red-500 w-12 h-12 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Delete Archive Record</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this archived file? This action cannot be undone.
+          </p>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeleteArchive}
+              className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Feedback Modal */}
+      <Modal
+        isOpen={feedbackModalOpen}
+        onRequestClose={() => setFeedbackModalOpen(false)}
+        className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      >
+        <div className="flex flex-col items-center text-center">
+          {feedbackType === "success" ? (
+            <svg className="w-12 h-12 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-12 h-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
+          <button
+            onClick={() => setFeedbackModalOpen(false)}
+            className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
+          >
+            Close
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
