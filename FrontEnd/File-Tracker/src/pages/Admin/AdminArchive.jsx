@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Filter, Calendar, BarChart, Eye, Trash2, XCircle, MoreVertical } from "lucide-react";
+import { Filter, Calendar, BarChart, Eye, MoreVertical } from "lucide-react";
 import Modal from "react-modal";
 
 Modal.setAppElement("#root");
@@ -39,14 +39,7 @@ export default function AdminArchive() {
 
   // Modals
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [archiveToPreview, setArchiveToPreview] = useState(null);
-  const [archiveToDelete, setArchiveToDelete] = useState(null);
-
-  // Feedback modal
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
-  const [feedbackType, setFeedbackType] = useState("success");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -111,52 +104,10 @@ export default function AdminArchive() {
     }
   };
 
-  // Delete archived file
-  const handleDeleteArchive = async () => {
-    if (!archiveToDelete) return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/archive/${archiveToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_access_token')}`
-        }
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchArchivedFiles();
-        setDeleteModalOpen(false);
-        setArchiveToDelete(null);
-        showFeedback("success", "Archived file deleted successfully!");
-      } else {
-        showFeedback("error", result.message || "Error deleting archived file");
-      }
-    } catch (error) {
-      console.error("Error deleting archived file:", error);
-      showFeedback("error", "Error deleting archived file");
-    }
-  };
-
-  // Show feedback
-  const showFeedback = (type, message) => {
-    setFeedbackType(type);
-    setFeedbackMessage(message);
-    setFeedbackModalOpen(true);
-  };
-
   // Handle preview
   const handlePreview = (archive) => {
     setArchiveToPreview(archive);
     setPreviewModalOpen(true);
-    setActionDropdown(null);
-  };
-
-  // Confirm delete
-  const confirmDelete = (fileId) => {
-    setArchiveToDelete(fileId);
-    setDeleteModalOpen(true);
     setActionDropdown(null);
   };
 
@@ -338,9 +289,9 @@ export default function AdminArchive() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-3">
           <div className="w-full">
-            <h1 className="text-2xl font-bold text-gray-800">Archive Collection</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Archive </h1>
             <p className="text-sm text-gray-500">
-              Auto-synced completed files from File Management. Status matches original file status.
+              Automatically synchronizes completed files from File Management while preserving original file status
             </p>
           </div>
         </div>
@@ -571,7 +522,7 @@ export default function AdminArchive() {
           )}
         </div>
 
-        {/* Desktop Table - UPDATED with Course/Section and Actions */}
+        {/* Desktop Table - UPDATED with only Preview action */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -660,13 +611,6 @@ export default function AdminArchive() {
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
                           </button>
-                          <button
-                            onClick={() => confirmDelete(archive.file_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
                         </div>
                       )}
                     </td>
@@ -683,7 +627,7 @@ export default function AdminArchive() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - UPDATED with only Preview action */}
         <div className="md:hidden space-y-4">
           {loading ? (
             <div className="text-center py-8">
@@ -721,13 +665,6 @@ export default function AdminArchive() {
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
-                          </button>
-                          <button
-                            onClick={() => confirmDelete(archive.file_id)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
                           </button>
                         </div>
                       )}
@@ -949,63 +886,6 @@ export default function AdminArchive() {
             </div>
           </div>
         )}
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={deleteModalOpen}
-        onRequestClose={() => setDeleteModalOpen(false)}
-        className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      >
-        <div className="flex flex-col items-center text-center">
-          <XCircle className="text-red-500 w-12 h-12 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Delete Archive Record</h3>
-          <p className="text-gray-600 mb-6">
-            Are you sure you want to delete this archived file? This action cannot be undone.
-          </p>
-          <div className="flex gap-3 w-full">
-            <button
-              onClick={() => setDeleteModalOpen(false)}
-              className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDeleteArchive}
-              className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Feedback Modal */}
-      <Modal
-        isOpen={feedbackModalOpen}
-        onRequestClose={() => setFeedbackModalOpen(false)}
-        className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      >
-        <div className="flex flex-col items-center text-center">
-          {feedbackType === "success" ? (
-            <svg className="w-12 h-12 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-12 h-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          )}
-          <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
-          <button
-            onClick={() => setFeedbackModalOpen(false)}
-            className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
-          >
-            Close
-          </button>
-        </div>
       </Modal>
     </div>
   );

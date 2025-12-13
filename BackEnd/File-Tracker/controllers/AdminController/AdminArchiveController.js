@@ -237,32 +237,3 @@ export const getArchiveStatistics = async (req, res) => {
     });
   }
 };
-
-// Delete archived file
-export const deleteArchivedFile = async (req, res) => {
-  try {
-    const { fileId } = req.params;
-
-    const deletedFile = await Archive.findOneAndDelete({ file_id: fileId });
-
-    if (!deletedFile) {
-      return res.status(404).json({
-        success: false,
-        message: "Archived file not found"
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Archived file deleted successfully",
-      data: deletedFile
-    });
-  } catch (error) {
-    console.error("Error deleting archived file:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message
-    });
-  }
-};

@@ -58,6 +58,9 @@ Handles user accounts and manages access levels across the system.
 ### 3. File Management
 Provides visibility and control over all files uploaded by faculty members.
 
+### 4. Archive
+Collects and stores completed files automatically synchronized from File Management, with statuses matching the original records.
+
 ### 4. Admin Notice 
 Establishes, updates, and issues reminders for pending academic requirements and upcoming deadlines.
 
