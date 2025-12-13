@@ -10,7 +10,31 @@ const normalizeString = (str) => {
   return str?.toString().trim().toLowerCase() || '';
 };
 
-// Create system variable - MODIFIED with case-insensitive checking
+// Validate Academic Year format
+const validateAcademicYear = (year) => {
+  if (!year) return false;
+  
+  // Remove any extra spaces and "A.Y:" prefix if present
+  const cleanedYear = year.toString().trim().replace(/^A\.Y\s*:\s*/i, '');
+  
+  // Check format: exactly 4 digits, hyphen, exactly 4 digits
+  const yearRegex = /^\d{4}-\d{4}$/;
+  
+  if (!yearRegex.test(cleanedYear)) {
+    return { valid: false, error: "Academic Year must be in format: 2025-2026" };
+  }
+  
+  const [startYear, endYear] = cleanedYear.split('-').map(Number);
+  
+  // Check if end year is exactly one year after start year
+  if (endYear !== startYear + 1) {
+    return { valid: false, error: "Academic Year must be consecutive years (e.g., 2025-2026)" };
+  }
+  
+  return { valid: true, cleaned: `${startYear}-${endYear}` };
+};
+
+// Create system variable - MODIFIED with Academic Year validation
 export const createSystemVariable = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
@@ -63,7 +87,18 @@ export const createSystemVariable = async (req, res) => {
           message: "Academic Year is required for Academic Year type.",
         });
       }
-      variable_name = academic_year;
+      
+      // Validate Academic Year format
+      const validationResult = validateAcademicYear(academic_year);
+      if (!validationResult.valid) {
+        return res.status(400).json({ 
+          success: false, 
+          message: validationResult.error,
+        });
+      }
+      
+      // Store with format: A.Y: 2025-2026
+      variable_name = `A.Y: ${validationResult.cleaned}`;
     } else {
       return res.status(400).json({ 
         success: false, 
@@ -72,21 +107,24 @@ export const createSystemVariable = async (req, res) => {
     }
 
     // Check for duplicate with case-insensitive comparison
-    const existingVariable = await SystemVariable.findOne({
-      variable_type
-    });
-
-    if (existingVariable) {
-      // Normalize the variable names for comparison
+    const existingVariables = await SystemVariable.find({ variable_type });
+    
+    let isDuplicate = false;
+    for (const existingVariable of existingVariables) {
       const existingNameNormalized = normalizeString(existingVariable.variable_name);
       const newNameNormalized = normalizeString(variable_name);
       
       if (existingNameNormalized === newNameNormalized) {
-        return res.status(409).json({
-          success: false,
-          message: `A ${variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`
-        });
+        isDuplicate = true;
+        break;
       }
+    }
+
+    if (isDuplicate) {
+      return res.status(409).json({
+        success: false,
+        message: `A ${variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`
+      });
     }
 
     const variable_id = generateVariableId();
@@ -165,7 +203,7 @@ export const getSystemVariableById = async (req, res) => {
   }
 };
 
-// Update system variable - MODIFIED with case-insensitive checking
+// Update system variable - MODIFIED with Academic Year validation
 export const updateSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
@@ -205,13 +243,25 @@ export const updateSystemVariable = async (req, res) => {
         });
       }
     } else if (variable_type === 'academic_year') {
-      variable_name = req.body.academic_year;
-      if (!variable_name) {
+      const academic_year = req.body.academic_year;
+      if (!academic_year) {
         return res.status(400).json({ 
           success: false, 
           message: "Academic Year is required for Academic Year type.",
         });
       }
+      
+      // Validate Academic Year format
+      const validationResult = validateAcademicYear(academic_year);
+      if (!validationResult.valid) {
+        return res.status(400).json({ 
+          success: false, 
+          message: validationResult.error,
+        });
+      }
+      
+      // Store with format: A.Y: 2025-2026
+      variable_name = `A.Y: ${validationResult.cleaned}`;
     }
 
     // Check for duplicate with case-insensitive comparison (excluding current one)

@@ -143,7 +143,7 @@ const AdminRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.adminName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your admin name (min 8 characters)"
+                placeholder="Enter your admin name"
                 title="Admin name must be at least 8 characters long"
                 required
               />
@@ -165,7 +165,7 @@ const AdminRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.adminNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your admin number (minimum 8 digits)"
+                placeholder="Enter your admin number"
                 title="Admin number must be at least 8 digits"
                 required
               />
@@ -190,12 +190,16 @@ const AdminRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.password ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your password (min 4 characters)"
+                placeholder="Enter your password"
+                title="Admin password must be at least 4 characters long"
                 required
               />
               {errors.password && (
                 <p className="text-red-500 text-xs mt-1">{errors.password}</p>
               )}
+              <p className="text-xs text-gray-500 mt-1">
+                Password must be at least 4 characters long
+              </p>
             </div>
             
             <button

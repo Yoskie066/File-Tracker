@@ -312,11 +312,7 @@ export default function UserManagement() {
           >
             <Filter className="w-4 h-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-            {showFilters && (
-              <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-                Active
-              </span>
-            )}
+            
           </button>
 
           {/* Filtering and Sorting Options */}

@@ -586,11 +586,7 @@ export default function AdminNoticeManagement() {
           >
             <Filter className="w-4 h-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-            {showFilters && (
-              <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-                Active
-              </span>
-            )}
+            
           </button>
 
           {/* Filtering and Sorting Options */}
@@ -599,7 +595,7 @@ export default function AdminNoticeManagement() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Professor
+                    Faculty Name
                   </label>
                   <select
                     value={professorFilter}
@@ -609,7 +605,7 @@ export default function AdminNoticeManagement() {
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Professors</option>
+                    <option value="">All Faculty</option>
                     {getUniqueValues('prof_name').map(prof => (
                       <option key={prof} value={prof}>{prof}</option>
                     ))}
@@ -779,7 +775,7 @@ export default function AdminNoticeManagement() {
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Notice ID</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Professor</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Due Date</th>

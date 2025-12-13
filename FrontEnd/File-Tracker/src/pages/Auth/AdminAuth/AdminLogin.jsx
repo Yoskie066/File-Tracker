@@ -149,11 +149,15 @@ const AdminLogin = () => {
                   errors.password ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your password"
+                title="Admin password must be at least 4 characters long"
                 required
               />
               {errors.password && (
                 <p className="text-red-500 text-xs mt-1">{errors.password}</p>
               )}
+              <p className="text-xs text-gray-500 mt-1">
+                Password must be at least 4 characters long
+              </p>
             </div>
 
             <div className="flex justify-end mb-4 sm:mb-6">

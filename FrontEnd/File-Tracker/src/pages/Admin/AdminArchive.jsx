@@ -335,11 +335,7 @@ export default function AdminArchive() {
             >
               <Filter className="w-4 h-4" />
               {showFilters ? "Hide Filters" : "Show Filters"}
-              {showFilters && (
-                <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              )}
+              
             </button>
             
             <input
@@ -504,8 +500,8 @@ export default function AdminArchive() {
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="most_recent">Most Recent (Archived)</option>
-                    <option value="oldest">Oldest (Archived)</option>
+                    <option value="most_recent">Most Recent </option>
+                    <option value="oldest">Oldest </option>
                   </select>
                 </div>
               </div>

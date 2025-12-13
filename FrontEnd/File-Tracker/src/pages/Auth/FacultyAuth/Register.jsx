@@ -143,7 +143,7 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty name (min 8 characters)"
+                placeholder="Enter your faculty name"
                 title="Faculty name must be at least 8 characters long"
                 required
               />
@@ -165,7 +165,7 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty number (minimum 8 digits)"
+                placeholder="Enter your faculty number"
                 title="Faculty number must be at least 8 digits"
                 required
               />
@@ -190,12 +190,16 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.password ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your password (min 4 characters)"
+                placeholder="Enter your password"
+                title="Faculty password must be at least 4 characters long"
                 required
               />
               {errors.password && (
                 <p className="text-red-500 text-xs mt-1">{errors.password}</p>
               )}
+              <p className="text-xs text-gray-500 mt-1">
+                Password must be at least 4 characters long
+              </p>
             </div>
             
             <button

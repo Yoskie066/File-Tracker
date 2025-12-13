@@ -39,10 +39,11 @@ export default function SystemVariableManagement() {
     course_section: "",
     semester: "",
     academic_year: "",
-    created_by: ""
+    created_by: "admin"
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
+  const [academicYearError, setAcademicYearError] = useState("");
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -131,18 +132,65 @@ export default function SystemVariableManagement() {
     setCurrentPage(1);
   };
 
+  // Validate Academic Year format
+  const validateAcademicYearFormat = (year) => {
+    if (!year) return { valid: false, error: "Academic Year is required" };
+    
+    // Check format: exactly 4 digits, hyphen, exactly 4 digits
+    const yearRegex = /^\d{4}-\d{4}$/;
+    
+    if (!yearRegex.test(year)) {
+      return { valid: false, error: "Format must be: 2025-2026 (four digits, hyphen, four digits)" };
+    }
+    
+    const [startYear, endYear] = year.split('-').map(Number);
+    
+    // Check if end year is exactly one year after start year
+    if (endYear !== startYear + 1) {
+      return { valid: false, error: "Must be consecutive years (e.g., 2025-2026)" };
+    }
+    
+    return { valid: true, cleaned: `${startYear}-${endYear}` };
+  };
+
+  // Handle Academic Year input
+  const handleAcademicYearInput = (e) => {
+    const value = e.target.value;
+    setAcademicYearError("");
+    
+    // Allow only numbers and hyphen
+    const sanitizedValue = value.replace(/[^\d-]/g, '');
+    
+    // Format as user types
+    let formattedValue = sanitizedValue;
+    if (sanitizedValue.length === 4 && !sanitizedValue.includes('-')) {
+      formattedValue = sanitizedValue + '-';
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      academic_year: formattedValue
+    }));
+  };
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name === 'academic_year') {
+      handleAcademicYearInput(e);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Handle variable type change - reset all fields
   const handleVariableTypeChange = (e) => {
     const { value } = e.target;
+    setAcademicYearError("");
     setFormData({
       variable_id: formData.variable_id,
       variable_type: value,
@@ -174,17 +222,8 @@ export default function SystemVariableManagement() {
       academic_year: "",
       created_by: "admin"
     });
+    setAcademicYearError("");
     setIsEditMode(false);
-  };
-
-  // Check for duplicate variable with case-insensitive comparison
-  const checkDuplicateVariable = () => {
-    const variableName = getVariableNameByType();
-    return variables.some(variable => 
-      variable.variable_name.toLowerCase() === variableName.toLowerCase() &&
-      variable.variable_type === formData.variable_type &&
-      (!isEditMode || variable.variable_id !== formData.variable_id)
-    );
   };
 
   // Get variable name based on type
@@ -304,6 +343,7 @@ export default function SystemVariableManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setAcademicYearError("");
 
     try {
       // Get variable name based on type
@@ -318,9 +358,13 @@ export default function SystemVariableManagement() {
         throw new Error("Subject Title is required for Subject Code type");
       }
 
-      // Client-side duplicate check (case-insensitive)
-      if (checkDuplicateVariable()) {
-        throw new Error(`A ${formData.variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`);
+      // Validate Academic Year format
+      if (formData.variable_type === 'academic_year') {
+        const validationResult = validateAcademicYearFormat(formData.academic_year);
+        if (!validationResult.valid) {
+          setAcademicYearError(validationResult.error);
+          throw new Error(validationResult.error);
+        }
       }
 
       const url = isEditMode 
@@ -404,7 +448,9 @@ export default function SystemVariableManagement() {
         } else if (variable.variable_type === 'semester') {
           formDataObj.semester = variable.variable_name;
         } else if (variable.variable_type === 'academic_year') {
-          formDataObj.academic_year = variable.variable_name;
+          // Extract just the year range from "A.Y: 2025-2026"
+          const yearMatch = variable.variable_name.match(/\d{4}-\d{4}/);
+          formDataObj.academic_year = yearMatch ? yearMatch[0] : "";
         }
 
         setFormData(formDataObj);
@@ -448,6 +494,14 @@ export default function SystemVariableManagement() {
   const confirmDelete = (variableId) => {
     setVariableToDelete(variableId);
     setDeleteModalOpen(true);
+  };
+
+  // Format variable name for display
+  const formatVariableNameForDisplay = (variable) => {
+    if (variable.variable_type === 'academic_year') {
+      return variable.variable_name; // Already formatted as "A.Y: 2025-2026"
+    }
+    return variable.variable_name;
   };
 
   // Render form fields based on variable type
@@ -526,15 +580,29 @@ export default function SystemVariableManagement() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Academic Year *
             </label>
-            <input
-              type="text"
-              name="academic_year"
-              value={formData.academic_year}
-              onChange={handleInputChange}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-              placeholder="Enter academic year (e.g., AY : 2025-2026)"
-            />
+            <div className="flex items-center">
+              <span className="bg-gray-100 border border-r-0 border-gray-300 rounded-l-md px-3 py-2 text-sm text-gray-700">
+                A.Y:
+              </span>
+              <input
+                type="text"
+                name="academic_year"
+                value={formData.academic_year}
+                onChange={handleInputChange}
+                required
+                className="w-full border border-gray-300 rounded-r-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                placeholder="2025-2026"
+                maxLength={9}
+                pattern="\d{4}-\d{4}"
+                title="Enter academic year in format: 2025-2026"
+              />
+            </div>
+            {academicYearError && (
+              <p className="mt-1 text-xs text-red-600">{academicYearError}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Format: 2025-2026 (consecutive years only)
+            </p>
           </div>
         );
       default:
@@ -588,11 +656,7 @@ export default function SystemVariableManagement() {
           >
             <Filter className="w-4 h-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-            {showFilters && (
-              <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-                Active
-              </span>
-            )}
+            
           </button>
 
           {/* Filtering and Sorting Options */}
@@ -766,7 +830,9 @@ export default function SystemVariableManagement() {
                 currentVariables.map((variable) => (
                   <tr key={variable._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{variable.variable_id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{variable.variable_name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {formatVariableNameForDisplay(variable)}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         variable.variable_type === 'subject_code' ? 'bg-purple-100 text-purple-800' :
@@ -840,7 +906,9 @@ export default function SystemVariableManagement() {
               <div key={variable._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800">{variable.variable_name}</h2>
+                    <h2 className="font-semibold text-gray-800">
+                      {formatVariableNameForDisplay(variable)}
+                    </h2>
                     <p className="text-sm text-gray-600 font-mono">ID: {variable.variable_id}</p>
                   </div>
                   <div className="flex items-center gap-2">

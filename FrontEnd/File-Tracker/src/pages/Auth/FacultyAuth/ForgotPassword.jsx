@@ -136,7 +136,7 @@ const FacultyForgotPassword = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty name (min 8 characters)"
+                placeholder="Enter your faculty name"
                 title="Faculty name must be at least 8 characters long"
                 required
               />
@@ -159,7 +159,7 @@ const FacultyForgotPassword = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty number (minimum 8 digits)"
+                placeholder="Enter your faculty number"
                 title="Faculty number must be at least 8 digits"
                 required
               />
@@ -185,7 +185,7 @@ const FacultyForgotPassword = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.newPassword ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your new password (min 4 characters)"
+                placeholder="Enter your new password"
                 required
               />
               {errors.newPassword && (
