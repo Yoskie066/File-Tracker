@@ -6,6 +6,7 @@ import {
   Users,
   FileStack,
   BellRing,
+  Archive,
   BarChart3,
   LogOut,
   Settings
@@ -93,6 +94,13 @@ export default function Header() {
           File Management
         </Link>
         <Link
+          to="/admin/admin-archive"
+          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
+        >
+          <Archive className="w-4 h-4" />
+          Admin Archive
+        </Link>
+        <Link
           to="/admin/admin-notice"
           className="flex items-center gap-1 hover:text-yellow-400 transition duration-200"
         >
@@ -172,6 +180,16 @@ export default function Header() {
           >
             <FileStack className="w-5 h-5" />
             File Management
+          </Link>
+          <Link
+            to="/admin/admin-archive"
+            onClick={() => setIsOpen(false)}
+            className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
+              "/admin/admin-archive"
+            )}`}
+          >
+            <Archive className="w-5 h-5" />
+            Archive
           </Link>
           <Link
             to="/admin/admin-notice"

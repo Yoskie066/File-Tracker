@@ -5,6 +5,7 @@ import multer from "multer";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import path from "path";
 import fs from "fs";
+import { autoSyncToArchive } from "../../controllers/AdminController/AdminArchiveController.js";
 
 // Multer Disk Storage Configuration
 const storage = multer.diskStorage({
@@ -415,7 +416,7 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-// UPDATE FILE STATUS 
+//Update File Status
 export const updateFileStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -442,6 +443,11 @@ export const updateFileStatus = async (req, res) => {
       status: updatedFile.status
     });
 
+    // Auto-sync to archive if status is "completed"
+    if (status === "completed") {
+      await autoSyncToArchive(updatedFile);
+    }
+
     console.log(`File status updated and synced to Task Deliverables for ${updatedFile.course_sections.length} sections: ${status}`);
 
     res.status(200).json({
@@ -459,7 +465,7 @@ export const updateFileStatus = async (req, res) => {
   }
 };
 
-// BULK UPDATE ALL FILES STATUS TO COMPLETED
+// Bulk Update All Files 
 export const bulkCompleteAllFiles = async (req, res) => {
   try {
     console.log("Bulk completing all files...");
@@ -495,13 +501,16 @@ export const bulkCompleteAllFiles = async (req, res) => {
             faculty_id: updatedFile.faculty_id,
             faculty_name: updatedFile.faculty_name,
             subject_code: updatedFile.subject_code,
-            course_sections: updatedFile.course_sections, // Use array
+            course_sections: updatedFile.course_sections,
             document_type: updatedFile.document_type,
             status: "completed"
           });
 
+          // Auto-sync to archive
+          await autoSyncToArchive(updatedFile);
+
           updatedFiles.push(updatedFile);
-          console.log(`Updated file: ${updatedFile.file_id} - ${updatedFile.file_name}`);
+          console.log(`Updated and archived file: ${updatedFile.file_id} - ${updatedFile.file_name}`);
         }
       } catch (fileError) {
         errors.push({
@@ -514,7 +523,7 @@ export const bulkCompleteAllFiles = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Successfully completed ${updatedFiles.length} files`,
+      message: `Successfully completed ${updatedFiles.length} files and auto-archived them`,
       data: {
         completed: updatedFiles.length,
         errors: errors.length,

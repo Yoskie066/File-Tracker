@@ -4,6 +4,7 @@ import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLo
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
 import { getFiles, getFileById, deleteFile, updateFileStatus, bulkCompleteAllFiles } from "../../controllers/FacultyController/FileUploadController.js";
+import { getArchivedFiles, getArchiveStatistics } from "../../controllers/AdminController/AdminArchiveController.js";
 import { getAdminNotices, getAllFaculty, getAdminNoticeStats, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
 import { getAnalyticsData, getFacultyPerformance, getAvailableYears } from "../../controllers/AdminController/AnalyticsController.js";
 import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
@@ -27,6 +28,10 @@ router.get("/file-management/:id", getFileById);
 router.delete("/file-management/:id", deleteFile);
 router.put("/file-management/:id/status", updateFileStatus);
 router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
+
+// Archive Management Routes
+router.get("/archive", getArchivedFiles);
+router.get("/archive/statistics", getArchiveStatistics);
 
 // Admin Notice Routes
 router.get("/admin-notice", getAdminNotices);
