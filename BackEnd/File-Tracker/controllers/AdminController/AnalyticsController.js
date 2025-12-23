@@ -13,18 +13,19 @@ export const getAnalyticsData = async (req, res) => {
 
     // Get date range from query parameters
     const { startDate, endDate, year } = req.query;
-    
+
     let fileFilter = {};
     let noticeFilter = {};
     let systemVariableFilter = {};
-    let userFilter = {}; // User filter for date range mode
+    let userFilter = {};
 
+    // User filter for date range mode
     // If year is provided, filter by year
     if (year) {
       const startOfYear = new Date(`${year}-01-01`);
       const endOfYear = new Date(`${year}-12-31`);
       endOfYear.setHours(23, 59, 59, 999);
-      
+
       fileFilter = { uploaded_at: { $gte: startOfYear, $lte: endOfYear } };
       noticeFilter = { created_at: { $gte: startOfYear, $lte: endOfYear } };
       systemVariableFilter = { created_at: { $gte: startOfYear, $lte: endOfYear } };
@@ -37,34 +38,32 @@ export const getAnalyticsData = async (req, res) => {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      
+
       fileFilter = { uploaded_at: { $gte: start, $lte: end } };
       noticeFilter = { created_at: { $gte: start, $lte: end } };
       systemVariableFilter = { created_at: { $gte: start, $lte: end } };
-      
       // For "Date Range" mode, filter users by registeredAt (when they registered)
       // This will show only users who registered within the selected date range
       userFilter = {
         $or: [
           { registeredAt: { $gte: start, $lte: end } },
-          { createdAt: { $gte: start, $lte: end } }
-        ]
+          { createdAt: { $gte: start, $lte: end } },
+        ],
       };
     }
 
     // Get user statistics with conditional filtering
     // Query Admin model (uses registeredAt)
     const admins = await Admin.countDocuments(userFilter);
-    const onlineAdmins = await Admin.countDocuments({ 
-      ...userFilter, 
-      status: 'online' 
+    const onlineAdmins = await Admin.countDocuments({
+      ...userFilter,
+      status: "online",
     });
-    
     // Query Faculty model (uses registeredAt)
     const faculties = await Faculty.countDocuments(userFilter);
-    const onlineFaculties = await Faculty.countDocuments({ 
-      ...userFilter, 
-      status: 'online' 
+    const onlineFaculties = await Faculty.countDocuments({
+      ...userFilter,
+      status: "online",
     });
 
     const totalUsers = admins + faculties;
@@ -72,42 +71,37 @@ export const getAnalyticsData = async (req, res) => {
     const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
 
-    // Debug logging
-    console.log('User Filter Applied:', JSON.stringify(userFilter));
-    console.log(`User Stats - Total: ${totalUsers}, Admins: ${admins}, Faculty: ${faculties}, Online: ${onlineUsers}, Offline: ${offlineUsers}`);
-
     // Get file management statistics with date filter
     const totalFiles = await FileManagement.countDocuments(fileFilter);
-    const pendingFiles = await FileManagement.countDocuments({ 
-      ...fileFilter, 
-      status: 'pending' 
+    const pendingFiles = await FileManagement.countDocuments({
+      ...fileFilter,
+      status: "pending",
     });
-    const completedFiles = await FileManagement.countDocuments({ 
-      ...fileFilter, 
-      status: 'completed' 
+    const completedFiles = await FileManagement.countDocuments({
+      ...fileFilter,
+      status: "completed",
     });
-    const rejectedFiles = await FileManagement.countDocuments({ 
-      ...fileFilter, 
-      status: 'rejected' 
+    const rejectedFiles = await FileManagement.countDocuments({
+      ...fileFilter,
+      status: "rejected",
     });
 
     // Get document type distributions from FileManagement
     const documentTypeDistribution = await FileManagement.aggregate([
       { $match: fileFilter },
-      { $group: { _id: '$document_type', count: { $sum: 1 } } }
+      { $group: { _id: "$document_type", count: { $sum: 1 } } },
     ]);
 
     // Convert aggregation results to object format
     const documentTypeDist = {
       syllabus: 0,
-      'tos-midterm': 0,
-      'tos-final': 0,
-      'midterm-exam': 0,
-      'final-exam': 0,
-      'instructional-materials': 0
+      "tos-midterm": 0,
+      "tos-final": 0,
+      "midterm-exam": 0,
+      "final-exam": 0,
+      "instructional-materials": 0,
     };
-
-    documentTypeDistribution.forEach(item => {
+    documentTypeDistribution.forEach((item) => {
       if (documentTypeDist.hasOwnProperty(item._id)) {
         documentTypeDist[item._id] = item.count;
       }
@@ -116,19 +110,18 @@ export const getAnalyticsData = async (req, res) => {
     // Get semester distribution from files
     const semesterDistribution = await FileManagement.aggregate([
       { $match: fileFilter },
-      { $group: { _id: '$semester', count: { $sum: 1 } } }
+      { $group: { _id: "$semester", count: { $sum: 1 } } },
     ]);
 
     // Convert semester distribution to object format
     const semesterDist = {
-      '1st_semester': 0,
-      '2nd_semester': 0,
-      'summer': 0
+      "1st_semester": 0,
+      "2nd_semester": 0,
+      summer: 0,
     };
-
-    semesterDistribution.forEach(item => {
+    semesterDistribution.forEach((item) => {
       if (item._id) {
-        const semesterKey = item._id.toLowerCase().replace(/\s+/g, '_');
+        const semesterKey = item._id.toLowerCase().replace(/\s+/g, "_");
         if (semesterDist.hasOwnProperty(semesterKey)) {
           semesterDist[semesterKey] = item.count;
         }
@@ -139,12 +132,11 @@ export const getAnalyticsData = async (req, res) => {
     const totalNotices = await AdminNotice.countDocuments(noticeFilter);
     const overdueNotices = await AdminNotice.countDocuments({
       ...noticeFilter,
-      due_date: { $lt: new Date() }
+      due_date: { $lt: new Date() },
     });
     const notOverdueNotices = totalNotices - overdueNotices;
-    const noticeCompletionRate = totalNotices > 0 
-      ? Math.round(((totalNotices - overdueNotices) / totalNotices) * 100) 
-      : 0;
+    const noticeCompletionRate =
+      totalNotices > 0 ? Math.round(((totalNotices - overdueNotices) / totalNotices) * 100) : 0;
 
     // Get admin notice document type distribution
     const adminNoticeData = await AdminNotice.find(noticeFilter);
@@ -152,60 +144,82 @@ export const getAnalyticsData = async (req, res) => {
     // Calculate admin notice document type distribution
     const adminNoticeDocDist = {
       syllabus: 0,
-      'tos-midterm': 0,
-      'tos-final': 0,
-      'midterm-exam': 0,
-      'final-exam': 0,
-      'instructional-materials': 0,
-      'all-files': 0
+      "tos-midterm": 0,
+      "tos-final": 0,
+      "midterm-exam": 0,
+      "final-exam": 0,
+      "instructional-materials": 0,
+      "all-files": 0,
     };
-
-    adminNoticeData.forEach(notice => {
+    adminNoticeData.forEach((notice) => {
       const docType = notice.document_type.toLowerCase();
-      if (docType.includes('syllabus')) {
+      if (docType.includes("syllabus")) {
         adminNoticeDocDist.syllabus++;
-      } else if (docType.includes('tos')) {
-        if (notice.tos_type === 'MIDTERM TOS') {
-          adminNoticeDocDist['tos-midterm']++;
-        } else if (notice.tos_type === 'FINAL TOS') {
-          adminNoticeDocDist['tos-final']++;
+      } else if (docType.includes("tos")) {
+        if (notice.tos_type === "MIDTERM TOS") {
+          adminNoticeDocDist["tos-midterm"]++;
+        } else if (notice.tos_type === "FINAL TOS") {
+          adminNoticeDocDist["tos-final"]++;
         }
-      } else if (docType.includes('midterm') || docType.includes('midterm exam')) {
-        adminNoticeDocDist['midterm-exam']++;
-      } else if (docType.includes('final') || docType.includes('final exam')) {
-        adminNoticeDocDist['final-exam']++;
-      } else if (docType.includes('instructional') || docType.includes('instructional materials')) {
-        adminNoticeDocDist['instructional-materials']++;
-      } else if (docType.includes('all-files')) {
-        adminNoticeDocDist['all-files']++;
+      } else if (docType.includes("midterm") || docType.includes("midterm exam")) {
+        adminNoticeDocDist["midterm-exam"]++;
+      } else if (docType.includes("final") || docType.includes("final exam")) {
+        adminNoticeDocDist["final-exam"]++;
+      } else if (docType.includes("instructional") || docType.includes("instructional materials")) {
+        adminNoticeDocDist["instructional-materials"]++;
+      } else if (docType.includes("all-files")) {
+        adminNoticeDocDist["all-files"]++;
       }
     });
 
-    // Get system variables statistics with date filter
+    // Get system variables statistics with date filter - UPDATED
     const totalVariables = await SystemVariable.countDocuments(systemVariableFilter);
-    const variableTypeDistribution = await SystemVariable.aggregate([
+
+    // Calculate unique combinations (subject_code + course)
+    const uniqueCombinations = await SystemVariable.aggregate([
       { $match: systemVariableFilter },
-      { $group: { _id: '$variable_type', count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: {
+            subject_code: "$subject_code",
+            course: "$course",
+          },
+        },
+      },
+      {
+        $count: "unique_combinations",
+      },
     ]);
 
-    const variableTypeDist = {
-      subject_code: 0,
-      course_section: 0,
-      academic_year: 0,
-      semester: 0
-    };
+    // Count by course
+    const courseCounts = await SystemVariable.aggregate([
+      { $match: systemVariableFilter },
+      {
+        $group: {
+          _id: "$course",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-    variableTypeDistribution.forEach(item => {
-      if (item._id && variableTypeDist.hasOwnProperty(item._id)) {
-        variableTypeDist[item._id] = item.count;
+    // Convert course counts to individual variables
+    let bscsCount = 0;
+    let bsitCount = 0;
+    let bothCount = 0;
+
+    courseCounts.forEach((item) => {
+      if (item._id === "BSCS") {
+        bscsCount = item.count;
+      } else if (item._id === "BSIT") {
+        bsitCount = item.count;
+      } else if (item._id === "BOTH") {
+        bothCount = item.count;
       }
     });
 
     // Calculate system health
-    const fileCompletionRate = totalFiles > 0 
-      ? Math.round((completedFiles / totalFiles) * 100) 
-      : 0;
-    
+    const fileCompletionRate =
+      totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
     const systemHealth = calculateSystemHealth(
       activeRate,
       completedFiles,
@@ -224,8 +238,8 @@ export const getAnalyticsData = async (req, res) => {
         active_rate: activeRate,
         online_status_distribution: {
           online: onlineUsers,
-          offline: offlineUsers
-        }
+          offline: offlineUsers,
+        },
       },
       file_management: {
         total_files: totalFiles,
@@ -233,43 +247,46 @@ export const getAnalyticsData = async (req, res) => {
         completed_files: completedFiles,
         rejected_files: rejectedFiles,
         document_type_distribution: documentTypeDist,
-        semester_distribution: semesterDist
+        semester_distribution: semesterDist,
       },
       admin_notice_management: {
         total_notices: totalNotices,
         overdue_notices: overdueNotices,
         not_overdue_notices: notOverdueNotices,
         completion_rate: noticeCompletionRate,
-        document_type_distribution: adminNoticeDocDist
+        document_type_distribution: adminNoticeDocDist,
       },
+      // UPDATED: System Variables with new structure
       system_variables: {
         total_variables: totalVariables,
-        variable_type_distribution: variableTypeDist
+        unique_combinations: uniqueCombinations[0]?.unique_combinations || 0,
+        bscs_count: bscsCount,
+        bsit_count: bsitCount,
+        both_count: bothCount,
       },
       summary: {
         total_records: totalUsers + totalFiles + totalNotices + totalVariables,
         completion_rate: fileCompletionRate,
-        system_health: systemHealth
+        system_health: systemHealth,
       },
       filters: {
         startDate: startDate || null,
         endDate: endDate || null,
-        year: year || null
-      }
+        year: year || null,
+      },
     };
 
     res.status(200).json({
       success: true,
       data: analyticsData,
-      generated_at: new Date().toISOString()
+      generated_at: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Error fetching analytics data:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching analytics data",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -278,8 +295,8 @@ export const getAnalyticsData = async (req, res) => {
 export const getFacultyPerformance = async (req, res) => {
   try {
     console.log("Faculty performance endpoint hit");
-
     const { startDate, endDate, year } = req.query;
+
     let dateFilter = {};
 
     // If year is provided, filter by year
@@ -287,9 +304,7 @@ export const getFacultyPerformance = async (req, res) => {
       const startOfYear = new Date(`${year}-01-01`);
       const endOfYear = new Date(`${year}-12-31`);
       endOfYear.setHours(23, 59, 59, 999);
-      dateFilter = {
-        uploaded_at: { $gte: startOfYear, $lte: endOfYear }
-      };
+      dateFilter = { uploaded_at: { $gte: startOfYear, $lte: endOfYear } };
     }
 
     // If specific date range is provided
@@ -297,9 +312,7 @@ export const getFacultyPerformance = async (req, res) => {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      dateFilter = {
-        uploaded_at: { $gte: start, $lte: end }
-      };
+      dateFilter = { uploaded_at: { $gte: start, $lte: end } };
     }
 
     const facultyPerformance = await FileManagement.aggregate([
@@ -310,17 +323,17 @@ export const getFacultyPerformance = async (req, res) => {
           faculty_name: { $first: "$faculty_name" },
           total_submissions: { $sum: 1 },
           completed_submissions: {
-            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
           },
           pending_submissions: {
-            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
           },
           rejected_submissions: {
-            $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] },
           },
           average_file_size: { $avg: "$file_size" },
-          last_submission: { $max: "$uploaded_at" }
-        }
+          last_submission: { $max: "$uploaded_at" },
+        },
       },
       {
         $addFields: {
@@ -331,14 +344,14 @@ export const getFacultyPerformance = async (req, res) => {
               {
                 $multiply: [
                   { $divide: ["$completed_submissions", "$total_submissions"] },
-                  100
-                ]
-              }
-            ]
-          }
-        }
+                  100,
+                ],
+              },
+            ],
+          },
+        },
       },
-      { $sort: { completion_rate: -1 } }
+      { $sort: { completion_rate: -1 } },
     ]);
 
     res.status(200).json({
@@ -347,16 +360,15 @@ export const getFacultyPerformance = async (req, res) => {
       filters: {
         startDate: startDate || null,
         endDate: endDate || null,
-        year: year || null
-      }
+        year: year || null,
+      },
     });
-
   } catch (error) {
     console.error("Error fetching faculty performance:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching faculty performance",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -367,74 +379,65 @@ export const getAvailableYears = async (req, res) => {
     // Get distinct years from FileManagement
     const fileYears = await FileManagement.aggregate([
       { $group: { _id: { $year: "$uploaded_at" } } },
-      { $sort: { _id: -1 } }
+      { $sort: { _id: -1 } },
     ]);
 
     // Get distinct years from AdminNotice
     const noticeYears = await AdminNotice.aggregate([
       { $group: { _id: { $year: "$created_at" } } },
-      { $sort: { _id: -1 } }
+      { $sort: { _id: -1 } },
     ]);
 
     // Get distinct years from Admin (registeredAt)
     const adminYears = await Admin.aggregate([
-      { 
-        $group: { 
-          _id: { 
-            $year: { 
-              $ifNull: ["$registeredAt", "$createdAt"] 
-            } 
-          } 
-        } 
+      {
+        $group: {
+          _id: { $year: { $ifNull: ["$registeredAt", "$createdAt"] } },
+        },
       },
-      { $sort: { _id: -1 } }
+      { $sort: { _id: -1 } },
     ]);
 
     // Get distinct years from Faculty (registeredAt)
     const facultyYears = await Faculty.aggregate([
-      { 
-        $group: { 
-          _id: { 
-            $year: { 
-              $ifNull: ["$registeredAt", "$createdAt"] 
-            } 
-          } 
-        } 
+      {
+        $group: {
+          _id: { $year: { $ifNull: ["$registeredAt", "$createdAt"] } },
+        },
       },
-      { $sort: { _id: -1 } }
+      { $sort: { _id: -1 } },
     ]);
 
     // Get distinct years from SystemVariable
     const systemVariableYears = await SystemVariable.aggregate([
       { $group: { _id: { $year: "$created_at" } } },
-      { $sort: { _id: -1 } }
+      { $sort: { _id: -1 } },
     ]);
 
     // Combine and deduplicate years
     const allYears = [
       ...new Set([
-        ...fileYears.map(item => item._id),
-        ...noticeYears.map(item => item._id),
-        ...adminYears.map(item => item._id),
-        ...facultyYears.map(item => item._id),
-        ...systemVariableYears.map(item => item._id),
-        new Date().getFullYear() // Include current year
-      ])
+        ...fileYears.map((item) => item._id),
+        ...noticeYears.map((item) => item._id),
+        ...adminYears.map((item) => item._id),
+        ...facultyYears.map((item) => item._id),
+        ...systemVariableYears.map((item) => item._id),
+        new Date().getFullYear(), // Include current year
+      ]),
     ]
-      .filter(year => year !== null)
+      .filter((year) => year !== null)
       .sort((a, b) => b - a);
 
     res.status(200).json({
       success: true,
-      data: allYears
+      data: allYears,
     });
-
   } catch (error) {
     console.error("Error fetching available years:", error);
     res.status(500).json({
       success: false,
       message: "Server error while fetching available years",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -452,7 +455,7 @@ const calculateSystemHealth = (activeRate, completedFiles, totalFiles, overdueNo
 
   // Overdue notices penalty (30% base - deductions)
   const overduePenalty = Math.min(overdueNotices * 2, 30);
-  healthScore += (30 - overduePenalty);
+  healthScore += 30 - overduePenalty;
 
   return Math.min(Math.round(healthScore), 100);
 };
@@ -461,5 +464,5 @@ const calculateSystemHealth = (activeRate, completedFiles, totalFiles, overdueNo
 export default {
   getAnalyticsData,
   getFacultyPerformance,
-  getAvailableYears
+  getAvailableYears,
 };

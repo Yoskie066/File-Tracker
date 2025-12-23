@@ -337,34 +337,29 @@ export default function Analytics() {
     ],
   });
 
-  // 7. System Variables Distribution
+  // 7. System Variables Distribution - UPDATED
   const getSystemVariablesData = () => {
-    const variableTypes = analyticsData?.system_variables?.variable_type_distribution || {
-      subject_code: 0,
-      course_section: 0,
-      academic_year: 0,
-      semester: 0
-    };
+    const systemVars = analyticsData?.system_variables || {};
     
     const labels = [
-      'Subject Code',
-      'Course Section', 
-      'Academic Year',
-      'Semester'
+      'Unique Combinations',
+      'BSCS', 
+      'BSIT',
+      'BOTH'
     ];
 
     const data = [
-      variableTypes.subject_code || 0,
-      variableTypes.course_section || 0,
-      variableTypes.academic_year || 0,
-      variableTypes.semester || 0
+      systemVars.unique_combinations || 0,
+      systemVars.bscs_count || 0,
+      systemVars.bsit_count || 0,
+      systemVars.both_count || 0
     ];
 
     const backgroundColors = [
-      '#4F46E5', // Indigo - Subject Code
-      '#10B981', // Emerald - Course Section
-      '#F59E0B', // Amber - Academic Year
-      '#EF4444'  // Red - Semester
+      '#4F46E5', // Indigo - Unique Combinations
+      '#10B981', // Emerald - BSCS
+      '#F59E0B', // Amber - BSIT
+      '#EF4444'  // Red - BOTH
     ];
 
     return {
@@ -380,7 +375,7 @@ export default function Analytics() {
     };
   };
 
-  // 8. Semester Distribution Chart - NEW
+  // 8. Semester Distribution Chart
   const getSemesterDistributionData = () => {
     const semesterDist = analyticsData?.file_management?.semester_distribution || {
       '1st_semester': 0,
@@ -900,7 +895,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* System Variables Card */}
+              {/* System Variables Card - UPDATED */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="space-y-3">
@@ -909,20 +904,20 @@ export default function Analytics() {
                     <span className="font-semibold">{analyticsData?.system_variables?.total_variables || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Subject Codes:</span>
-                    <span className="font-semibold text-purple-600">{analyticsData?.system_variables?.variable_type_distribution?.subject_code || 0}</span>
+                    <span className="text-gray-600">Unique Combinations:</span>
+                    <span className="font-semibold text-purple-600">{analyticsData?.system_variables?.unique_combinations || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Course Sections:</span>
-                    <span className="font-semibold text-green-600">{analyticsData?.system_variables?.variable_type_distribution?.course_section || 0}</span>
+                    <span className="text-gray-600">BSCS:</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.system_variables?.bscs_count || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Academic Years:</span>
-                    <span className="font-semibold text-yellow-600">{analyticsData?.system_variables?.variable_type_distribution?.academic_year || 0}</span>
+                    <span className="text-gray-600">BSIT:</span>
+                    <span className="font-semibold text-yellow-600">{analyticsData?.system_variables?.bsit_count || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Semesters:</span>
-                    <span className="font-semibold text-red-600">{analyticsData?.system_variables?.variable_type_distribution?.semester || 0}</span>
+                    <span className="text-gray-600">BOTH:</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.system_variables?.both_count || 0}</span>
                   </div>
                 </div>
               </div>
@@ -986,7 +981,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 8. System Variables Distribution */}
+              {/* 8. System Variables Distribution - UPDATED */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">

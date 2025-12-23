@@ -2,10 +2,19 @@ import mongoose from "mongoose";
 
 const analyticsSchema = new mongoose.Schema(
   {
-    analytics_id: { type: String, required: true, unique: true },
-    period: { type: String, required: true },
-    date: { type: Date, required: true },
-    
+    analytics_id: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    period: {
+      type: String,
+      required: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
     // User Management Stats
     user_management: {
       total_users: Number,
@@ -16,10 +25,9 @@ const analyticsSchema = new mongoose.Schema(
       active_rate: Number,
       online_status_distribution: {
         online: Number,
-        offline: Number
-      }
+        offline: Number,
+      },
     },
-    
     // File Management Stats
     file_management: {
       total_files: Number,
@@ -28,20 +36,19 @@ const analyticsSchema = new mongoose.Schema(
       rejected_files: Number,
       document_type_distribution: {
         syllabus: Number,
-        'tos-midterm': Number,
-        'tos-final': Number,
-        'midterm-exam': Number,
-        'final-exam': Number,
-        'instructional-materials': Number
+        "tos-midterm": Number,
+        "tos-final": Number,
+        "midterm-exam": Number,
+        "final-exam": Number,
+        "instructional-materials": Number,
       },
       semester_distribution: {
-        '1st_semester': Number,
-        '2nd_semester': Number,
-        'summer': Number
-      }
+        "1st_semester": Number,
+        "2nd_semester": Number,
+        summer: Number,
+      },
     },
-    
-    // Admin Notice Stats 
+    // Admin Notice Stats
     admin_notice_management: {
       total_notices: Number,
       overdue_notices: Number,
@@ -49,29 +56,26 @@ const analyticsSchema = new mongoose.Schema(
       completion_rate: Number,
       document_type_distribution: {
         syllabus: Number,
-        'tos-midterm': Number,
-        'tos-final': Number,
-        'midterm-exam': Number,
-        'final-exam': Number,
-        'instructional-materials': Number,
-        'all-files': Number,
-      }
+        "tos-midterm": Number,
+        "tos-final": Number,
+        "midterm-exam": Number,
+        "final-exam": Number,
+        "instructional-materials": Number,
+        "all-files": Number,
+      },
     },
-    
-    // System Variables Stats
+    // System Variables Stats - UPDATED STRUCTURE
     system_variables: {
       total_variables: Number,
-      variable_type_distribution: {
-        subject_code: Number,
-        course_section: Number,
-        academic_year: Number,
-        semester: Number
-      }
-    }
+      unique_combinations: Number,
+      bscs_count: Number,
+      bsit_count: Number,
+      both_count: Number,
+    },
   },
-  { 
+  {
     versionKey: false,
-    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
 
@@ -80,4 +84,5 @@ analyticsSchema.index({ date: -1 });
 analyticsSchema.index({ period: 1, date: -1 });
 
 const Analytics = mongoose.model("Analytics", analyticsSchema);
+
 export default Analytics;
