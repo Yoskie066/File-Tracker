@@ -14,10 +14,11 @@ const generateTaskDeliverablesId = () => {
 };
 
 // Get system variable details for auto-fill
-const getSystemVariableDetails = async (subject_code, semester, school_year) => {
+const getSystemVariableDetails = async (subject_code, course, semester, school_year) => {
   try {
     const systemVariable = await SystemVariable.findOne({
       subject_code: subject_code,
+      course: course,
       semester: semester,
       academic_year: school_year
     });
@@ -29,47 +30,76 @@ const getSystemVariableDetails = async (subject_code, semester, school_year) => 
   }
 };
 
+// Get available subjects for faculty load dropdown
+export const getSubjectsForFacultyLoad = async (req, res) => {
+  try {
+    const { academic_year, semester, course } = req.query;
+    
+    let query = {};
+    
+    if (academic_year) {
+      query.academic_year = academic_year;
+    }
+    
+    if (semester) {
+      query.semester = semester;
+    }
+    
+    if (course) {
+      query.course = course;
+    }
+    
+    const subjects = await SystemVariable.find(query)
+      .select('subject_code subject_title course semester academic_year')
+      .sort({ subject_code: 1 });
+    
+    // Format the response
+    const formattedSubjects = subjects.map(subject => ({
+      value: subject.subject_code,
+      label: `${subject.subject_code} - ${subject.subject_title}`,
+      subject_title: subject.subject_title,
+      course: subject.course,
+      semester: subject.semester,
+      academic_year: subject.academic_year
+    }));
+    
+    res.status(200).json({ 
+      success: true, 
+      data: formattedSubjects 
+    });
+  } catch (error) {
+    console.error("Error fetching subjects for faculty load:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 // Auto-create task deliverables for faculty load
 const autoCreateTaskDeliverables = async (facultyLoaded) => {
   try {
     console.log("Auto-creating task deliverables for faculty load:", facultyLoaded.faculty_loaded_id);
     
-    const taskDeliverablesPromises = facultyLoaded.course_sections.map(async (courseSection) => {
-      // Check if task deliverables already exists for this subject and section
-      const existingTaskDeliverables = await TaskDeliverables.findOne({
-        faculty_id: facultyLoaded.faculty_id,
-        subject_code: facultyLoaded.subject_code,
-        course_section: courseSection
-      });
-
-      if (!existingTaskDeliverables) {
-        const newTaskDeliverables = new TaskDeliverables({
-          task_deliverables_id: generateTaskDeliverablesId(),
-          faculty_id: facultyLoaded.faculty_id,
-          faculty_name: facultyLoaded.faculty_name || "Faculty",
-          subject_code: facultyLoaded.subject_code,
-          course_section: courseSection,
-          // All statuses default to "pending"
-          syllabus: "pending",
-          tos_midterm: "pending",
-          tos_final: "pending",
-          midterm_exam: "pending",
-          final_exam: "pending",
-          instructional_materials: "pending"
-        });
-
-        return newTaskDeliverables.save();
-      } else {
-        console.log(`Task deliverables already exists for ${facultyLoaded.subject_code}-${courseSection}`);
-        return null;
-      }
+    const newTaskDeliverables = new TaskDeliverables({
+      task_deliverables_id: generateTaskDeliverablesId(),
+      faculty_id: facultyLoaded.faculty_id,
+      faculty_name: facultyLoaded.faculty_name || "Faculty",
+      subject_code: facultyLoaded.subject_code,
+      subject_title: facultyLoaded.subject_title,
+      course: facultyLoaded.course,
+      semester: facultyLoaded.semester,
+      school_year: facultyLoaded.school_year,
+      // All statuses default to "pending"
+      syllabus: "pending",
+      tos_midterm: "pending",
+      tos_final: "pending",
+      midterm_exam: "pending",
+      final_exam: "pending",
+      instructional_materials: "pending"
     });
 
-    const results = await Promise.all(taskDeliverablesPromises);
-    const created = results.filter(result => result !== null);
+    await newTaskDeliverables.save();
+    console.log(`Task deliverables created for ${facultyLoaded.subject_code}`);
     
-    console.log(`Auto-created ${created.length} task deliverables for faculty load ${facultyLoaded.faculty_loaded_id}`);
-    return created;
+    return newTaskDeliverables;
     
   } catch (error) {
     console.error("Error auto-creating task deliverables:", error);
@@ -83,27 +113,19 @@ export const createFacultyLoaded = async (req, res) => {
     console.log("Received request body:", req.body);
     console.log("Authenticated faculty:", req.faculty);
     
-    const { subject_code, course_sections, semester, school_year } = req.body;
+    const { subject_code, course, semester, school_year } = req.body;
 
     // Validation
-    if (!subject_code || !course_sections || !semester || !school_year) {
+    if (!subject_code || !course || !semester || !school_year) {
       return res.status(400).json({ 
         success: false, 
         message: "All fields must be filled.",
         missing_fields: {
           subject_code: !subject_code,
-          course_sections: !course_sections,
+          course: !course,
           semester: !semester,
           school_year: !school_year,
         }
-      });
-    }
-
-    // Check if course_sections is an array and not empty
-    if (!Array.isArray(course_sections) || course_sections.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one course section must be selected."
       });
     }
 
@@ -116,7 +138,7 @@ export const createFacultyLoaded = async (req, res) => {
     }
 
     // Get system variable details for auto-fill
-    const systemVariable = await getSystemVariableDetails(subject_code, semester, school_year);
+    const systemVariable = await getSystemVariableDetails(subject_code, course, semester, school_year);
     
     if (!systemVariable) {
       return res.status(400).json({
@@ -126,12 +148,12 @@ export const createFacultyLoaded = async (req, res) => {
     }
 
     const subject_title = systemVariable.subject_title;
-    const course = systemVariable.course; // Get course from system variable
 
-    // Check for duplicate faculty load (same subject, semester, school year for this faculty)
+    // Check for duplicate faculty load (same subject, course, semester, school year for this faculty)
     const existingFacultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
       subject_code,
+      course,
       semester,
       school_year
     });
@@ -139,7 +161,7 @@ export const createFacultyLoaded = async (req, res) => {
     if (existingFacultyLoaded) {
       return res.status(409).json({
         success: false,
-        message: "A faculty load with the same Subject Code, Semester, and School Year already exists."
+        message: "A faculty load with the same Subject Code, Course, Semester, and School Year already exists."
       });
     }
 
@@ -150,7 +172,6 @@ export const createFacultyLoaded = async (req, res) => {
       subject_code, 
       subject_title, 
       course,
-      course_sections, 
       semester, 
       school_year 
     });
@@ -160,8 +181,7 @@ export const createFacultyLoaded = async (req, res) => {
       faculty_id: req.faculty.facultyId,
       subject_code,
       subject_title,
-      course, // Store course from system variable
-      course_sections,
+      course,
       semester,
       school_year,
     });
@@ -176,13 +196,13 @@ export const createFacultyLoaded = async (req, res) => {
 
     console.log("Faculty load saved successfully for faculty:", req.faculty.facultyId);
 
-    // AUTO SYNC: Create task deliverables for each course section
+    // AUTO SYNC: Create task deliverables
     try {
       const createdTaskDeliverables = await autoCreateTaskDeliverables({
         ...savedFacultyLoaded.toObject(),
         faculty_name: req.faculty.facultyName
       });
-      console.log(`Auto-created ${createdTaskDeliverables.length} task deliverables`);
+      console.log("Auto-created task deliverables");
     } catch (syncError) {
       console.error("Error in auto-sync task deliverables:", syncError);
       // Don't fail the main request if sync fails
@@ -297,7 +317,7 @@ export const getFacultyLoadedById = async (req, res) => {
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject_code, course_sections, semester, school_year } = req.body;
+    const { subject_code, course, semester, school_year } = req.body;
 
     // Check if faculty is authenticated
     if (!req.faculty || !req.faculty.facultyId) {
@@ -320,16 +340,8 @@ export const updateFacultyLoaded = async (req, res) => {
       });
     }
 
-    // Check if course_sections is an array and not empty
-    if (!Array.isArray(course_sections) || course_sections.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one course section must be selected."
-      });
-    }
-
     // Get system variable details for auto-fill
-    const systemVariable = await getSystemVariableDetails(subject_code, semester, school_year);
+    const systemVariable = await getSystemVariableDetails(subject_code, course, semester, school_year);
     
     if (!systemVariable) {
       return res.status(400).json({
@@ -339,12 +351,13 @@ export const updateFacultyLoaded = async (req, res) => {
     }
 
     const subject_title = systemVariable.subject_title;
-    const course = systemVariable.course; // Get course from system variable
+    const oldSubjectCode = existingFacultyLoaded.subject_code;
 
     // Check for duplicate (excluding the current one)
     const duplicateFacultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
       subject_code,
+      course,
       semester,
       school_year,
       faculty_loaded_id: { $ne: id } // Exclude current record
@@ -353,12 +366,9 @@ export const updateFacultyLoaded = async (req, res) => {
     if (duplicateFacultyLoaded) {
       return res.status(409).json({
         success: false,
-        message: "A faculty load with the same Subject Code, Semester, and School Year already exists."
+        message: "A faculty load with the same Subject Code, Course, Semester, and School Year already exists."
       });
     }
-
-    const oldSubjectCode = existingFacultyLoaded.subject_code;
-    const oldCourseSections = existingFacultyLoaded.course_sections;
 
     // Update faculty load with auto-filled details
     const updated = await FacultyLoaded.findOneAndUpdate(
@@ -369,8 +379,7 @@ export const updateFacultyLoaded = async (req, res) => {
       { 
         subject_code, 
         subject_title,
-        course, // Update course from system variable
-        course_sections,
+        course,
         semester, 
         school_year, 
         updated_at: new Date() 
@@ -378,69 +387,23 @@ export const updateFacultyLoaded = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    // AUTO UPDATE: Handle task deliverables sync for added/removed course sections
+    // AUTO UPDATE: Update task deliverables
     try {
-      const addedSections = course_sections.filter(section => !oldCourseSections.includes(section));
-      const removedSections = oldCourseSections.filter(section => !course_sections.includes(section));
-
-      // Create task deliverables for newly added sections
-      if (addedSections.length > 0) {
-        const createPromises = addedSections.map(async (section) => {
-          const existing = await TaskDeliverables.findOne({
-            faculty_id: req.faculty.facultyId,
-            subject_code: subject_code,
-            course_section: section
-          });
-
-          if (!existing) {
-            const newTask = new TaskDeliverables({
-              task_deliverables_id: generateTaskDeliverablesId(),
-              faculty_id: req.faculty.facultyId,
-              faculty_name: req.faculty.facultyName || "Faculty",
-              subject_code: subject_code,
-              course_section: section,
-              syllabus: "pending",
-              tos_midterm: "pending",
-              tos_final: "pending",
-              midterm_exam: "pending",
-              final_exam: "pending",
-              instructional_materials: "pending"
-            });
-            return newTask.save();
-          }
-          return null;
-        });
-
-        await Promise.all(createPromises);
-        console.log(`Auto-created task deliverables for new sections: ${addedSections.join(', ')}`);
-      }
-
-      // Delete task deliverables for removed sections
-      if (removedSections.length > 0) {
-        const deleteResult = await TaskDeliverables.deleteMany({
+      const updateResult = await TaskDeliverables.updateMany(
+        { 
           faculty_id: req.faculty.facultyId,
-          subject_code: oldSubjectCode,
-          course_section: { $in: removedSections }
-        });
-        console.log(`Auto-deleted task deliverables for removed sections: ${removedSections.join(', ')}, count: ${deleteResult.deletedCount}`);
-      }
-
-      // Update subject code for existing sections if it changed
-      if (oldSubjectCode !== subject_code) {
-        const updateResult = await TaskDeliverables.updateMany(
-          { 
-            faculty_id: req.faculty.facultyId,
-            subject_code: oldSubjectCode,
-            course_section: { $in: course_sections }
-          },
-          { 
-            subject_code: subject_code,
-            updated_at: new Date() 
-          }
-        );
-        console.log(`Updated subject code from ${oldSubjectCode} to ${subject_code} for ${updateResult.modifiedCount} task deliverables`);
-      }
-
+          subject_code: oldSubjectCode
+        },
+        { 
+          subject_code: subject_code,
+          subject_title: subject_title,
+          course: course,
+          semester: semester,
+          school_year: school_year,
+          updated_at: new Date() 
+        }
+      );
+      console.log(`Updated ${updateResult.modifiedCount} task deliverables for ${subject_code}`);
     } catch (syncError) {
       console.error("Error in auto-sync during update:", syncError);
       // Don't fail the main request if sync fails
@@ -495,17 +458,16 @@ export const deleteFacultyLoaded = async (req, res) => {
       });
     }
 
-    const { subject_code, course_sections } = facultyLoaded;
+    const { subject_code } = facultyLoaded;
 
-    // AUTO DELETE: Delete corresponding task deliverables for all course sections
+    // AUTO DELETE: Delete corresponding task deliverables
     const deletedTaskDeliverables = await TaskDeliverables.deleteMany({
       subject_code,
-      course_section: { $in: course_sections },
       faculty_id: req.faculty.facultyId
     });
 
     if (deletedTaskDeliverables.deletedCount > 0) {
-      console.log(`Auto-deleted ${deletedTaskDeliverables.deletedCount} task deliverables for ${subject_code} sections: ${course_sections.join(', ')}`);
+      console.log(`Auto-deleted ${deletedTaskDeliverables.deletedCount} task deliverables for ${subject_code}`);
     } else {
       console.log(`No task deliverables found to delete for ${subject_code}`);
     }

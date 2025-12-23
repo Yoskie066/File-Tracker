@@ -2,7 +2,14 @@ import express from "express";
 import { registerFaculty, loginFaculty, forgotPasswordFaculty, refreshTokenFaculty } from "../../controllers/FacultyController/FacultyController.js";
 import { logoutFaculty } from "../../controllers/FacultyController/FacultyLogoutController.js"
 import { verifyToken } from "../../middleware/verifyToken.js";
-import { createFacultyLoaded, getFacultyLoadeds, getFacultyLoadedById, updateFacultyLoaded, deleteFacultyLoaded } from "../../controllers/FacultyController/FacultyLoadedController.js";
+import { 
+  createFacultyLoaded, 
+  getFacultyLoadeds, 
+  getFacultyLoadedById, 
+  updateFacultyLoaded, 
+  deleteFacultyLoaded,
+  getSubjectsForFacultyLoad 
+} from "../../controllers/FacultyController/FacultyLoadedController.js";
 import { uploadFile, upload, getFacultyFiles } from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import { getTaskDeliverables, getTaskDeliverablesById, updateTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
@@ -18,6 +25,7 @@ router.post("/logout", verifyToken, logoutFaculty);
 
 
 // Faculty Loaded Routes
+router.get("/faculty-loaded/subjects", verifyToken, getSubjectsForFacultyLoad);
 router.post("/faculty-loaded", verifyToken, createFacultyLoaded);
 router.get("/faculty-loaded", verifyToken, getFacultyLoadeds);
 router.get("/faculty-loaded/:id", verifyToken, getFacultyLoadedById);

@@ -9,7 +9,7 @@ Modal.setAppElement("#root");
 
 export default function FacultyLoadManagement() {
   const [facultyLoads, setFacultyLoads] = useState([]);
-  const [systemVariables, setSystemVariables] = useState([]);
+  const [systemSubjects, setSystemSubjects] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -36,17 +36,17 @@ export default function FacultyLoadManagement() {
     faculty_loaded_id: "",
     subject_code: "",
     subject_title: "",
-    course_sections: [],
+    course: "",
     semester: "",
     school_year: ""
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   // Filtering and Sorting states
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseSectionFilter, setCourseSectionFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
   const [schoolYearFilter, setSchoolYearFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
@@ -54,8 +54,8 @@ export default function FacultyLoadManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Fetch system variables for dropdowns
-  const fetchSystemVariables = async () => {
+  // Fetch system subjects for dropdown
+  const fetchSystemSubjects = async () => {
     try {
       const token = tokenService.getFacultyAccessToken();
       if (!token) {
@@ -63,109 +63,43 @@ export default function FacultyLoadManagement() {
         return;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables`, {
+      const res = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/subjects`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
-      }); 
+      });
       
       if (!res.ok) {
         throw new Error("Server responded with " + res.status);
       }
       
       const result = await res.json();
-      console.log("Fetched system variables:", result);
+      console.log("Fetched system subjects:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setSystemVariables(result.data);
+        setSystemSubjects(result.data);
       } else {
-        console.error("Unexpected API response format for system variables:", result);
-        setSystemVariables([]);
+        console.error("Unexpected API response format for system subjects:", result);
+        setSystemSubjects([]);
       }
     } catch (err) {
-      console.error("Error fetching system variables:", err);
-      setSystemVariables([]); 
+      console.error("Error fetching system subjects:", err);
+      setSystemSubjects([]);
     }
   };
 
-  // Filter system variables by type
-  const getVariablesByType = (type) => {
-    return systemVariables.filter(variable => variable.variable_type === type);
-  };
-
-  // Get available semesters from system variables
-  const getSemesterOptions = () => {
-    return getVariablesByType('semester').map(v => v.variable_name);
-  };
-
-  // Get available school years from system variables
-  const getSchoolYearOptions = () => {
-    return getVariablesByType('academic_year').map(v => v.variable_name);
-  };
-
-  // Get available subject codes from system variables with titles - FILTERED BASED ON SEARCH
-  const getFilteredSubjectCodeOptions = () => {
-    const allSubjects = getVariablesByType('subject_code');
-    
+  // Filter subjects by search term
+  const getFilteredSubjects = () => {
     if (!subjectCodeSearch.trim()) {
-      return allSubjects;
+      return systemSubjects;
     }
     
     const searchTerm = subjectCodeSearch.toLowerCase();
-    return allSubjects.filter(subject => 
-      subject.variable_name.toLowerCase().includes(searchTerm) ||
-      (subject.subject_title && subject.subject_title.toLowerCase().includes(searchTerm))
+    return systemSubjects.filter(subject => 
+      subject.value.toLowerCase().includes(searchTerm) ||
+      subject.label.toLowerCase().includes(searchTerm) ||
+      subject.subject_title.toLowerCase().includes(searchTerm)
     );
-  };
-
-  // Get available course sections from system variables - FOR CHECKBOXES
-  const getCourseSectionOptions = () => {
-    return getVariablesByType('course_section').map(v => v.variable_name);
-  };
-
-  // Get subject title for a selected subject code
-  const getSubjectTitle = (subjectCode) => {
-    const subject = systemVariables.find(v => 
-      v.variable_type === 'subject_code' && v.variable_name === subjectCode
-    );
-    return subject ? subject.subject_title : '';
-  };
-
-  // Handle course section checkbox change
-  const handleCourseSectionChange = (courseSection) => {
-    setFormData(prev => {
-      const currentSections = [...prev.course_sections];
-      if (currentSections.includes(courseSection)) {
-        // Remove if already selected
-        return {
-          ...prev,
-          course_sections: currentSections.filter(section => section !== courseSection)
-        };
-      } else {
-        // Add if not selected
-        return {
-          ...prev,
-          course_sections: [...currentSections, courseSection]
-        };
-      }
-    });
-  };
-
-  // Select all course sections
-  const handleSelectAllSections = () => {
-    const allSections = getCourseSectionOptions();
-    setFormData(prev => ({
-      ...prev,
-      course_sections: allSections
-    }));
-  };
-
-  // Clear all course sections
-  const handleClearAllSections = () => {
-    setFormData(prev => ({
-      ...prev,
-      course_sections: []
-    }));
   };
 
   // Close dropdown when clicking outside
@@ -195,7 +129,7 @@ export default function FacultyLoadManagement() {
     }
     
     fetchFacultyLoads();
-    fetchSystemVariables();
+    fetchSystemSubjects();
   }, [navigate]);
 
   // Fetch faculty loads from backend 
@@ -236,7 +170,7 @@ export default function FacultyLoadManagement() {
         tokenService.clearFacultyTokens();
         navigate('/auth/login');
       }
-      setFacultyLoads([]); 
+      setFacultyLoads([]);
     }
   };
 
@@ -254,24 +188,6 @@ export default function FacultyLoadManagement() {
     if (name === 'subject_code') {
       // This is for the search input, not for the actual selection
       setSubjectCodeSearch(value);
-      // Auto-select if there's an exact match
-      const exactMatch = getFilteredSubjectCodeOptions().find(
-        subject => subject.variable_name.toLowerCase() === value.toLowerCase()
-      );
-      if (exactMatch) {
-        setFormData(prev => ({
-          ...prev,
-          subject_code: exactMatch.variable_name,
-          subject_title: exactMatch.subject_title
-        }));
-      } else {
-        // Clear if no exact match
-        setFormData(prev => ({
-          ...prev,
-          subject_code: "",
-          subject_title: ""
-        }));
-      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -281,23 +197,29 @@ export default function FacultyLoadManagement() {
   };
 
   // Handle subject code selection from dropdown
-  const handleSubjectCodeSelect = (subject) => {
-    setFormData(prev => ({
-      ...prev,
-      subject_code: subject.variable_name,
-      subject_title: subject.subject_title
-    }));
-    setSubjectCodeSearch(subject.variable_name);
+  const handleSubjectSelect = (subject) => {
+    setFormData({
+      faculty_loaded_id: formData.faculty_loaded_id,
+      subject_code: subject.value,
+      subject_title: subject.subject_title,
+      course: subject.course,
+      semester: subject.semester,
+      school_year: subject.academic_year
+    });
+    setSubjectCodeSearch(subject.label);
     setShowSubjectCodeDropdown(false);
   };
 
   // Clear subject code search and selection
-  const clearSubjectCodeSearch = () => {
+  const clearSubjectSearch = () => {
     setSubjectCodeSearch("");
     setFormData(prev => ({
       ...prev,
       subject_code: "",
-      subject_title: ""
+      subject_title: "",
+      course: "",
+      semester: "",
+      school_year: ""
     }));
     setShowSubjectCodeDropdown(false);
   };
@@ -315,7 +237,7 @@ export default function FacultyLoadManagement() {
       faculty_loaded_id: "",
       subject_code: "",
       subject_title: "",
-      course_sections: [],
+      course: "",
       semester: "",
       school_year: ""
     });
@@ -327,7 +249,7 @@ export default function FacultyLoadManagement() {
   // Reset all filters
   const resetFilters = () => {
     setSubjectCodeFilter("");
-    setCourseSectionFilter("");
+    setCourseFilter("");
     setSemesterFilter("");
     setSchoolYearFilter("");
     setSortOption("most_recent");
@@ -347,16 +269,9 @@ export default function FacultyLoadManagement() {
         return;
       }
 
-      // Validate that at least one course section is selected
-      if (formData.course_sections.length === 0) {
-        showFeedback("error", "Please select at least one course section.");
-        setLoading(false);
-        return;
-      }
-
       // Validate that subject code is selected
       if (!formData.subject_code) {
-        showFeedback("error", "Please select a valid subject code.");
+        showFeedback("error", "Please select a valid subject.");
         setLoading(false);
         return;
       }
@@ -369,7 +284,7 @@ export default function FacultyLoadManagement() {
   
       const requestData = {
         subject_code: formData.subject_code,
-        course_sections: formData.course_sections,
+        course: formData.course,
         semester: formData.semester,
         school_year: formData.school_year
       };
@@ -451,11 +366,11 @@ export default function FacultyLoadManagement() {
           faculty_loaded_id: facultyLoad.faculty_loaded_id,
           subject_code: facultyLoad.subject_code,
           subject_title: facultyLoad.subject_title,
-          course_sections: facultyLoad.course_sections || [],
+          course: facultyLoad.course,
           semester: facultyLoad.semester,
           school_year: facultyLoad.school_year
         });
-        setSubjectCodeSearch(facultyLoad.subject_code);
+        setSubjectCodeSearch(`${facultyLoad.subject_code} - ${facultyLoad.subject_title}`);
         setIsEditMode(true);
         setShowModal(true);
       } else {
@@ -524,12 +439,12 @@ export default function FacultyLoadManagement() {
     filtered.forEach(load => {
       if (key === 'subject_code' && load.subject_code) {
         values.add(load.subject_code);
+      } else if (key === 'course' && load.course) {
+        values.add(load.course);
       } else if (key === 'semester' && load.semester) {
         values.add(load.semester);
       } else if (key === 'school_year' && load.school_year) {
         values.add(load.school_year);
-      } else if (key === 'course_sections' && Array.isArray(load.course_sections)) {
-        load.course_sections.forEach(section => values.add(section));
       }
     });
 
@@ -542,16 +457,17 @@ export default function FacultyLoadManagement() {
 
     // Apply search filter
     filtered = filtered.filter((fl) =>
-      [fl.faculty_loaded_id, fl.subject_code, fl.semester, fl.school_year, fl.subject_title]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
-      (fl.course_sections && fl.course_sections.some(section => 
-        section.toLowerCase().includes(search.toLowerCase())
-      ))
+      [fl.faculty_loaded_id, fl.subject_code, fl.subject_title, fl.course, fl.semester, fl.school_year]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
     // Apply advanced filters
     if (subjectCodeFilter) {
       filtered = filtered.filter(load => load.subject_code === subjectCodeFilter);
+    }
+    
+    if (courseFilter) {
+      filtered = filtered.filter(load => load.course === courseFilter);
     }
     
     if (semesterFilter) {
@@ -560,14 +476,6 @@ export default function FacultyLoadManagement() {
     
     if (schoolYearFilter) {
       filtered = filtered.filter(load => load.school_year === schoolYearFilter);
-    }
-    
-    if (courseSectionFilter) {
-      filtered = filtered.filter(load => 
-        load.course_sections && 
-        Array.isArray(load.course_sections) && 
-        load.course_sections.includes(courseSectionFilter)
-      );
     }
 
     // Apply sorting
@@ -594,7 +502,7 @@ export default function FacultyLoadManagement() {
   const facultyLoadStats = {
     total: Array.isArray(facultyLoads) ? facultyLoads.length : 0,
     subjectCode: Array.isArray(facultyLoads) ? [...new Set(facultyLoads.map(fl => fl.subject_code))].length : 0,
-    courseSection: Array.isArray(facultyLoads) ? facultyLoads.reduce((total, fl) => total + (fl.course_sections?.length || 0), 0) : 0,
+    course: Array.isArray(facultyLoads) ? [...new Set(facultyLoads.map(fl => fl.course))].length : 0,
     schoolYear: Array.isArray(facultyLoads) ? [...new Set(facultyLoads.map(fl => fl.school_year))].length : 0
   };
 
@@ -653,7 +561,6 @@ export default function FacultyLoadManagement() {
           >
             <Filter className="w-4 h-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-            
           </button>
 
           {/* Filter Panel */}
@@ -682,19 +589,19 @@ export default function FacultyLoadManagement() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Course Section
+                    Course
                   </label>
                   <select
-                    value={courseSectionFilter}
+                    value={courseFilter}
                     onChange={(e) => {
-                      setCourseSectionFilter(e.target.value);
+                      setCourseFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Sections</option>
-                    {getUniqueValues('course_sections').map(section => (
-                      <option key={section} value={section}>{section}</option>
+                    <option value="">All Courses</option>
+                    {getUniqueValues('course').map(course => (
+                      <option key={course} value={course}>{course}</option>
                     ))}
                   </select>
                 </div>
@@ -765,7 +672,7 @@ export default function FacultyLoadManagement() {
                 </div>
                 
                 <div className="col-span-1 text-right">
-                  {(subjectCodeFilter || courseSectionFilter || semesterFilter || schoolYearFilter || sortOption !== "most_recent") && (
+                  {(subjectCodeFilter || courseFilter || semesterFilter || schoolYearFilter || sortOption !== "most_recent") && (
                     <button
                       onClick={resetFilters}
                       className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -779,11 +686,11 @@ export default function FacultyLoadManagement() {
               {/* Filter Summary */}
               <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
                 {filteredFacultyLoads.length} of {facultyLoads.length} faculty loads
-                {subjectCodeFilter || courseSectionFilter || semesterFilter || schoolYearFilter ? (
+                {subjectCodeFilter || courseFilter || semesterFilter || schoolYearFilter ? (
                   <span className="ml-2 text-blue-600">
                     ({[
                       subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
-                      courseSectionFilter && `Section: ${courseSectionFilter}`,
+                      courseFilter && `Course: ${courseFilter}`,
                       semesterFilter && `Semester: ${semesterFilter}`,
                       schoolYearFilter && `Year: ${schoolYearFilter}`
                     ].filter(Boolean).join(", ")})
@@ -805,8 +712,8 @@ export default function FacultyLoadManagement() {
             <div className="text-2xl font-bold text-purple-800">{facultyLoadStats.subjectCode}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Course Sections</div>
-            <div className="text-2xl font-bold text-green-800">{facultyLoadStats.courseSection}</div>
+            <div className="text-green-600 text-sm font-medium">Courses</div>
+            <div className="text-2xl font-bold text-green-800">{facultyLoadStats.course}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
             <div className="text-yellow-600 text-sm font-medium">Academic Year</div>
@@ -822,7 +729,7 @@ export default function FacultyLoadManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Load ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course Sections</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created</th>
@@ -835,24 +742,21 @@ export default function FacultyLoadManagement() {
                   <tr key={facultyLoad._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoad.faculty_loaded_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoad.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">{facultyLoad.subject_title || 'Loading...'}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{facultyLoad.subject_title}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {facultyLoad.course_sections?.map((section, index) => (
-                          <span 
-                            key={index}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                          >
-                            {section}
-                          </span>
-                        ))}
-                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        facultyLoad.course === 'BSCS' ? 'bg-purple-100 text-purple-800' :
+                        facultyLoad.course === 'BSIT' ? 'bg-green-100 text-green-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {facultyLoad.course}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        facultyLoad.semester === '1st Semester' ? 'bg-purple-100 text-purple-800' :
-                        facultyLoad.semester === '2nd Semester' ? 'bg-green-100 text-green-800' :
-                        'bg-yellow-100 text-yellow-800'
+                        facultyLoad.semester === '1st Semester' ? 'bg-blue-100 text-blue-800' :
+                        facultyLoad.semester === '2nd Semester' ? 'bg-red-100 text-red-800' :
+                        'bg-green-100 text-green-800'
                       }`}>
                         {facultyLoad.semester}
                       </span>
@@ -920,11 +824,11 @@ export default function FacultyLoadManagement() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      facultyLoad.semester === '1st Semester' ? 'bg-purple-100 text-purple-800' :
-                      facultyLoad.semester === '2nd Semester' ? 'bg-green-100 text-green-800' :
+                      facultyLoad.course === 'BSCS' ? 'bg-purple-100 text-purple-800' :
+                      facultyLoad.course === 'BSIT' ? 'bg-green-100 text-green-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {facultyLoad.semester}
+                      {facultyLoad.course}
                     </span>
                     
                     {/* Mobile Actions Dropdown */}
@@ -964,30 +868,27 @@ export default function FacultyLoadManagement() {
                 <div className="grid grid-cols-1 gap-3 text-sm mb-3">
                   <div>
                     <span className="text-gray-500">Subject Title:</span>
-                    <p className="font-medium">{facultyLoad.subject_title || 'Loading...'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Course Sections:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {facultyLoad.course_sections?.map((section, index) => (
-                        <span 
-                          key={index}
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {section}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="font-medium">{facultyLoad.subject_title}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-gray-500">Semester:</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${
+                        facultyLoad.semester === '1st Semester' ? 'bg-blue-100 text-blue-800' :
+                        facultyLoad.semester === '2nd Semester' ? 'bg-red-100 text-red-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {facultyLoad.semester}
+                      </span>
+                    </div>
                     <div>
                       <span className="text-gray-500">Academic Year:</span>
                       <p className="font-medium">{facultyLoad.school_year}</p>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Created:</span>
-                      <p className="font-medium text-xs">{new Date(facultyLoad.created_at).toLocaleDateString()}</p>
-                    </div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Created:</span>
+                    <p className="font-medium text-xs">{new Date(facultyLoad.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
@@ -1004,7 +905,7 @@ export default function FacultyLoadManagement() {
           <div className="text-sm text-gray-600">
             Showing {currentFacultyLoads.length} of {filteredFacultyLoads.length} faculty loads
             {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
-            {courseSectionFilter && ` • Section: ${courseSectionFilter}`}
+            {courseFilter && ` • Course: ${courseFilter}`}
             {semesterFilter && ` • Semester: ${semesterFilter}`}
             {schoolYearFilter && ` • Year: ${schoolYearFilter}`}
           </div>
@@ -1106,7 +1007,7 @@ export default function FacultyLoadManagement() {
                     {subjectCodeSearch && (
                       <button
                         type="button"
-                        onClick={clearSubjectCodeSearch}
+                        onClick={clearSubjectSearch}
                         className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         <X className="w-4 h-4" />
@@ -1124,132 +1025,98 @@ export default function FacultyLoadManagement() {
                   {/* Dropdown with search results */}
                   {showSubjectCodeDropdown && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {getFilteredSubjectCodeOptions().length > 0 ? (
-                        getFilteredSubjectCodeOptions().map((subject) => (
+                      {getFilteredSubjects().length > 0 ? (
+                        getFilteredSubjects().map((subject) => (
                           <div
-                            key={subject.variable_name}
+                            key={subject.value}
                             className={`px-3 py-2 cursor-pointer hover:bg-gray-50 ${
-                              formData.subject_code === subject.variable_name ? 'bg-blue-50' : ''
+                              formData.subject_code === subject.value ? 'bg-blue-50' : ''
                             }`}
-                            onClick={() => handleSubjectCodeSelect(subject)}
+                            onClick={() => handleSubjectSelect(subject)}
                           >
-                            <div className="font-medium text-gray-900">{subject.variable_name}</div>
-                            <div className="text-xs text-gray-500 truncate">{subject.subject_title}</div>
+                            <div className="font-medium text-gray-900">{subject.value}</div>
+                            <div className="text-sm text-gray-600">{subject.subject_title}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Course: {subject.course} • Semester: {subject.semester} • {subject.academic_year}
+                            </div>
                           </div>
                         ))
                       ) : (
                         <div className="px-3 py-3 text-center text-gray-500">
-                          No subject codes found matching "{subjectCodeSearch}"
+                          No subjects found matching "{subjectCodeSearch}"
                         </div>
                       )}
                     </div>
                   )}
-                  
-                  {/* Selected subject title display */}
-                  {formData.subject_title && (
-                    <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
-                      <div className="text-sm text-gray-700">
-                        <span className="font-medium">Subject Title:</span> {formData.subject_title}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* Course Sections - CHECKBOXES for multiple selection */}
+              {/* Course - Auto-populated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Sections *
+                  Course *
                 </label>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600">
-                    Selected: {formData.course_sections.length} section(s)
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSelectAllSections}
-                      className="text-xs text-blue-600 hover:text-blue-800"
-                    >
-                      Select All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClearAllSections}
-                      className="text-xs text-red-600 hover:text-red-800"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                </div>
-                <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-2">
-                    {getCourseSectionOptions().map((section) => (
-                      <label key={section} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.course_sections.includes(section)}
-                          onChange={() => handleCourseSectionChange(section)}
-                          className="rounded border-gray-300 text-black focus:ring-black"
-                        />
-                        <span className="text-sm text-gray-700">{section}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                {formData.course_sections.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">
-                    Please select at least one course section.
-                  </p>
-                )}
+                <input
+                  type="text"
+                  name="course"
+                  value={formData.course}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Will auto-populate when you select a subject"
+                />
               </div>
 
-              {/* Semester - Dropdown from System Variables */}
+              {/* Subject Title - Auto-populated */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject Title *
+                </label>
+                <input
+                  type="text"
+                  name="subject_title"
+                  value={formData.subject_title}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Will auto-populate when you select a subject"
+                />
+              </div>
+
+              {/* Semester - Auto-populated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Semester *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="semester"
                   value={formData.semester}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select semester</option>
-                  {getSemesterOptions().map((semester) => (
-                    <option key={semester} value={semester}>
-                      {semester}
-                    </option>
-                  ))}
-                </select>
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Will auto-populate when you select a subject"
+                />
               </div>
 
-              {/* School Year - Dropdown from System Variables */}
+              {/* School Year - Auto-populated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Academic Year *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="school_year"
                   value={formData.school_year}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select academic year</option>
-                  {getSchoolYearOptions().map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Will auto-populate when you select a subject"
+                />
               </div>
 
               {/* Auto-sync notice */}
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                 <p className="text-sm text-blue-700">
-                  <strong>Auto-sync enabled:</strong> Task deliverables will be automatically created for each selected course section.
+                  <strong>Auto-population:</strong> All fields except Subject Code are automatically populated from System Variables.
+                  <br />
+                  <strong>Auto-sync enabled:</strong> Task deliverables will be automatically created when you add a faculty load.
                 </p>
               </div>
 
@@ -1267,7 +1134,7 @@ export default function FacultyLoadManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || formData.course_sections.length === 0 || !formData.subject_code}
+                  disabled={loading || !formData.subject_code}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Faculty Load" : "Add Faculty Load")}

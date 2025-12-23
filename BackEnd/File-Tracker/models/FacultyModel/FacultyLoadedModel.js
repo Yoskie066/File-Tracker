@@ -5,8 +5,8 @@ const facultyLoadedSchema = new mongoose.Schema(
     faculty_loaded_id: { type: String, required: true, unique: true },
     faculty_id: { type: String, required: true }, 
     subject_code: { type: String, required: true },
-    subject_title: { type: String, required: true }, 
-    course_sections: [{ type: String, required: true }], 
+    subject_title: { type: String, required: true },
+    course: { type: String, required: true },
     semester: { type: String, required: true },
     school_year: { type: String, required: true },
     created_at: { type: Date, default: Date.now },
@@ -15,11 +15,12 @@ const facultyLoadedSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-// Updated compound index for multiple course sections
+// Compound index for unique combination
 facultyLoadedSchema.index(
   { 
     faculty_id: 1, 
     subject_code: 1, 
+    course: 1,
     semester: 1, 
     school_year: 1 
   }, 
