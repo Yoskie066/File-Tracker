@@ -68,9 +68,9 @@ const mapDocumentTypeToField = (documentType) => {
 // Update Task Deliverables when file status changes
 const updateTaskDeliverables = async (fileData) => {
   try {
-    const { faculty_id, faculty_name, subject_code, course_sections, document_type, status } = fileData;
+    const { faculty_id, faculty_name, subject_code, course, document_type, status } = fileData;
     
-    console.log(`Syncing Task Deliverables for: ${subject_code} - Sections: ${course_sections.join(', ')}`);
+    console.log(`Syncing Task Deliverables for: ${subject_code} - Course: ${course}`);
     console.log(`Document Type: ${document_type}, Status: ${status}`);
 
     // Map document_type to TaskDeliverables field name
@@ -80,35 +80,31 @@ const updateTaskDeliverables = async (fileData) => {
       return;
     }
 
-    // Update Task Deliverables for EACH course section
-    const updatePromises = course_sections.map(async (course_section) => {
-      let taskDeliverables = await TaskDeliverables.findOne({
-        faculty_id,
-        subject_code,
-        course_section
-      });
-
-      if (taskDeliverables) {
-        const updateData = { 
-          [fieldName]: status,
-          updated_at: new Date()
-        };
-        
-        const updatedTask = await TaskDeliverables.findOneAndUpdate(
-          { faculty_id, subject_code, course_section },
-          updateData,
-          { new: true, runValidators: true }
-        );
-        
-        console.log(`Updated TaskDeliverables: ${subject_code}-${course_section}`);
-        return updatedTask;
-      } else {
-        console.warn(`No TaskDeliverables found for ${subject_code}-${course_section}`);
-        return null;
-      }
+    // Update Task Deliverables for the course
+    let taskDeliverables = await TaskDeliverables.findOne({
+      faculty_id,
+      subject_code,
+      course
     });
 
-    await Promise.all(updatePromises);
+    if (taskDeliverables) {
+      const updateData = { 
+        [fieldName]: status,
+        updated_at: new Date()
+      };
+      
+      const updatedTask = await TaskDeliverables.findOneAndUpdate(
+        { faculty_id, subject_code, course },
+        updateData,
+        { new: true, runValidators: true }
+      );
+      
+      console.log(`Updated TaskDeliverables: ${subject_code}-${course}`);
+      return updatedTask;
+    } else {
+      console.warn(`No TaskDeliverables found for ${subject_code}-${course}`);
+      return null;
+    }
     
   } catch (error) {
     console.error("Error updating TaskDeliverables:", error);
@@ -170,21 +166,21 @@ export const uploadFile = async (req, res) => {
     }
 
     const subject_title = facultyLoaded.subject_title;
-    const course_sections = facultyLoaded.course_sections || [];
-    const semester = facultyLoaded.semester; // Get from faculty load
-    const school_year = facultyLoaded.school_year; // Get from faculty load
+    const course = facultyLoaded.course; // Get course from faculty load
+    const semester = facultyLoaded.semester;
+    const school_year = facultyLoaded.school_year;
 
-    if (course_sections.length === 0) {
+    if (!course) {
       return res.status(400).json({
         success: false,
-        message: "No course sections found for this subject. Please update your faculty load.",
+        message: "No course found for this subject. Please update your faculty load.",
       });
     }
 
     console.log("💾 Auto-synced data:", { 
+      course,
       semester, 
       school_year, 
-      course_sections, 
       subject_title 
     });
 
@@ -196,13 +192,13 @@ export const uploadFile = async (req, res) => {
       finalDocumentType = `tos-${tos_type}`;
     }
 
-    // Process each uploaded file - ONE RECORD PER FILE, NOT PER SECTION
+    // Process each uploaded file
     const allSavedFiles = [];
     
     for (const file of req.files) {
       console.log(`Processing file: ${file.originalname}`);
       
-      // Create ONE file record for this file with all course sections in array
+      // Create file record
       const fileId = generateFileId();
       
       const newFile = new FileManagement({
@@ -213,10 +209,10 @@ export const uploadFile = async (req, res) => {
         document_type: finalDocumentType,
         tos_type: document_type === 'tos' ? tos_type : null,
         subject_code,
-        course_sections: course_sections, // Store as array
+        course: course, // Store course instead of sections
         subject_title,
-        semester, // Auto-synced from faculty load
-        school_year, // Auto-synced from faculty load
+        semester,
+        school_year,
         status: "pending", 
         file_path: `/uploads/${file.filename}`,
         original_name: file.originalname,
@@ -226,13 +222,12 @@ export const uploadFile = async (req, res) => {
 
       const savedFile = await newFile.save();
       allSavedFiles.push(savedFile);
-      console.log(`✅ Created ONE file record for: ${file.originalname} with ${course_sections.length} sections`);
-      console.log(`📚 Auto-synced: Semester=${semester}, School Year=${school_year}`);
+      console.log(`✅ Created file record for: ${file.originalname} with course: ${course}`);
     }
 
     console.log(`🎉 Total created: ${allSavedFiles.length} file records for ${req.files.length} files`);
 
-    // Create ONE file history record per file (not per section)
+    // Create file history record
     try {
       for (const savedFile of allSavedFiles) {
         await createFileHistory({
@@ -241,47 +236,47 @@ export const uploadFile = async (req, res) => {
           tos_type: savedFile.tos_type,
           faculty_id: savedFile.faculty_id,
           subject_code: savedFile.subject_code,
-          course_sections: savedFile.course_sections, // Array of sections
+          course: savedFile.course, // Course instead of sections
           date_submitted: new Date()
         });
       }
-      console.log("✅ File history created (ONE per file) with auto-synced semester and school year");
+      console.log("✅ File history created with auto-synced course, semester and school year");
     } catch (historyError) {
       console.error("⚠️ Error creating file history:", historyError);
     }
 
-    // Update Task Deliverables for ALL sections (this still needs to update each section)
+    // Update Task Deliverables for the course
     try {
       for (const savedFile of allSavedFiles) {
         await updateTaskDeliverables({
           faculty_id: savedFile.faculty_id,
           faculty_name: savedFile.faculty_name,
           subject_code: savedFile.subject_code,
-          course_sections: savedFile.course_sections,
+          course: savedFile.course, // Course instead of sections
           document_type: savedFile.document_type,
           status: savedFile.status
         });
       }
-      console.log("✅ Task deliverables updated for all sections");
+      console.log("✅ Task deliverables updated for course");
     } catch (taskError) {
       console.error("⚠️ Error updating task deliverables:", taskError);
     }
 
     res.status(201).json({
       success: true,
-      message: `${req.files.length} file(s) uploaded successfully for ${course_sections.length} course section(s). Status: Pending admin approval.`,
+      message: `${req.files.length} file(s) uploaded successfully for course: ${course}. Status: Pending admin approval.`,
       data: {
         files_uploaded: req.files.length,
-        sections: course_sections.length,
+        course: course,
         total_records: allSavedFiles.length,
         file_details: allSavedFiles.map(file => ({
           file_id: file.file_id,
           file_name: file.file_name,
           document_type: file.document_type,
           subject_code: file.subject_code,
-          course_sections: file.course_sections, // Return as array
-          semester: file.semester, // Include semester in response
-          school_year: file.school_year, // Include school_year in response
+          course: file.course, // Return course
+          semester: file.semester,
+          school_year: file.school_year,
           status: file.status,
           uploaded_at: file.uploaded_at
         })),
@@ -416,7 +411,7 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-//Update File Status
+// Update File Status
 export const updateFileStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -433,12 +428,12 @@ export const updateFileStatus = async (req, res) => {
     if (!updatedFile)
       return res.status(404).json({ success: false, message: "File not found" });
 
-    // Update corresponding TaskDeliverables for all sections
+    // Update corresponding TaskDeliverables for the course
     await updateTaskDeliverables({
       faculty_id: updatedFile.faculty_id,
       faculty_name: updatedFile.faculty_name,
       subject_code: updatedFile.subject_code,
-      course_sections: updatedFile.course_sections, // Use array
+      course: updatedFile.course, // Course instead of sections
       document_type: updatedFile.document_type,
       status: updatedFile.status
     });
@@ -448,7 +443,7 @@ export const updateFileStatus = async (req, res) => {
       await autoSyncToArchive(updatedFile);
     }
 
-    console.log(`File status updated and synced to Task Deliverables for ${updatedFile.course_sections.length} sections: ${status}`);
+    console.log(`File status updated and synced to Task Deliverables for course: ${updatedFile.course}`);
 
     res.status(200).json({
       success: true,
@@ -496,12 +491,12 @@ export const bulkCompleteAllFiles = async (req, res) => {
         );
 
         if (updatedFile) {
-          // Update corresponding TaskDeliverables for all sections
+          // Update corresponding TaskDeliverables for the course
           await updateTaskDeliverables({
             faculty_id: updatedFile.faculty_id,
             faculty_name: updatedFile.faculty_name,
             subject_code: updatedFile.subject_code,
-            course_sections: updatedFile.course_sections,
+            course: updatedFile.course,
             document_type: updatedFile.document_type,
             status: "completed"
           });

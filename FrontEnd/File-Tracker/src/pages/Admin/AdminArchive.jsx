@@ -15,7 +15,7 @@ export default function AdminArchive() {
   const [facultyFilter, setFacultyFilter] = useState("");
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseSectionFilter, setCourseSectionFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState(""); // Changed from courseSectionFilter to courseFilter
   const [semesterFilter, setSemesterFilter] = useState("");
   const [schoolYearFilter, setSchoolYearFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -30,7 +30,7 @@ export default function AdminArchive() {
     subject_codes: [],
     semesters: [],
     school_years: [],
-    course_sections: [],
+    courses: [], // Changed from course_sections to courses
     active_years: []
   });
 
@@ -54,7 +54,7 @@ export default function AdminArchive() {
       if (facultyFilter) params.append('faculty_name', facultyFilter);
       if (documentTypeFilter) params.append('document_type', documentTypeFilter);
       if (subjectCodeFilter) params.append('subject_code', subjectCodeFilter);
-      if (courseSectionFilter) params.append('course_section', courseSectionFilter);
+      if (courseFilter) params.append('course', courseFilter); // Changed from course_section to course
       if (semesterFilter) params.append('semester', semesterFilter);
       if (schoolYearFilter) params.append('school_year', schoolYearFilter);
       if (yearFilter) params.append('year', yearFilter);
@@ -137,7 +137,8 @@ export default function AdminArchive() {
       archive.file_name,
       archive.document_type,
       archive.subject_code,
-      archive.subject_title
+      archive.subject_title,
+      archive.course // Added course to search
     ].some(field => field?.toLowerCase().includes(search.toLowerCase()))) {
       return false;
     }
@@ -146,7 +147,7 @@ export default function AdminArchive() {
     if (facultyFilter && archive.faculty_name !== facultyFilter) return false;
     if (documentTypeFilter && archive.document_type !== documentTypeFilter) return false;
     if (subjectCodeFilter && archive.subject_code !== subjectCodeFilter) return false;
-    if (courseSectionFilter && !archive.course_sections.includes(courseSectionFilter)) return false;
+    if (courseFilter && archive.course !== courseFilter) return false; // Changed from course_sections to course
     if (semesterFilter && archive.semester !== semesterFilter) return false;
     if (schoolYearFilter && archive.school_year !== schoolYearFilter) return false;
     
@@ -246,6 +247,14 @@ export default function AdminArchive() {
     }
   };
 
+  // Get course badge color
+  const getCourseColor = (course) => {
+    if (course === 'BSCS') return 'bg-purple-100 text-purple-800';
+    if (course === 'BSIT') return 'bg-green-100 text-green-800';
+    if (course === 'BSIS') return 'bg-blue-100 text-blue-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
   // Get semester badge color
   const getSemesterColor = (semester) => {
     if (semester?.includes('1st')) return 'bg-purple-100 text-purple-800';
@@ -254,18 +263,12 @@ export default function AdminArchive() {
     return 'bg-gray-100 text-gray-800';
   };
 
-  // Format course sections
-  const formatCourseSections = (sections) => {
-    if (!sections || !Array.isArray(sections)) return 'N/A';
-    return sections.join(', ');
-  };
-
   // Reset all filters
   const resetFilters = () => {
     setFacultyFilter("");
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
-    setCourseSectionFilter("");
+    setCourseFilter(""); // Changed from courseSectionFilter to courseFilter
     setSemesterFilter("");
     setSchoolYearFilter("");
     setYearFilter("");
@@ -471,19 +474,19 @@ export default function AdminArchive() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Course Section
+                    Course
                   </label>
                   <select
-                    value={courseSectionFilter}
+                    value={courseFilter}
                     onChange={(e) => {
-                      setCourseSectionFilter(e.target.value);
+                      setCourseFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Sections</option>
-                    {filterOptions.course_sections?.map(section => (
-                      <option key={section} value={section}>{section}</option>
+                    <option value="">All Courses</option>
+                    {filterOptions.courses?.map(course => (
+                      <option key={course} value={course}>{course}</option>
                     ))}
                   </select>
                 </div>
@@ -518,7 +521,7 @@ export default function AdminArchive() {
           )}
         </div>
 
-        {/* Desktop Table - UPDATED with only Preview action */}
+        {/* Desktop Table - UPDATED with Course instead of Course/Section */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -528,7 +531,7 @@ export default function AdminArchive() {
                 <th className="px-4 py-3 text-left">File Name</th>
                 <th className="px-4 py-3 text-left">Document Type</th>
                 <th className="px-4 py-3 text-left">Subject Code</th>
-                <th className="px-4 py-3 text-left">Course/Section</th>
+                <th className="px-4 py-3 text-left">Course</th> {/* Changed from Course/Section to Course */}
                 <th className="px-4 py-3 text-left">Semester</th>
                 <th className="px-4 py-3 text-left">Academic Year</th>
                 <th className="px-4 py-3 text-left">Status</th>
@@ -554,21 +557,10 @@ export default function AdminArchive() {
                     <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{archive.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(archive.document_type, archive.tos_type)}</td>
                     <td className="px-4 py-3 text-gray-700">{archive.subject_code}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      <div className="flex flex-wrap gap-1">
-                        {archive.course_sections && archive.course_sections.length > 0 ? (
-                          archive.course_sections.slice(0, 2).map((section, idx) => (
-                            <span key={idx} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                              {section}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-xs">N/A</span>
-                        )}
-                        {archive.course_sections && archive.course_sections.length > 2 && (
-                          <span className="text-xs text-gray-500">+{archive.course_sections.length - 2}</span>
-                        )}
-                      </div>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(archive.course)}`}>
+                        {archive.course}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(archive.semester)}`}>
@@ -623,7 +615,7 @@ export default function AdminArchive() {
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED with only Preview action */}
+        {/* Mobile Cards - UPDATED with course instead of sections */}
         <div className="md:hidden space-y-4">
           {loading ? (
             <div className="text-center py-8">
@@ -678,14 +670,10 @@ export default function AdminArchive() {
                     <p className="font-medium truncate">{archive.subject_code}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Course/Section:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {archive.course_sections && archive.course_sections.slice(0, 2).map((section, idx) => (
-                        <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                          {section}
-                        </span>
-                      ))}
-                    </div>
+                    <span className="text-gray-500">Course:</span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(archive.course)}`}>
+                      {archive.course}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500">Document Type:</span>
@@ -829,25 +817,11 @@ export default function AdminArchive() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Course Sections</label>
+                <label className="block text-sm font-medium text-gray-700">Course</label>
                 <div className="mt-1">
-                  <div className="flex flex-wrap gap-2">
-                    {archiveToPreview.course_sections && Array.isArray(archiveToPreview.course_sections) ? (
-                      archiveToPreview.course_sections.map((section, index) => (
-                        <span 
-                          key={index}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
-                        >
-                          {section}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-gray-400 text-sm">N/A</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Total: {archiveToPreview.course_sections?.length || 0} sections
-                  </p>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(archiveToPreview.course)}`}>
+                    {archiveToPreview.course}
+                  </span>
                 </div>
               </div>
 

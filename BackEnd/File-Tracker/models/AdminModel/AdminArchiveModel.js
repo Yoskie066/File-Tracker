@@ -22,7 +22,7 @@ const archiveSchema = new mongoose.Schema(
     },
     subject_code: { type: String, required: true }, 
     subject_title: { type: String, required: true },
-    course_sections: { type: [String], required: true },
+    course: { type: String, required: true }, 
     semester: { type: String, required: true },
     school_year: { type: String, required: true },
     file_path: { type: String, required: true },

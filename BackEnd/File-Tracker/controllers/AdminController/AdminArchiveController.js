@@ -25,7 +25,7 @@ export const autoSyncToArchive = async (fileData) => {
       status: fileData.status,
       subject_code: fileData.subject_code,
       subject_title: fileData.subject_title,
-      course_sections: fileData.course_sections,
+      course: fileData.course, // Changed from course_sections to course
       semester: fileData.semester,
       school_year: fileData.school_year,
       file_path: fileData.file_path,
@@ -50,7 +50,7 @@ export const getArchivedFiles = async (req, res) => {
       faculty_name, 
       document_type, 
       subject_code, 
-      course_section, 
+      course, // Changed from course_section to course
       status, 
       semester, 
       school_year,
@@ -69,7 +69,8 @@ export const getArchivedFiles = async (req, res) => {
         { faculty_name: { $regex: search, $options: 'i' } },
         { subject_code: { $regex: search, $options: 'i' } },
         { subject_title: { $regex: search, $options: 'i' } },
-        { file_id: { $regex: search, $options: 'i' } }
+        { file_id: { $regex: search, $options: 'i' } },
+        { course: { $regex: search, $options: 'i' } } // Added course to search
       ];
     }
 
@@ -77,7 +78,7 @@ export const getArchivedFiles = async (req, res) => {
     if (faculty_name) filter.faculty_name = faculty_name;
     if (document_type) filter.document_type = document_type;
     if (subject_code) filter.subject_code = subject_code;
-    if (course_section) filter.course_sections = { $in: [course_section] };
+    if (course) filter.course = course; // Changed from course_sections to course
     if (status) filter.status = status;
     if (semester) filter.semester = semester;
     if (school_year) filter.school_year = school_year;
@@ -97,10 +98,7 @@ export const getArchivedFiles = async (req, res) => {
     const uniqueSubjects = await Archive.distinct('subject_code');
     const uniqueSemesters = await Archive.distinct('semester');
     const uniqueSchoolYears = await Archive.distinct('school_year');
-    
-    // Get all course sections
-    const allArchived = await Archive.find({}, 'course_sections');
-    const uniqueSections = [...new Set(allArchived.flatMap(f => f.course_sections))].sort();
+    const uniqueCourses = await Archive.distinct('course'); // Changed from course_sections to course
 
     // Get status counts
     const statusCounts = await Archive.aggregate([
@@ -133,9 +131,9 @@ export const getArchivedFiles = async (req, res) => {
           faculty_names: uniqueFaculties,
           document_types: uniqueDocumentTypes,
           subject_codes: uniqueSubjects,
+          courses: uniqueCourses, // Changed from course_sections to courses
           semesters: uniqueSemesters,
           school_years: uniqueSchoolYears,
-          course_sections: uniqueSections,
           active_years: activeYears
         },
         stats: {

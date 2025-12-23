@@ -42,10 +42,10 @@ export default function FileManagement() {
   const [facultyFilter, setFacultyFilter] = useState("");
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseSectionFilter, setCourseSectionFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState(""); // Changed from courseSectionFilter to courseFilter
   const [statusFilter, setStatusFilter] = useState("");
-  const [semesterFilter, setSemesterFilter] = useState(""); // Added semester filter
-  const [schoolYearFilter, setSchoolYearFilter] = useState(""); // Added school year filter
+  const [semesterFilter, setSemesterFilter] = useState("");
+  const [schoolYearFilter, setSchoolYearFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
@@ -260,10 +260,12 @@ export default function FileManagement() {
     }
   };
 
-  // Format course sections (array to string)
-  const formatCourseSections = (sections) => {
-    if (!sections || !Array.isArray(sections)) return 'N/A';
-    return sections.join(', ');
+  // Get course badge color
+  const getCourseColor = (course) => {
+    if (course === 'BSCS') return 'bg-purple-100 text-purple-800';
+    if (course === 'BSIT') return 'bg-green-100 text-green-800';
+    if (course === 'BSIS') return 'bg-blue-100 text-blue-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
   // Get semester badge color
@@ -287,13 +289,13 @@ export default function FileManagement() {
         values.add(getDocumentTypeLabel(file.document_type, file.tos_type));
       } else if (key === 'subject_code' && file.subject_code) {
         values.add(file.subject_code);
-      } else if (key === 'course_sections' && Array.isArray(file.course_sections)) {
-        file.course_sections.forEach(section => values.add(section));
+      } else if (key === 'course' && file.course) { // Changed from course_sections to course
+        values.add(file.course);
       } else if (key === 'status' && file.status) {
         values.add(file.status);
-      } else if (key === 'semester' && file.semester) { // Added
+      } else if (key === 'semester' && file.semester) {
         values.add(file.semester);
-      } else if (key === 'school_year' && file.school_year) { // Added
+      } else if (key === 'school_year' && file.school_year) {
         values.add(file.school_year);
       } else if (key === 'months') {
         if (file.uploaded_at) {
@@ -332,10 +334,10 @@ export default function FileManagement() {
     setFacultyFilter("");
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
-    setCourseSectionFilter("");
+    setCourseFilter(""); // Changed from courseSectionFilter to courseFilter
     setStatusFilter("");
-    setSemesterFilter(""); // Added
-    setSchoolYearFilter(""); // Added
+    setSemesterFilter("");
+    setSchoolYearFilter("");
     setMonthFilter("");
     setYearFilter("");
     setSortOption("most_recent");
@@ -348,10 +350,8 @@ export default function FileManagement() {
 
     // Apply search filter
     filtered = filtered.filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.semester, file.school_year]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase())) ||
-      (file.course_sections && Array.isArray(file.course_sections) && 
-        file.course_sections.some(section => section.toLowerCase().includes(search.toLowerCase())))
+      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.course, file.semester, file.school_year]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
     // Apply advanced filters
@@ -369,24 +369,20 @@ export default function FileManagement() {
       filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
     }
     
-    if (courseSectionFilter) {
-      filtered = filtered.filter(file => 
-        file.course_sections && 
-        Array.isArray(file.course_sections) && 
-        file.course_sections.includes(courseSectionFilter)
-      );
+    if (courseFilter) { // Changed from courseSectionFilter to courseFilter
+      filtered = filtered.filter(file => file.course === courseFilter);
     }
     
     if (statusFilter) {
       filtered = filtered.filter(file => file.status === statusFilter);
     }
 
-    // Apply semester filter (auto-synced from faculty load)
+    // Apply semester filter
     if (semesterFilter) {
       filtered = filtered.filter(file => file.semester === semesterFilter);
     }
 
-    // Apply school year filter (auto-synced from faculty load)
+    // Apply school year filter
     if (schoolYearFilter) {
       filtered = filtered.filter(file => file.school_year === schoolYearFilter);
     }
@@ -497,10 +493,10 @@ export default function FileManagement() {
         'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
         'TOS Type': f.tos_type || 'N/A',
         'Subject Code': f.subject_code,
-        'Course Sections': formatCourseSections(f.course_sections),
+        'Course': f.course, // Changed from Course Sections to Course
         'Subject Title': f.subject_title,
-        'Semester': f.semester, // Added
-        'Academic Year': f.school_year, // Added
+        'Semester': f.semester,
+        'Academic Year': f.school_year,
         'File Size': formatFileSize(f.file_size),
         'Status': f.status,
         'Uploaded At': new Date(f.uploaded_at).toLocaleString('en-US', {
@@ -522,7 +518,7 @@ export default function FileManagement() {
         { wch: 20 },
         { wch: 15 },
         { wch: 15 },
-        { wch: 25 },
+        { wch: 15 }, // Course width reduced from 25 to 15
         { wch: 30 },
         { wch: 15 },
         { wch: 15 },
@@ -768,19 +764,19 @@ export default function FileManagement() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Course Section
+                    Course
                   </label>
                   <select
-                    value={courseSectionFilter}
+                    value={courseFilter}
                     onChange={(e) => {
-                      setCourseSectionFilter(e.target.value);
+                      setCourseFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Sections</option>
-                    {getUniqueValues('course_sections').map(section => (
-                      <option key={section} value={section}>{section}</option>
+                    <option value="">All Courses</option>
+                    {getUniqueValues('course').map(course => (
+                      <option key={course} value={course}>{course}</option>
                     ))}
                   </select>
                 </div>
@@ -915,13 +911,13 @@ export default function FileManagement() {
                 <div className="col-span-1">
                   <span className="text-xs text-gray-500">
                     {filteredFiles.length} of {files.length} records
-                    {facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || semesterFilter || schoolYearFilter || monthFilter || yearFilter ? (
+                    {facultyFilter || documentTypeFilter || subjectCodeFilter || courseFilter || statusFilter || semesterFilter || schoolYearFilter || monthFilter || yearFilter ? (
                       <span className="ml-2 text-blue-600">
                         ({[
                           facultyFilter && "Faculty",
                           documentTypeFilter && "Type",
                           subjectCodeFilter && "Subject",
-                          courseSectionFilter && "Section",
+                          courseFilter && "Course", // Changed from Section to Course
                           statusFilter && "Status",
                           semesterFilter && "Semester",
                           schoolYearFilter && "Year",
@@ -941,7 +937,7 @@ export default function FileManagement() {
                 </div>
                 
                 <div className="col-span-1 text-right">
-                  {(facultyFilter || documentTypeFilter || subjectCodeFilter || courseSectionFilter || statusFilter || semesterFilter || schoolYearFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                  {(facultyFilter || documentTypeFilter || subjectCodeFilter || courseFilter || statusFilter || semesterFilter || schoolYearFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
                     <button
                       onClick={resetFilters}
                       className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -1007,7 +1003,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* Desktop Table - UPDATED with auto-synced fields */}
+        {/* Desktop Table - UPDATED with course instead of sections */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -1018,7 +1014,7 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course Sections</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th> {/* Changed from Course Sections to Course */}
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
@@ -1047,21 +1043,10 @@ export default function FileManagement() {
                     <td className="px-4 py-3 text-gray-700 text-xs">
                       {file.subject_code}
                     </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      <div className="flex flex-wrap gap-1 max-w-xs">
-                        {file.course_sections && Array.isArray(file.course_sections) ? (
-                          file.course_sections.map((section, index) => (
-                            <span 
-                              key={index}
-                              className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
-                            >
-                              {section}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-xs">N/A</span>
-                        )}
-                      </div>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(file.course)}`}>
+                        {file.course}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(file.semester)}`}>
@@ -1209,8 +1194,16 @@ export default function FileManagement() {
                     <p className="font-medium truncate">{file.subject_code}</p>
                   </div>
                   <div className="truncate">
+                    <span className="text-gray-500 block truncate">Course:</span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(file.course)}`}>
+                      {file.course}
+                    </span>
+                  </div>
+                  <div className="truncate">
                     <span className="text-gray-500 block truncate">Semester:</span>
-                    <p className="font-medium truncate">{file.semester}</p>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(file.semester)}`}>
+                      {file.semester}
+                    </span>
                   </div>
                   <div className="truncate">
                     <span className="text-gray-500 block truncate">Academic Year:</span>
@@ -1223,24 +1216,6 @@ export default function FileManagement() {
                   <div className="col-span-2 truncate">
                     <span className="text-gray-500 block truncate">Uploaded:</span>
                     <p className="font-medium text-xs truncate">{formatDate(file.uploaded_at)}</p>
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <span className="text-gray-500 text-sm">Course Sections:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {file.course_sections && Array.isArray(file.course_sections) ? (
-                      file.course_sections.map((section, index) => (
-                        <span 
-                          key={index}
-                          className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded truncate max-w-[120px]"
-                        >
-                          {section}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-gray-400 text-xs">N/A</span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1291,7 +1266,7 @@ export default function FileManagement() {
           </div>
         </div>
 
-        {/* File Preview Modal - UPDATED with auto-synced fields */}
+        {/* File Preview Modal - UPDATED with course instead of sections */}
         <Modal
           isOpen={previewModalOpen}
           onRequestClose={() => setPreviewModalOpen(false)}
@@ -1374,48 +1349,28 @@ export default function FileManagement() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-sm font-medium text-gray-700">Course (Auto-synced)</label>
+                    <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(fileToPreview.course)}`}>
+                      {fileToPreview.course}
+                    </span>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700">Semester (Auto-synced)</label>
                     <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(fileToPreview.semester)}`}>
                       {fileToPreview.semester}
                     </span>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Academic Year (Auto-synced)</label>
                     <p className="mt-1 text-sm text-gray-900">{fileToPreview.school_year}</p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Course Sections (Auto-synced)</label>
-                  <div className="mt-1">
-                    <div className="flex flex-wrap gap-2">
-                      {fileToPreview.course_sections && Array.isArray(fileToPreview.course_sections) ? (
-                        fileToPreview.course_sections.map((section, index) => (
-                          <span 
-                            key={index}
-                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
-                          >
-                            {section}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-gray-400 text-sm">N/A</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Total: {fileToPreview.course_sections?.length || 0} sections
-                    </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
+                    <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">File Path</label>
-                  <p className="mt-1 text-sm text-gray-900 break-all">{fileToPreview.file_path}</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(fileToPreview.uploaded_at)}</p>
                 </div>
 
                 <div className="flex gap-3 pt-4">
@@ -1470,16 +1425,16 @@ export default function FileManagement() {
                     Subject: {fileToUpdate.subject_code}
                   </p>
                   <p className="text-sm text-gray-600 mb-2">
-                    Semester: {fileToUpdate.semester}
+                    Course: {fileToUpdate.course}
                   </p>
                   <p className="text-sm text-gray-600 mb-2">
+                    Semester: {fileToUpdate.semester}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
                     Academic Year: {fileToUpdate.school_year}
                   </p>
                   <p className="text-sm text-gray-600 mb-4">
-                    Course Sections: {formatCourseSections(fileToUpdate.course_sections)}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    This update will sync with Task Deliverables for all {fileToUpdate.course_sections?.length || 0} sections
+                    This update will sync with Task Deliverables for course: {fileToUpdate.course}
                   </p>
                 </div>
 
@@ -1549,13 +1504,13 @@ export default function FileManagement() {
                 <ul className="text-sm text-yellow-700 mt-2 space-y-1">
                   <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
                   <li>• Affects files with status: "pending" or "rejected"</li>
-                  <li>• Task Deliverables will be automatically updated to "completed" for all sections</li>
+                  <li>• Task Deliverables will be automatically updated to "completed" for all courses</li>
                   <li>• This action cannot be undone</li>
                 </ul>
               </div>
 
               <p className="text-sm text-gray-600">
-                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables for all course sections.
+                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables for all courses.
               </p>
 
               <div className="flex gap-3 pt-4">

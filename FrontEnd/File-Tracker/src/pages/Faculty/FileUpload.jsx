@@ -13,10 +13,9 @@ export default function FileUpload() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [facultyLoadeds, setFacultyLoadeds] = useState([]);
-  const [availableSections, setAvailableSections] = useState([]);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [fileToPreview, setFileToPreview] = useState(null);
-  const [selectedFacultyLoad, setSelectedFacultyLoad] = useState(null); // Added for auto-sync
+  const [selectedFacultyLoad, setSelectedFacultyLoad] = useState(null);
 
   const [formData, setFormData] = useState({
     file_name: "",
@@ -94,7 +93,7 @@ export default function FileUpload() {
     }
   };
 
-  // Handle subject code selection - populate sections, semester, and academic year automatically
+  // Handle subject code selection
   const handleSubjectCodeChange = (e) => {
     const selectedSubjectCode = e.target.value;
     
@@ -109,9 +108,7 @@ export default function FileUpload() {
           subject_title: facultyLoaded.subject_title || ''
         }));
         
-        // Set available sections for this subject (AUTO-SYNC from faculty load)
-        setAvailableSections(facultyLoaded.course_sections || []);
-        // Store the entire faculty load for displaying semester and academic year
+        // Store the entire faculty load for displaying course, semester and academic year
         setSelectedFacultyLoad(facultyLoaded);
       }
     } else {
@@ -120,7 +117,6 @@ export default function FileUpload() {
         subject_code: "",
         subject_title: ""
       }));
-      setAvailableSections([]);
       setSelectedFacultyLoad(null);
     }
   };
@@ -136,6 +132,7 @@ export default function FileUpload() {
         uniqueSubjects.push({
           code: fl.subject_code,
           title: fl.subject_title,
+          course: fl.course,
           semester: fl.semester,
           school_year: fl.school_year
         });
@@ -198,7 +195,6 @@ export default function FileUpload() {
       subject_title: ""
     });
     setSelectedFiles([]);
-    setAvailableSections([]);
     setSelectedFacultyLoad(null);
     
     const fileInput = document.getElementById('file-upload');
@@ -218,7 +214,7 @@ export default function FileUpload() {
     setShowModal(true);
   };
 
-  // Handle form submission - UPDATED FOR MULTIPLE FILES
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -232,8 +228,8 @@ export default function FileUpload() {
       return;
     }
 
-    if (availableSections.length === 0) {
-      showFeedback("error", "No course sections available for the selected subject");
+    if (!selectedFacultyLoad?.course) {
+      showFeedback("error", "No course found for the selected subject");
       return;
     }
 
@@ -267,7 +263,7 @@ export default function FileUpload() {
       console.log("Sending form data:");
       console.log("- Files:", selectedFiles.length);
       console.log("- Subject:", formData.subject_code);
-      console.log("- Sections (auto-sync):", availableSections.join(', '));
+      console.log("- Course (auto-sync):", selectedFacultyLoad?.course);
       console.log("- Semester (auto-sync):", selectedFacultyLoad?.semester);
       console.log("- Academic Year (auto-sync):", selectedFacultyLoad?.school_year);
       console.log("- Document Type:", formData.document_type);
@@ -291,7 +287,7 @@ export default function FileUpload() {
       if (result.success) {
         resetForm();
         setShowModal(false);
-        showFeedback("success", `${result.data.files_uploaded} file(s) uploaded successfully for ${availableSections.length} course section(s)!`);
+        showFeedback("success", `${result.data.files_uploaded} file(s) uploaded successfully for course: ${selectedFacultyLoad.course}!`);
       } else {
         showFeedback("error", result.message || "Error uploading files");
       }
@@ -350,10 +346,7 @@ export default function FileUpload() {
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
             <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
-            <li>• Course sections are automatically synced from your Faculty Load</li>
-            <li>• Semester and Academic Year are automatically synced from your Faculty Load</li>
-            <li>• Files will be uploaded for ALL sections of the selected subject</li>
-            <li>• Each file will be duplicated for each course section</li>
+            <li>• Course, Semester and Academic Year are automatically synced from your Faculty Load</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
           </ul>
@@ -408,28 +401,18 @@ export default function FileUpload() {
                 </select>
               </div>
 
-              {/* Auto-synced Course Sections, Semester, and Academic Year Display (READ-ONLY) */}
+              {/* Auto-synced Course, Semester, and Academic Year Display (READ-ONLY) */}
               {formData.subject_code && selectedFacultyLoad && (
                 <div className="space-y-3">
-                  {/* Course Sections Display */}
+                  {/* Course Display */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Course Sections (Auto-Sync from Faculty Load)
+                      Course (Auto-Sync from Faculty Load)
                     </label>
                     <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
-                      <div className="flex flex-wrap gap-2">
-                        {availableSections.map((section, index) => (
-                          <span 
-                            key={index}
-                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
-                          >
-                            {section}
-                          </span>
-                        ))}
+                      <div className="text-sm font-medium text-gray-800">
+                        {selectedFacultyLoad.course}
                       </div>
-                      <p className="text-xs text-gray-600 mt-2">
-                        Each file will be duplicated for all {availableSections.length} section(s) automatically
-                      </p>
                     </div>
                   </div>
 
@@ -466,7 +449,7 @@ export default function FileUpload() {
                   <div className="text-sm text-green-700">
                     {formData.subject_code} 
                     {formData.subject_title && ` - ${formData.subject_title}`}
-                    {availableSections.length > 0 && ` (${availableSections.length} section(s))`}
+                    {selectedFacultyLoad.course && ` (Course: ${selectedFacultyLoad.course})`}
                   </div>
                   <div className="text-xs text-green-600 mt-1">
                     Auto-synced: {selectedFacultyLoad.semester}, {selectedFacultyLoad.school_year}
@@ -611,8 +594,8 @@ export default function FileUpload() {
                     </div>
                     
                     <div className="mt-3 text-xs text-gray-500">
-                      <p>• Files will be duplicated for each course section</p>
-                      <p>• Total records created: {selectedFiles.length} files × {availableSections.length} sections = {selectedFiles.length * availableSections.length} records</p>
+                      <p>• Files will be uploaded for course: {selectedFacultyLoad?.course || 'Not selected'}</p>
+                      <p>• Total records created: {selectedFiles.length} files</p>
                     </div>
                   </div>
                 )}
@@ -622,7 +605,7 @@ export default function FileUpload() {
               {formData.subject_code && selectedFacultyLoad && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-sm text-blue-700">
-                    <strong>Auto-sync enabled:</strong> Course sections, semester, and academic year are automatically synced from your faculty load for {formData.subject_code}.
+                    <strong>Auto-sync enabled:</strong> Course, semester, and academic year are automatically synced from your faculty load for {formData.subject_code}.
                   </p>
                 </div>
               )}
@@ -641,12 +624,12 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || selectedFiles.length === 0 || !formData.subject_code || availableSections.length === 0 || (formData.document_type === 'tos' && !formData.tos_type)}
+                  disabled={loading || selectedFiles.length === 0 || !formData.subject_code || !selectedFacultyLoad?.course || (formData.document_type === 'tos' && !formData.tos_type)}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading 
                     ? "Uploading..." 
-                    : `Upload ${selectedFiles.length} File(s) for ${availableSections.length} Section(s)`}
+                    : `Upload ${selectedFiles.length} File(s) for Course: ${selectedFacultyLoad?.course || 'Not selected'}`}
                 </button>
               </div>
             </form>
