@@ -7,7 +7,17 @@ import { getFiles, getFileById, deleteFile, updateFileStatus, bulkCompleteAllFil
 import { getArchivedFiles, getArchiveStatistics } from "../../controllers/AdminController/AdminArchiveController.js";
 import { getAdminNotices, getAllFaculty, getAdminNoticeStats, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
 import { getAnalyticsData, getFacultyPerformance, getAvailableYears } from "../../controllers/AdminController/AnalyticsController.js";
-import { getSystemVariables, getVariablesByCategory, createSystemVariable, updateSystemVariable, deleteSystemVariable, getVariableStats, getSystemVariableById } from "../../controllers/AdminController/SystemVariableController.js";
+import {
+  createSystemVariable,
+  getSystemVariables,
+  getSystemVariableById,
+  updateSystemVariable,
+  deleteSystemVariable,
+  getVariableStats,
+  getVariablesForFacultyLoad,
+  getSubjectCodes,
+  getSubjectTitles
+} from "../../controllers/AdminController/SystemVariableController.js";
 
 const router = express.Router();
 
@@ -48,12 +58,14 @@ router.get("/analytics/faculty-performance", getFacultyPerformance);
 router.get("/analytics/available-years", getAvailableYears);
 
 // System Variable Routes
-router.get("/system-variables", getSystemVariables);
-router.get("/system-variables/stats", getVariableStats);
-router.get("/system-variables/:id", getSystemVariableById); 
-router.get("/system-variables/category/:category", getVariablesByCategory);
-router.post("/system-variables", createSystemVariable);
-router.put("/system-variables/:id", updateSystemVariable);
-router.delete("/system-variables/:id", deleteSystemVariable);
+router.post('/system-variables', createSystemVariable);
+router.get('/system-variables', getSystemVariables);
+router.get('/system-variables/stats', getVariableStats);
+router.get('/system-variables/subject-codes', getSubjectCodes);
+router.get('/system-variables/subject-titles', getSubjectTitles);
+router.get('/system-variables/faculty-load', getVariablesForFacultyLoad);
+router.get('/system-variables/:id', getSystemVariableById); 
+router.put('/system-variables/:id', updateSystemVariable);
+router.delete('/system-variables/:id', deleteSystemVariable);
 
 export default router;

@@ -16,8 +16,9 @@ export default function SystemVariableManagement() {
   const variablesPerPage = 10;
 
   // Filter states
-  const [typeFilter, setTypeFilter] = useState("");
-  const [monthFilter, setMonthFilter] = useState("");
+  const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
 
@@ -33,10 +34,9 @@ export default function SystemVariableManagement() {
   // Form state
   const [formData, setFormData] = useState({
     variable_id: "",
-    variable_type: "",
     subject_code: "",
     subject_title: "",
-    course_section: "",
+    course: "",
     semester: "",
     academic_year: "",
     created_by: "admin"
@@ -44,16 +44,16 @@ export default function SystemVariableManagement() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [academicYearError, setAcademicYearError] = useState("");
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availableTitles, setAvailableTitles] = useState([]);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Variable type options 
-  const variableTypeOptions = [
-    "subject_code",
-    "course_section", 
-    "academic_year",
-    "semester"
-  ];
+  // Course options
+  const courseOptions = ['BSCS', 'BSIT', 'BOTH'];
+
+  // Semester options
+  const semesterOptions = ['1st Semester', '2nd Semester', 'Summer'];
 
   // Fetch variables from backend 
   const fetchVariables = async () => {
@@ -75,9 +75,66 @@ export default function SystemVariableManagement() {
     }
   };
 
+  // Fetch available subject codes
+  const fetchSubjectCodes = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables/subject-codes`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success) {
+          setAvailableSubjects(result.data);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching subject codes:", error);
+    }
+  };
+
+  // Fetch subject titles for selected code and course
+  const fetchSubjectTitles = async (subjectCode, course) => {
+    try {
+      if (!subjectCode || !course) {
+        setAvailableTitles([]);
+        return;
+      }
+      
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/system-variables/subject-titles?subject_code=${encodeURIComponent(subjectCode)}&course=${encodeURIComponent(course)}`
+      );
+      
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success) {
+          setAvailableTitles(result.data);
+          
+          // Auto-select the first title if available
+          if (result.data.length === 1 && !isEditMode) {
+            setFormData(prev => ({
+              ...prev,
+              subject_title: result.data[0]
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching subject titles:", error);
+      setAvailableTitles([]);
+    }
+  };
+
   useEffect(() => {
     fetchVariables();
+    fetchSubjectCodes();
   }, []);
+
+  // Fetch titles when subject code or course changes
+  useEffect(() => {
+    if (formData.subject_code && formData.course) {
+      fetchSubjectTitles(formData.subject_code, formData.course);
+    } else {
+      setAvailableTitles([]);
+    }
+  }, [formData.subject_code, formData.course]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,22 +147,8 @@ export default function SystemVariableManagement() {
   const getUniqueValues = (key) => {
     const values = new Set();
     variables.forEach(variable => {
-      if (key === 'variable_type' && variable.variable_type) {
-        values.add(variable.variable_type);
-      } else if (key === 'months') {
-        if (variable.created_at) {
-          const month = new Date(variable.created_at).getMonth();
-          const monthNames = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-          ];
-          values.add(monthNames[month]);
-        }
-      } else if (key === 'years') {
-        if (variable.created_at) {
-          const year = new Date(variable.created_at).getFullYear();
-          values.add(year);
-        }
+      if (variable[key]) {
+        values.add(variable[key]);
       }
     });
     return Array.from(values).sort();
@@ -115,9 +158,12 @@ export default function SystemVariableManagement() {
   const getUniqueYears = () => {
     const years = new Set();
     variables.forEach(variable => {
-      if (variable.created_at) {
-        const year = new Date(variable.created_at).getFullYear();
-        years.add(year);
+      if (variable.academic_year) {
+        // Extract year from "A.Y: 2025-2026"
+        const yearMatch = variable.academic_year.match(/\d{4}/);
+        if (yearMatch) {
+          years.add(yearMatch[0]);
+        }
       }
     });
     return Array.from(years).sort((a, b) => b - a);
@@ -125,8 +171,9 @@ export default function SystemVariableManagement() {
 
   // Reset all filters
   const resetFilters = () => {
-    setTypeFilter("");
-    setMonthFilter("");
+    setSubjectCodeFilter("");
+    setCourseFilter("");
+    setSemesterFilter("");
     setYearFilter("");
     setSortOption("most_recent");
     setCurrentPage(1);
@@ -179,28 +226,26 @@ export default function SystemVariableManagement() {
     
     if (name === 'academic_year') {
       handleAcademicYearInput(e);
+    } else if (name === 'subject_code') {
+      // Reset subject title when subject code changes
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        subject_title: ""
+      }));
+    } else if (name === 'course') {
+      // Reset subject title when course changes
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        subject_title: ""
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
     }
-  };
-
-  // Handle variable type change - reset all fields
-  const handleVariableTypeChange = (e) => {
-    const { value } = e.target;
-    setAcademicYearError("");
-    setFormData({
-      variable_id: formData.variable_id,
-      variable_type: value,
-      subject_code: "",
-      subject_title: "",
-      course_section: "",
-      semester: "",
-      academic_year: "",
-      created_by: formData.created_by
-    });
   };
 
   // Show feedback modal
@@ -214,27 +259,16 @@ export default function SystemVariableManagement() {
   const resetForm = () => {
     setFormData({
       variable_id: "",
-      variable_type: "",
       subject_code: "",
       subject_title: "",
-      course_section: "",
+      course: "",
       semester: "",
       academic_year: "",
       created_by: "admin"
     });
     setAcademicYearError("");
+    setAvailableTitles([]);
     setIsEditMode(false);
-  };
-
-  // Get variable name based on type
-  const getVariableNameByType = () => {
-    switch(formData.variable_type) {
-      case 'subject_code': return formData.subject_code;
-      case 'course_section': return formData.course_section;
-      case 'semester': return formData.semester;
-      case 'academic_year': return formData.academic_year;
-      default: return "";
-    }
   };
 
   // Search and filter function
@@ -243,35 +277,29 @@ export default function SystemVariableManagement() {
 
     // Apply search filter
     filtered = filtered.filter((v) => {
-      const searchMatch = [v.variable_id, v.variable_name, v.variable_type, v.created_by, v.subject_title]
+      const searchMatch = [v.variable_id, v.subject_code, v.subject_title, v.course, v.semester, v.academic_year, v.created_by]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()));
       
-      const typeMatch = !typeFilter || v.variable_type === typeFilter;
-      
-      return searchMatch && typeMatch;
+      return searchMatch;
     });
 
-    // Apply month filter (created date)
-    if (monthFilter) {
-      const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      const monthIndex = monthNames.indexOf(monthFilter);
-      
-      filtered = filtered.filter(variable => {
-        if (!variable.created_at) return false;
-        const variableMonth = new Date(variable.created_at).getMonth();
-        return variableMonth === monthIndex;
-      });
+    // Apply advanced filters
+    if (subjectCodeFilter) {
+      filtered = filtered.filter(v => v.subject_code === subjectCodeFilter);
     }
-
-    // Apply year filter (created date)
+    
+    if (courseFilter) {
+      filtered = filtered.filter(v => v.course === courseFilter);
+    }
+    
+    if (semesterFilter) {
+      filtered = filtered.filter(v => v.semester === semesterFilter);
+    }
+    
     if (yearFilter) {
-      filtered = filtered.filter(variable => {
-        if (!variable.created_at) return false;
-        const variableYear = new Date(variable.created_at).getFullYear();
-        return variableYear === parseInt(yearFilter);
+      filtered = filtered.filter(v => {
+        const yearMatch = v.academic_year.match(/\d{4}/);
+        return yearMatch && yearMatch[0] === yearFilter;
       });
     }
 
@@ -298,34 +326,41 @@ export default function SystemVariableManagement() {
   // Calculate stats for cards
   const calculateStats = (variablesList) => {
     if (!Array.isArray(variablesList) || variablesList.length === 0) {
-      return { total: 0, subject_code: 0, course_section: 0, academic_year: 0, semester: 0 };
+      return { 
+        total: 0, 
+        unique_combinations: 0,
+        bscs: 0, 
+        bsit: 0, 
+        both: 0 
+      };
     }
   
-    let subjectCodeCount = 0;
-    let courseSectionCount = 0;
-    let academicYearCount = 0;
-    let semesterCount = 0;
+    let bscsCount = 0;
+    let bsitCount = 0;
+    let bothCount = 0;
+    
+    // Calculate unique subject_code + course combinations
+    const uniqueCombinations = new Set();
   
     variablesList.forEach(variable => {
-      const type = variable.variable_type?.toLowerCase().trim();
+      const combination = `${variable.subject_code}-${variable.course}`;
+      uniqueCombinations.add(combination);
       
-      if (type === 'subject_code') {
-        subjectCodeCount++;
-      } else if (type === 'course_section') {
-        courseSectionCount++;
-      } else if (type === 'academic_year') {
-        academicYearCount++;
-      } else if (type === 'semester') {
-        semesterCount++;
+      if (variable.course === 'BSCS') {
+        bscsCount++;
+      } else if (variable.course === 'BSIT') {
+        bsitCount++;
+      } else if (variable.course === 'BOTH') {
+        bothCount++;
       }
     });
   
     return {
       total: variablesList.length,
-      subject_code: subjectCodeCount,
-      course_section: courseSectionCount,
-      academic_year: academicYearCount,
-      semester: semesterCount
+      unique_combinations: uniqueCombinations.size,
+      bscs: bscsCount,
+      bsit: bsitCount,
+      both: bothCount
     };
   };
 
@@ -346,20 +381,14 @@ export default function SystemVariableManagement() {
     setAcademicYearError("");
 
     try {
-      // Get variable name based on type
-      const variableName = getVariableNameByType();
-      
-      if (!variableName || !formData.variable_type || (!isEditMode && !formData.created_by)) {
+      // Validate all required fields
+      if (!formData.subject_code || !formData.subject_title || !formData.course || 
+          !formData.semester || !formData.academic_year || (!isEditMode && !formData.created_by)) {
         throw new Error("Please fill in all required fields");
       }
 
-      // Additional validation for subject_code
-      if (formData.variable_type === 'subject_code' && !formData.subject_title) {
-        throw new Error("Subject Title is required for Subject Code type");
-      }
-
       // Validate Academic Year format
-      if (formData.variable_type === 'academic_year') {
+      if (formData.academic_year) {
         const validationResult = validateAcademicYearFormat(formData.academic_year);
         if (!validationResult.valid) {
           setAcademicYearError(validationResult.error);
@@ -373,23 +402,13 @@ export default function SystemVariableManagement() {
       
       const method = isEditMode ? "PUT" : "POST";
 
-      // Prepare request data based on variable type
       const requestData = {
-        variable_type: formData.variable_type,
+        subject_code: formData.subject_code,
+        course: formData.course,
+        semester: formData.semester,
+        academic_year: formData.academic_year,
         created_by: formData.created_by
       };
-
-      // Add type-specific fields
-      if (formData.variable_type === 'subject_code') {
-        requestData.subject_code = formData.subject_code;
-        requestData.subject_title = formData.subject_title;
-      } else if (formData.variable_type === 'course_section') {
-        requestData.course_section = formData.course_section;
-      } else if (formData.variable_type === 'semester') {
-        requestData.semester = formData.semester;
-      } else if (formData.variable_type === 'academic_year') {
-        requestData.academic_year = formData.academic_year;
-      }
 
       const response = await fetch(url, { 
         method,
@@ -432,26 +451,16 @@ export default function SystemVariableManagement() {
       if (result.success && result.data) {
         const variable = result.data;
         
-        // Set form data based on variable type
+        // Set form data
         const formDataObj = {
           variable_id: variable.variable_id,
-          variable_type: variable.variable_type,
+          subject_code: variable.subject_code,
+          subject_title: variable.subject_title,
+          course: variable.course,
+          semester: variable.semester,
+          academic_year: variable.academic_year.replace('A.Y: ', ''),
           created_by: variable.created_by
         };
-
-        // Set type-specific fields
-        if (variable.variable_type === 'subject_code') {
-          formDataObj.subject_code = variable.variable_name;
-          formDataObj.subject_title = variable.subject_title || "";
-        } else if (variable.variable_type === 'course_section') {
-          formDataObj.course_section = variable.variable_name;
-        } else if (variable.variable_type === 'semester') {
-          formDataObj.semester = variable.variable_name;
-        } else if (variable.variable_type === 'academic_year') {
-          // Extract just the year range from "A.Y: 2025-2026"
-          const yearMatch = variable.variable_name.match(/\d{4}-\d{4}/);
-          formDataObj.academic_year = yearMatch ? yearMatch[0] : "";
-        }
 
         setFormData(formDataObj);
         setIsEditMode(true);
@@ -496,125 +505,11 @@ export default function SystemVariableManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Format variable name for display
-  const formatVariableNameForDisplay = (variable) => {
-    if (variable.variable_type === 'academic_year') {
-      return variable.variable_name; // Already formatted as "A.Y: 2025-2026"
-    }
-    return variable.variable_name;
-  };
-
-  // Render form fields based on variable type
-  const renderFormFields = () => {
-    switch(formData.variable_type) {
-      case 'subject_code':
-        return (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subject Code *
-              </label>
-              <input
-                type="text"
-                name="subject_code"
-                value={formData.subject_code}
-                onChange={handleInputChange}
-                required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                placeholder="Enter subject code (e.g., COSC-50)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subject Title *
-              </label>
-              <input
-                type="text"
-                name="subject_title"
-                value={formData.subject_title}
-                onChange={handleInputChange}
-                required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                placeholder="Enter subject title (e.g., Discrete Structure)"
-              />
-            </div>
-          </>
-        );
-      case 'course_section':
-        return (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Course/Section *
-            </label>
-            <input
-              type="text"
-              name="course_section"
-              value={formData.course_section}
-              onChange={handleInputChange}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-              placeholder="Enter course/section (e.g., BSCS-1A)"
-            />
-          </div>
-        );
-      case 'semester':
-        return (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Semester *
-            </label>
-            <input
-              type="text"
-              name="semester"
-              value={formData.semester}
-              onChange={handleInputChange}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-              placeholder="Enter semester (e.g., 1st Semester)"
-            />
-          </div>
-        );
-      case 'academic_year':
-        return (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Academic Year *
-            </label>
-            <div className="flex items-center">
-              <span className="bg-gray-100 border border-r-0 border-gray-300 rounded-l-md px-3 py-2 text-sm text-gray-700">
-                A.Y:
-              </span>
-              <input
-                type="text"
-                name="academic_year"
-                value={formData.academic_year}
-                onChange={handleInputChange}
-                required
-                className="w-full border border-gray-300 rounded-r-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                placeholder="2025-2026"
-                maxLength={9}
-                pattern="\d{4}-\d{4}"
-                title="Enter academic year in format: 2025-2026"
-              />
-            </div>
-            {academicYearError && (
-              <p className="mt-1 text-xs text-red-600">{academicYearError}</p>
-            )}
-            <p className="mt-1 text-xs text-gray-500">
-              Format: 2025-2026 (consecutive years only)
-            </p>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - UPDATED STRUCTURE */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">System Variables</h1>
@@ -648,7 +543,7 @@ export default function SystemVariableManagement() {
           </div>
         </div>
 
-        {/* Show Filters Button - MOVED BELOW HEADER LIKE FACULTY LOAD */}
+        {/* Show Filters Button */}
         <div className="mb-6">
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -656,7 +551,6 @@ export default function SystemVariableManagement() {
           >
             <Filter className="w-4 h-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-            
           </button>
 
           {/* Filtering and Sorting Options */}
@@ -665,56 +559,64 @@ export default function SystemVariableManagement() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Type
+                    Subject Code
                   </label>
                   <select
-                    value={typeFilter}
+                    value={subjectCodeFilter}
                     onChange={(e) => {
-                      setTypeFilter(e.target.value);
+                      setSubjectCodeFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Types</option>
-                    {variableTypeOptions.map(type => (
-                      <option key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
-                      </option>
+                    <option value="">All Subject Codes</option>
+                    {getUniqueValues('subject_code').map(code => (
+                      <option key={code} value={code}>{code}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Month (Created At)
+                    Course
                   </label>
                   <select
-                    value={monthFilter}
+                    value={courseFilter}
                     onChange={(e) => {
-                      setMonthFilter(e.target.value);
+                      setCourseFilter(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="">All Months</option>
-                    <option value="January">January</option>
-                    <option value="February">February</option>
-                    <option value="March">March</option>
-                    <option value="April">April</option>
-                    <option value="May">May</option>
-                    <option value="June">June</option>
-                    <option value="July">July</option>
-                    <option value="August">August</option>
-                    <option value="September">September</option>
-                    <option value="October">October</option>
-                    <option value="November">November</option>
-                    <option value="December">December</option>
+                    <option value="">All Courses</option>
+                    {courseOptions.map(course => (
+                      <option key={course} value={course}>{course}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Year (Created At)
+                    Semester
+                  </label>
+                  <select
+                    value={semesterFilter}
+                    onChange={(e) => {
+                      setSemesterFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Semesters</option>
+                    {semesterOptions.map(semester => (
+                      <option key={semester} value={semester}>{semester}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Academic Year
                   </label>
                   <select
                     value={yearFilter}
@@ -747,28 +649,18 @@ export default function SystemVariableManagement() {
                     <option value="oldest">Oldest</option>
                   </select>
                 </div>
-
-                <div className="flex items-end">
-                  {(typeFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
-                    <button
-                      onClick={resetFilters}
-                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors w-full"
-                    >
-                      Reset All Filters
-                    </button>
-                  )}
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
                 <div className="col-span-1">
                   <span className="text-xs text-gray-500">
                     {filteredVariables.length} of {variables.length} variables
-                    {typeFilter || monthFilter || yearFilter ? (
+                    {subjectCodeFilter || courseFilter || semesterFilter || yearFilter ? (
                       <span className="ml-2 text-blue-600">
                         ({[
-                          typeFilter && "Type",
-                          monthFilter && monthFilter,
+                          subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                          courseFilter && `Course: ${courseFilter}`,
+                          semesterFilter && semesterFilter,
                           yearFilter && yearFilter
                         ].filter(Boolean).join(", ")})
                       </span>
@@ -782,6 +674,17 @@ export default function SystemVariableManagement() {
                     <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
                   </div>
                 </div>
+                
+                <div className="col-span-1 text-right">
+                  {(subjectCodeFilter || courseFilter || semesterFilter || yearFilter || sortOption !== "most_recent") && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -794,20 +697,21 @@ export default function SystemVariableManagement() {
             <div className="text-2xl font-bold text-blue-800">{variableStats.total}</div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Subject Code</div>
-            <div className="text-2xl font-bold text-purple-800">{variableStats.subject_code}</div>
+            <div className="text-purple-600 text-sm font-medium">Unique Combinations</div>
+            <div className="text-2xl font-bold text-purple-800">{variableStats.unique_combinations}</div>
+            <div className="text-xs text-purple-500 mt-1">(Subject Code + Course)</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Course Section</div>
-            <div className="text-2xl font-bold text-green-800">{variableStats.course_section}</div>
+            <div className="text-green-600 text-sm font-medium">BSCS</div>
+            <div className="text-2xl font-bold text-green-800">{variableStats.bscs}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Academic Year</div>
-            <div className="text-2xl font-bold text-yellow-800">{variableStats.academic_year}</div>
+            <div className="text-yellow-600 text-sm font-medium">BSIT</div>
+            <div className="text-2xl font-bold text-yellow-800">{variableStats.bsit}</div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Semester</div>
-            <div className="text-2xl font-bold text-red-800">{variableStats.semester}</div>
+            <div className="text-red-600 text-sm font-medium">BOTH</div>
+            <div className="text-2xl font-bold text-red-800">{variableStats.both}</div>
           </div>
         </div>
 
@@ -817,11 +721,12 @@ export default function SystemVariableManagement() {
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Variable ID</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Variable Name</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Type</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created By</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
             </thead>
@@ -830,32 +735,32 @@ export default function SystemVariableManagement() {
                 currentVariables.map((variable) => (
                   <tr key={variable._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{variable.variable_id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {formatVariableNameForDisplay(variable)}
+                    <td className="px-4 py-3 font-mono font-medium text-gray-900">
+                      {variable.subject_code}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">
+                      {variable.subject_title}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        variable.variable_type === 'subject_code' ? 'bg-purple-100 text-purple-800' :
-                        variable.variable_type === 'course_section' ? 'bg-green-100 text-green-800' :
-                        variable.variable_type === 'academic_year' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
+                        variable.course === 'BSCS' ? 'bg-purple-100 text-purple-800' :
+                        variable.course === 'BSIT' ? 'bg-green-100 text-green-800' :
+                        'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {variable.variable_type.replace('_', ' ')}
+                        {variable.course}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">
-                      {variable.variable_type === 'subject_code' ? (variable.subject_title || 'N/A') : 'N/A'}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        variable.semester === '1st Semester' ? 'bg-blue-100 text-blue-800' :
+                        variable.semester === '2nd Semester' ? 'bg-red-100 text-red-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {variable.semester}
+                      </span>
                     </td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{variable.academic_year}</td>
                     <td className="px-4 py-3 text-gray-700 text-sm">{variable.created_by}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {new Date(variable.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </td>
                     <td className="px-4 py-3 relative">
                       <button
                         onClick={(e) => {
@@ -890,8 +795,8 @@ export default function SystemVariableManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
-                    No system variables found {typeFilter ? `for ${typeFilter.replace('_', ' ')}` : ""}.
+                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                    No system variables found {subjectCodeFilter ? `for ${subjectCodeFilter}` : ""}.
                   </td>
                 </tr>
               )}
@@ -906,19 +811,18 @@ export default function SystemVariableManagement() {
               <div key={variable._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800">
-                      {formatVariableNameForDisplay(variable)}
+                    <h2 className="font-semibold text-gray-800 font-mono">
+                      {variable.subject_code}
                     </h2>
                     <p className="text-sm text-gray-600 font-mono">ID: {variable.variable_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      variable.variable_type === 'subject_code' ? 'bg-purple-100 text-purple-800' :
-                      variable.variable_type === 'course_section' ? 'bg-green-100 text-green-800' :
-                      variable.variable_type === 'academic_year' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      variable.course === 'BSCS' ? 'bg-purple-100 text-purple-800' :
+                      variable.course === 'BSIT' ? 'bg-green-100 text-green-800' :
+                      'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {variable.variable_type.replace('_', ' ')}
+                      {variable.course}
                     </span>
                     
                     <div className="relative">
@@ -957,9 +861,23 @@ export default function SystemVariableManagement() {
                 <div className="grid grid-cols-1 gap-3 text-sm mb-3">
                   <div>
                     <span className="text-gray-500">Subject Title:</span>
-                    <p className="font-medium">
-                      {variable.variable_type === 'subject_code' ? (variable.subject_title || 'N/A') : 'N/A'}
-                    </p>
+                    <p className="font-medium">{variable.subject_title}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-gray-500">Semester:</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${
+                        variable.semester === '1st Semester' ? 'bg-blue-100 text-blue-800' :
+                        variable.semester === '2nd Semester' ? 'bg-red-100 text-red-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {variable.semester}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Academic Year:</span>
+                      <p className="font-medium">{variable.academic_year}</p>
+                    </div>
                   </div>
                   <div>
                     <span className="text-gray-500">Created By:</span>
@@ -974,7 +892,7 @@ export default function SystemVariableManagement() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              No system variables found {typeFilter ? `for ${typeFilter.replace('_', ' ')}` : ""}.
+              No system variables found {subjectCodeFilter ? `for ${subjectCodeFilter}` : ""}.
             </div>
           )}
         </div>
@@ -984,8 +902,9 @@ export default function SystemVariableManagement() {
           <div className="text-sm text-gray-600">
             Showing {currentVariables.length} of {filteredVariables.length} variables
             {yearFilter && ` from ${yearFilter}`}
-            {monthFilter && `, ${monthFilter}`}
-            {typeFilter && ` • Type: ${typeFilter.replace('_', ' ')}`}
+            {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
+            {courseFilter && ` • Course: ${courseFilter}`}
+            {semesterFilter && ` • Semester: ${semesterFilter}`}
           </div>
           
           <div className="flex items-center gap-3">
@@ -1062,29 +981,127 @@ export default function SystemVariableManagement() {
                 </div>
               )}
 
-              {/* Variable Type */}
+              {/* Subject Code */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Variable Type *
+                  Subject Code *
                 </label>
                 <select
-                  name="variable_type"
-                  value={formData.variable_type}
-                  onChange={handleVariableTypeChange}
+                  name="subject_code"
+                  value={formData.subject_code}
+                  onChange={handleInputChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select variable type</option>
-                  {variableTypeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
+                  <option value="">Select subject code</option>
+                  {availableSubjects.map((subject, index) => (
+                    <option key={index} value={subject.code}>
+                      {subject.code} ({subject.courses.join(', ')})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Conditionally render form fields based on variable type */}
-              {renderFormFields()}
+              {/* Course */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Course *
+                </label>
+                <select
+                  name="course"
+                  value={formData.course}
+                  onChange={handleInputChange}
+                  required
+                  disabled={!formData.subject_code}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select course</option>
+                  {courseOptions.map((course) => {
+                    const subject = availableSubjects.find(s => s.code === formData.subject_code);
+                    if (subject && subject.courses.includes(course)) {
+                      return (
+                        <option key={course} value={course}>
+                          {course}
+                        </option>
+                      );
+                    }
+                    return null;
+                  }).filter(Boolean)}
+                </select>
+              </div>
+
+              {/* Subject Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject Title *
+                </label>
+                <select
+                  name="subject_title"
+                  value={formData.subject_title}
+                  onChange={handleInputChange}
+                  required
+                  disabled={!formData.subject_code || !formData.course}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select subject title</option>
+                  {availableTitles.map((title, index) => (
+                    <option key={index} value={title}>
+                      {title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Semester */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Semester *
+                </label>
+                <select
+                  name="semester"
+                  value={formData.semester}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                >
+                  <option value="">Select semester</option>
+                  {semesterOptions.map((semester) => (
+                    <option key={semester} value={semester}>
+                      {semester}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Academic Year */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Academic Year *
+                </label>
+                <div className="flex items-center">
+                  <span className="bg-gray-100 border border-r-0 border-gray-300 rounded-l-md px-3 py-2 text-sm text-gray-700">
+                    A.Y:
+                  </span>
+                  <input
+                    type="text"
+                    name="academic_year"
+                    value={formData.academic_year}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full border border-gray-300 rounded-r-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                    placeholder="2025-2026"
+                    maxLength={9}
+                    pattern="\d{4}-\d{4}"
+                    title="Enter academic year in format: 2025-2026"
+                  />
+                </div>
+                {academicYearError && (
+                  <p className="mt-1 text-xs text-red-600">{academicYearError}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Format: 2025-2026 (consecutive years only)
+                </p>
+              </div>
 
               {/* Created By (hidden in edit mode) */}
               {!isEditMode && (
@@ -1118,7 +1135,7 @@ export default function SystemVariableManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !formData.variable_type}
+                  disabled={loading || !formData.subject_code || !formData.subject_title || !formData.course || !formData.semester || !formData.academic_year}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Variable" : "Add Variable")}
@@ -1182,5 +1199,5 @@ export default function SystemVariableManagement() {
         </Modal>
       </div>
     </div>
-  ); 
+  );
 }

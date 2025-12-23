@@ -5,11 +5,6 @@ const generateVariableId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Helper function to normalize strings for comparison
-const normalizeString = (str) => {
-  return str?.toString().trim().toLowerCase() || '';
-};
-
 // Validate Academic Year format
 const validateAcademicYear = (year) => {
   if (!year) return false;
@@ -34,96 +29,225 @@ const validateAcademicYear = (year) => {
   return { valid: true, cleaned: `${startYear}-${endYear}` };
 };
 
-// Create system variable - MODIFIED with Academic Year validation
+// Subject list data
+const subjectList = [
+  // BSCS Subjects
+  { code: 'COSC 50', title: 'Discrete Structures I', course: 'BSCS' },
+  { code: 'INSY 50', title: 'Fundamentals of Information Systems', course: 'BSCS' },
+  { code: 'COSC 55', title: 'Discrete Structures II', course: 'BSCS' },
+  { code: 'COSC 60', title: 'Digital Logic Design', course: 'BSCS' },
+  { code: 'COSC 65', title: 'Architecture and Organization', course: 'BSCS' },
+  { code: 'COSC 70', title: 'Software Engineering I', course: 'BSCS' },
+  { code: 'COSC 75', title: 'Software Engineering II', course: 'BSCS' },
+  { code: 'COSC 80', title: 'Operating Systems', course: 'BSCS' },
+  { code: 'COSC 85', title: 'Networks and Communication', course: 'BSCS' },
+  { code: 'COSC 90', title: 'Design and Analysis of Algorithm', course: 'BSCS' },
+  { code: 'COSC 95', title: 'Programming Languages', course: 'BSCS' },
+  { code: 'COSC 100', title: 'Automata Theory and Formal Languages', course: 'BSCS' },
+  { code: 'COSC 101', title: 'Computer Graphics and Visual Computing', course: 'BSCS' },
+  { code: 'COSC 105', title: 'Intelligent Systems', course: 'BSCS' },
+  { code: 'COSC 106', title: 'Introduction to Game Development', course: 'BSCS' },
+  { code: 'COSC 110', title: 'Numerical and Symbolic Computation', course: 'BSCS' },
+  { code: 'COSC 111', title: 'Internet of Things', course: 'BSCS' },
+  { code: 'COSC 199', title: 'Practicum (240 hrs.)', course: 'BSCS' },
+  { code: 'COSC 200A', title: 'Undergraduate Thesis I', course: 'BSCS' },
+  { code: 'COSC 200B', title: 'Undergraduate Thesis II', course: 'BSCS' },
+
+  // BSIT Subjects
+  { code: 'ITEC 55', title: 'Platform Technologies', course: 'BSIT' },
+  { code: 'ITEC 60', title: 'Integrated Programming and Technologies 1', course: 'BSIT' },
+  { code: 'ITEC 65', title: 'Open Source Technology', course: 'BSIT' },
+  { code: 'DCIT 55', title: 'Advanced Database System', course: 'BSIT' },
+  { code: 'ITEC 70', title: 'Multimedia Systems', course: 'BSIT' },
+  { code: 'ITEC 90', title: 'Network Fundamentals', course: 'BSIT' },
+  { code: 'INSY 55', title: 'System Analysis and Design', course: 'BSIT' },
+  { code: 'ITEC 95', title: 'Quantitative Methods (Modeling & Simulation)', course: 'BSIT' },
+  { code: 'ITEC 100', title: 'Information Assurance and Security 2', course: 'BSIT' },
+  { code: 'ITEC 101', title: 'IT ELECTIVE 1 (Human Computer Interaction 2)', course: 'BSIT' },
+  { code: 'ITEC 105', title: 'Network Management', course: 'BSIT' },
+  { code: 'ITEC 106', title: 'IT ELECTIVE 2 (Web System and Technologies 2)', course: 'BSIT' },
+  { code: 'ITEC 110', title: 'Systems Administration and Maintenance', course: 'BSIT' },
+  { code: 'ITEC 111', title: 'IT ELECTIVE 3 (Integrated Programming and Technologies 2)', course: 'BSIT' },
+  { code: 'ITEC 116', title: 'IT ELECTIVE 4 (Systems Integration and Architecture 2)', course: 'BSIT' },
+  { code: 'ITEC 199', title: 'Practicum (minimum 486 hours)', course: 'BSIT' },
+  { code: 'ITEC 200A', title: 'Capstone Project and Research 1', course: 'BSIT' },
+  { code: 'ITEC 200B', title: 'Capstone Project and Research 2', course: 'BSIT' },
+
+  // Common Subjects (CS and IT)
+  { code: 'DCIT 21', title: 'Introduction to Computing', course: 'BOTH' },
+  { code: 'DCIT 22', title: 'Computer Programming I', course: 'BOTH' },
+  { code: 'DCIT 23', title: 'Computer Programming II', course: 'BOTH' },
+  { code: 'DCIT 24', title: 'Information Management', course: 'BOTH' },
+  { code: 'DCIT 25', title: 'Data Structures and Algorithms', course: 'BOTH' },
+  { code: 'DCIT 26', title: 'Applications Development and Emerging Technologies', course: 'BOTH' },
+  { code: 'DCIT 50', title: 'Object Oriented Programming', course: 'BOTH' },
+  { code: 'DCIT 60', title: 'Methods of Research', course: 'BOTH' },
+  { code: 'DCIT 65', title: 'Social and Professional Issues', course: 'BOTH' },
+  { code: 'ITEC 80', title: 'Human Computer Interaction', course: 'BOTH' },
+  { code: 'ITEC 85', title: 'Information Assurance and Security', course: 'BOTH' },
+
+  // Same subject code but different descriptions for different courses
+  { code: 'DCIT 55', title: 'Advanced Database Management System', course: 'BSCS' },
+  { code: 'ITEC 50', title: 'Web System and Technologies 1', course: 'BSIT' },
+  { code: 'ITEC 50', title: 'Web Systems and Technologies', course: 'BSCS' },
+  { code: 'COSC 50', title: 'Discrete Structure', course: 'BSIT' },
+  { code: 'COSC 50', title: 'Discrete Structure 1', course: 'BSCS' },
+];
+
+// Helper function to get subject details by code and course
+const getSubjectDetails = (subjectCode, course) => {
+  return subjectList.find(subject => 
+    subject.code === subjectCode && subject.course === course
+  );
+};
+
+// Get all available subject codes
+export const getSubjectCodes = async (req, res) => {
+  try {
+    // Group subjects by code with their possible courses
+    const groupedSubjects = {};
+    
+    subjectList.forEach(subject => {
+      if (!groupedSubjects[subject.code]) {
+        groupedSubjects[subject.code] = {
+          code: subject.code,
+          titles: [],
+          courses: []
+        };
+      }
+      
+      if (!groupedSubjects[subject.code].titles.includes(subject.title)) {
+        groupedSubjects[subject.code].titles.push(subject.title);
+      }
+      
+      if (!groupedSubjects[subject.code].courses.includes(subject.course)) {
+        groupedSubjects[subject.code].courses.push(subject.course);
+      }
+    });
+
+    // Convert to array and sort by code
+    const subjects = Object.values(groupedSubjects).sort((a, b) => 
+      a.code.localeCompare(b.code)
+    );
+
+    res.status(200).json({ 
+      success: true, 
+      data: subjects 
+    });
+  } catch (error) {
+    console.error("Error getting subject codes:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Get subject titles for a specific code and course
+export const getSubjectTitles = async (req, res) => {
+  try {
+    const { subject_code, course } = req.query;
+    
+    if (!subject_code || !course) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Subject code and course are required." 
+      });
+    }
+
+    const subjects = subjectList.filter(subject => 
+      subject.code === subject_code && 
+      (subject.course === course || subject.course === 'BOTH')
+    );
+
+    res.status(200).json({ 
+      success: true, 
+      data: subjects.map(s => s.title)
+    });
+  } catch (error) {
+    console.error("Error getting subject titles:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Create system variable
 export const createSystemVariable = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
     
-    const { variable_type, created_by } = req.body;
-    let variable_name, subject_title, subject_code, course_section, semester, academic_year;
+    const { 
+      subject_code, 
+      course, 
+      semester, 
+      academic_year, 
+      created_by 
+    } = req.body;
 
     // Validation 
-    if (!variable_type || !created_by) {
+    if (!subject_code || !course || !semester || !academic_year || !created_by) {
       return res.status(400).json({ 
         success: false, 
-        message: "Variable Type and Created By are required.",
+        message: "All fields are required.",
+        missing_fields: {
+          subject_code: !subject_code,
+          course: !course,
+          semester: !semester,
+          academic_year: !academic_year,
+          created_by: !created_by
+        }
       });
     }
 
-    // Extract data based on variable_type
-    if (variable_type === 'subject_code') {
-      subject_code = req.body.subject_code;
-      subject_title = req.body.subject_title;
-      if (!subject_code || !subject_title) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Subject Code and Subject Title are required for Subject Code type.",
-        });
-      }
-      variable_name = subject_code;
-    } else if (variable_type === 'course_section') {
-      course_section = req.body.course_section;
-      if (!course_section) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Course/Section is required for Course Section type.",
-        });
-      }
-      variable_name = course_section;
-    } else if (variable_type === 'semester') {
-      semester = req.body.semester;
-      if (!semester) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Semester is required for Semester type.",
-        });
-      }
-      variable_name = semester;
-    } else if (variable_type === 'academic_year') {
-      academic_year = req.body.academic_year;
-      if (!academic_year) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Academic Year is required for Academic Year type.",
-        });
-      }
-      
-      // Validate Academic Year format
-      const validationResult = validateAcademicYear(academic_year);
-      if (!validationResult.valid) {
-        return res.status(400).json({ 
-          success: false, 
-          message: validationResult.error,
-        });
-      }
-      
-      // Store with format: A.Y: 2025-2026
-      variable_name = `A.Y: ${validationResult.cleaned}`;
-    } else {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid variable type.",
+    // Validate course enum
+    const validCourses = ['BSCS', 'BSIT', 'BOTH'];
+    if (!validCourses.includes(course)) {
+      return res.status(400).json({
+        success: false,
+        message: "Course must be one of: BSCS, BSIT, BOTH"
       });
     }
 
-    // Check for duplicate with case-insensitive comparison
-    const existingVariables = await SystemVariable.find({ variable_type });
-    
-    let isDuplicate = false;
-    for (const existingVariable of existingVariables) {
-      const existingNameNormalized = normalizeString(existingVariable.variable_name);
-      const newNameNormalized = normalizeString(variable_name);
-      
-      if (existingNameNormalized === newNameNormalized) {
-        isDuplicate = true;
-        break;
-      }
+    // Validate semester enum
+    const validSemesters = ['1st Semester', '2nd Semester', 'Summer'];
+    if (!validSemesters.includes(semester)) {
+      return res.status(400).json({
+        success: false,
+        message: "Semester must be one of: 1st Semester, 2nd Semester, Summer"
+      });
     }
 
-    if (isDuplicate) {
+    // Validate Academic Year format
+    const validationResult = validateAcademicYear(academic_year);
+    if (!validationResult.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: validationResult.error,
+      });
+    }
+
+    // Store with format: A.Y: 2025-2026
+    const formattedAcademicYear = `A.Y: ${validationResult.cleaned}`;
+
+    // Get subject title from static list
+    const subjectDetails = getSubjectDetails(subject_code, course);
+    if (!subjectDetails) {
+      return res.status(400).json({
+        success: false,
+        message: `Subject code '${subject_code}' not found for course '${course}'.`
+      });
+    }
+
+    const subject_title = subjectDetails.title;
+
+    // Check for duplicate
+    const existingVariables = await SystemVariable.find({ 
+      subject_code: subject_code,
+      course: course,
+      semester: semester,
+      academic_year: formattedAcademicYear
+    });
+
+    if (existingVariables.length > 0) {
       return res.status(409).json({
         success: false,
-        message: `A ${variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`
+        message: "A system variable with the same Subject Code, Course, Semester, and Academic Year already exists."
       });
     }
 
@@ -132,9 +256,11 @@ export const createSystemVariable = async (req, res) => {
 
     const newVariable = new SystemVariable({
       variable_id,
-      variable_name,
-      variable_type,
-      subject_title: variable_type === 'subject_code' ? subject_title : undefined,
+      subject_code,
+      subject_title,
+      course,
+      semester,
+      academic_year: formattedAcademicYear,
       created_by,
     });
 
@@ -155,7 +281,10 @@ export const createSystemVariable = async (req, res) => {
     }
 
     if (error.code === 11000) {
-      return res.status(400).json({ success: false, message: "Duplicate variable ID" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Duplicate entry: This combination of Subject Code, Course, Semester, and Academic Year already exists." 
+      });
     }
 
     res.status(500).json({ success: false, message: "Server error", error: error.message });
@@ -169,18 +298,6 @@ export const getSystemVariables = async (req, res) => {
     res.status(200).json({ success: true, data: variables });
   } catch (error) {
     console.error("Error fetching system variables:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
-  }
-};
-
-// Get system variables by category/type
-export const getVariablesByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-    const variables = await SystemVariable.find({ variable_type: category }).sort({ created_at: -1 });
-    res.status(200).json({ success: true, data: variables });
-  } catch (error) {
-    console.error("Error fetching system variables by category:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
@@ -203,12 +320,16 @@ export const getSystemVariableById = async (req, res) => {
   }
 };
 
-// Update system variable - MODIFIED with Academic Year validation
+// Update system variable
 export const updateSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { variable_type } = req.body;
-    let variable_name, subject_title;
+    const { 
+      subject_code, 
+      course, 
+      semester, 
+      academic_year 
+    } = req.body;
 
     // Find existing variable
     const existingVariable = await SystemVariable.findOne({ variable_id: id });
@@ -216,95 +337,81 @@ export const updateSystemVariable = async (req, res) => {
       return res.status(404).json({ success: false, message: "System variable not found" });
     }
 
-    // Extract data based on variable_type
-    if (variable_type === 'subject_code') {
-      variable_name = req.body.subject_code;
-      subject_title = req.body.subject_title;
-      if (!variable_name || !subject_title) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Subject Code and Subject Title are required for Subject Code type.",
-        });
-      }
-    } else if (variable_type === 'course_section') {
-      variable_name = req.body.course_section;
-      if (!variable_name) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Course/Section is required for Course Section type.",
-        });
-      }
-    } else if (variable_type === 'semester') {
-      variable_name = req.body.semester;
-      if (!variable_name) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Semester is required for Semester type.",
-        });
-      }
-    } else if (variable_type === 'academic_year') {
-      const academic_year = req.body.academic_year;
-      if (!academic_year) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Academic Year is required for Academic Year type.",
-        });
-      }
-      
-      // Validate Academic Year format
-      const validationResult = validateAcademicYear(academic_year);
-      if (!validationResult.valid) {
-        return res.status(400).json({ 
-          success: false, 
-          message: validationResult.error,
-        });
-      }
-      
-      // Store with format: A.Y: 2025-2026
-      variable_name = `A.Y: ${validationResult.cleaned}`;
-    }
-
-    // Check for duplicate with case-insensitive comparison (excluding current one)
-    const duplicateVariables = await SystemVariable.find({
-      variable_type,
-      variable_id: { $ne: id }
-    });
-
-    let isDuplicate = false;
-    for (const duplicate of duplicateVariables) {
-      const existingNameNormalized = normalizeString(duplicate.variable_name);
-      const newNameNormalized = normalizeString(variable_name);
-      
-      if (existingNameNormalized === newNameNormalized) {
-        isDuplicate = true;
-        break;
-      }
-    }
-
-    if (isDuplicate) {
-      return res.status(409).json({
-        success: false,
-        message: `A ${variable_type.replace('_', ' ')} with this name already exists. Please use a different name.`
+    // Validate all required fields
+    if (!subject_code || !course || !semester || !academic_year) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "All fields are required.",
       });
     }
 
-    const updateData = {
-      variable_name, 
-      variable_type, 
-      updated_at: new Date()
-    };
+    // Validate course enum
+    const validCourses = ['BSCS', 'BSIT', 'BOTH'];
+    if (!validCourses.includes(course)) {
+      return res.status(400).json({
+        success: false,
+        message: "Course must be one of: BSCS, BSIT, BOTH"
+      });
+    }
 
-    // Only include subject_title if variable_type is subject_code
-    if (variable_type === 'subject_code') {
-      updateData.subject_title = subject_title;
-    } else {
-      // Remove subject_title if changing from subject_code to another type
-      updateData.subject_title = undefined;
+    // Validate semester enum
+    const validSemesters = ['1st Semester', '2nd Semester', 'Summer'];
+    if (!validSemesters.includes(semester)) {
+      return res.status(400).json({
+        success: false,
+        message: "Semester must be one of: 1st Semester, 2nd Semester, Summer"
+      });
+    }
+
+    // Validate Academic Year format
+    const validationResult = validateAcademicYear(academic_year);
+    if (!validationResult.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: validationResult.error,
+      });
+    }
+
+    // Store with format: A.Y: 2025-2026
+    const formattedAcademicYear = `A.Y: ${validationResult.cleaned}`;
+
+    // Get subject title from static list
+    const subjectDetails = getSubjectDetails(subject_code, course);
+    if (!subjectDetails) {
+      return res.status(400).json({
+        success: false,
+        message: `Subject code '${subject_code}' not found for course '${course}'.`
+      });
+    }
+
+    const subject_title = subjectDetails.title;
+
+    // Check for duplicate (excluding the current one)
+    const duplicateVariable = await SystemVariable.findOne({
+      subject_code: subject_code,
+      course: course,
+      semester: semester,
+      academic_year: formattedAcademicYear,
+      variable_id: { $ne: id }
+    });
+
+    if (duplicateVariable) {
+      return res.status(409).json({
+        success: false,
+        message: "A system variable with the same Subject Code, Course, Semester, and Academic Year already exists."
+      });
     }
 
     const updated = await SystemVariable.findOneAndUpdate(
       { variable_id: id },
-      updateData,
+      { 
+        subject_code, 
+        subject_title,
+        course,
+        semester,
+        academic_year: formattedAcademicYear,
+        updated_at: new Date()
+      },
       { new: true, runValidators: true }
     );
 
@@ -316,6 +423,14 @@ export const updateSystemVariable = async (req, res) => {
 
   } catch (error) {
     console.error("Error updating system variable:", error);
+    
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Duplicate entry: This combination of Subject Code, Course, Semester, and Academic Year already exists."
+      });
+    }
+    
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
@@ -347,20 +462,64 @@ export const getVariableStats = async (req, res) => {
   try {
     const totalVariables = await SystemVariable.countDocuments();
     
-    const typeCounts = await SystemVariable.aggregate([
-      { $group: { _id: "$variable_type", count: { $sum: 1 } } }
+    // Count unique subject_code + course combinations
+    const uniqueSubjectCourseCombinations = await SystemVariable.aggregate([
+      {
+        $group: {
+          _id: {
+            subject_code: "$subject_code",
+            course: "$course"
+          }
+        }
+      },
+      {
+        $count: "unique_combinations"
+      }
+    ]);
+
+    // Count by course
+    const courseCounts = await SystemVariable.aggregate([
+      { $group: { _id: "$course", count: { $sum: 1 } } }
     ]);
 
     res.status(200).json({
       success: true,
       data: {
         total: totalVariables,
-        by_type: typeCounts
+        unique_combinations: uniqueSubjectCourseCombinations[0]?.unique_combinations || 0,
+        by_course: courseCounts
       }
     });
 
   } catch (error) {
     console.error("Error fetching variable stats:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Get system variables for faculty load selection
+export const getVariablesForFacultyLoad = async (req, res) => {
+  try {
+    const { academic_year, semester } = req.query;
+    
+    let query = {};
+    
+    if (academic_year) {
+      query.academic_year = academic_year;
+    }
+    
+    if (semester) {
+      query.semester = semester;
+    }
+    
+    const variables = await SystemVariable.find(query).sort({ 
+      subject_code: 1,
+      course: 1 
+    });
+    
+    res.status(200).json({ success: true, data: variables });
+  } catch (error) {
+    console.error("Error fetching variables for faculty load:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

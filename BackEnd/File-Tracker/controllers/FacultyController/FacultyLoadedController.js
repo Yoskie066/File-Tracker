@@ -13,18 +13,19 @@ const generateTaskDeliverablesId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
-// Helper function to get subject title from system variables
-const getSubjectTitleFromSystemVariables = async (subjectCode) => {
+// Get system variable details for auto-fill
+const getSystemVariableDetails = async (subject_code, semester, school_year) => {
   try {
     const systemVariable = await SystemVariable.findOne({
-      variable_type: 'subject_code',
-      variable_name: subjectCode
+      subject_code: subject_code,
+      semester: semester,
+      academic_year: school_year
     });
     
-    return systemVariable ? systemVariable.subject_title : '';
+    return systemVariable;
   } catch (error) {
-    console.error("Error fetching subject title:", error);
-    return '';
+    console.error("Error fetching system variable details:", error);
+    return null;
   }
 };
 
@@ -76,7 +77,7 @@ const autoCreateTaskDeliverables = async (facultyLoaded) => {
   }
 };
 
-// Create faculty load - NOW WITH MULTIPLE COURSE SECTIONS
+// Create faculty load - UPDATED for auto-fill
 export const createFacultyLoaded = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
@@ -114,15 +115,18 @@ export const createFacultyLoaded = async (req, res) => {
       });
     }
 
-    // Get subject title from system variables
-    const subject_title = await getSubjectTitleFromSystemVariables(subject_code);
+    // Get system variable details for auto-fill
+    const systemVariable = await getSystemVariableDetails(subject_code, semester, school_year);
     
-    if (!subject_title) {
+    if (!systemVariable) {
       return res.status(400).json({
         success: false,
-        message: "Subject title not found for the selected subject code. Please check system variables."
+        message: "System variable not found for the selected combination. Please check system variables."
       });
     }
+
+    const subject_title = systemVariable.subject_title;
+    const course = systemVariable.course; // Get course from system variable
 
     // Check for duplicate faculty load (same subject, semester, school year for this faculty)
     const existingFacultyLoaded = await FacultyLoaded.findOne({
@@ -142,14 +146,22 @@ export const createFacultyLoaded = async (req, res) => {
     const faculty_loaded_id = generateFacultyLoadedId();
 
     console.log("Creating faculty load with ID:", faculty_loaded_id, "for faculty:", req.faculty.facultyId);
-    console.log("Subject details:", { subject_code, subject_title, course_sections, semester, school_year });
+    console.log("Auto-filled details:", { 
+      subject_code, 
+      subject_title, 
+      course,
+      course_sections, 
+      semester, 
+      school_year 
+    });
 
     const newFacultyLoaded = new FacultyLoaded({
       faculty_loaded_id,
       faculty_id: req.faculty.facultyId,
       subject_code,
       subject_title,
-      course_sections, // NOW AN ARRAY
+      course, // Store course from system variable
+      course_sections,
       semester,
       school_year,
     });
@@ -316,15 +328,18 @@ export const updateFacultyLoaded = async (req, res) => {
       });
     }
 
-    // Get subject title from system variables for the new subject code
-    const subject_title = await getSubjectTitleFromSystemVariables(subject_code);
+    // Get system variable details for auto-fill
+    const systemVariable = await getSystemVariableDetails(subject_code, semester, school_year);
     
-    if (!subject_title) {
+    if (!systemVariable) {
       return res.status(400).json({
         success: false,
-        message: "Subject title not found for the selected subject code. Please check system variables."
+        message: "System variable not found for the selected combination. Please check system variables."
       });
     }
+
+    const subject_title = systemVariable.subject_title;
+    const course = systemVariable.course; // Get course from system variable
 
     // Check for duplicate (excluding the current one)
     const duplicateFacultyLoaded = await FacultyLoaded.findOne({
@@ -345,7 +360,7 @@ export const updateFacultyLoaded = async (req, res) => {
     const oldSubjectCode = existingFacultyLoaded.subject_code;
     const oldCourseSections = existingFacultyLoaded.course_sections;
 
-    // Update faculty load with new subject_title and course_sections
+    // Update faculty load with auto-filled details
     const updated = await FacultyLoaded.findOneAndUpdate(
       { 
         faculty_loaded_id: id,
@@ -354,7 +369,8 @@ export const updateFacultyLoaded = async (req, res) => {
       { 
         subject_code, 
         subject_title,
-        course_sections, // UPDATED FIELD (array)
+        course, // Update course from system variable
+        course_sections,
         semester, 
         school_year, 
         updated_at: new Date() 

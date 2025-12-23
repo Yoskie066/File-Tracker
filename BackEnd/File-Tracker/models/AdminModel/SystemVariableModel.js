@@ -3,23 +3,35 @@ import mongoose from "mongoose";
 const systemVariableSchema = new mongoose.Schema(
   {
     variable_id: { type: String, required: true, unique: true },
-    variable_name: { type: String, required: true },
-    variable_type: { 
+    subject_code: { type: String, required: true },
+    subject_title: { type: String, required: true },
+    course: { 
       type: String, 
       required: true,
-      enum: ['subject_code', 'course_section', 'academic_year', 'semester']
+      enum: ['BSCS', 'BSIT', 'BOTH']
     },
-    subject_title: { 
-      type: String,
-      required: function() {
-        return this.variable_type === 'subject_code';
-      }
+    semester: { 
+      type: String, 
+      required: true,
+      enum: ['1st Semester', '2nd Semester', 'Summer']
     },
+    academic_year: { type: String, required: true },
     created_by: { type: String, required: true },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
   },
   { versionKey: false }
+);
+
+// Compound index for unique combination of subject_code, course, semester, academic_year
+systemVariableSchema.index(
+  { 
+    subject_code: 1, 
+    course: 1, 
+    semester: 1, 
+    academic_year: 1 
+  }, 
+  { unique: true }
 );
 
 const SystemVariable = mongoose.model("SystemVariable", systemVariableSchema);
