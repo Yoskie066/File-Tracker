@@ -236,7 +236,7 @@ export const uploadFile = async (req, res) => {
           tos_type: savedFile.tos_type,
           faculty_id: savedFile.faculty_id,
           subject_code: savedFile.subject_code,
-          course: savedFile.course, // Course instead of sections
+          course: savedFile.course,
           date_submitted: new Date()
         });
       }
@@ -252,7 +252,7 @@ export const uploadFile = async (req, res) => {
           faculty_id: savedFile.faculty_id,
           faculty_name: savedFile.faculty_name,
           subject_code: savedFile.subject_code,
-          course: savedFile.course, // Course instead of sections
+          course: savedFile.course,
           document_type: savedFile.document_type,
           status: savedFile.status
         });
@@ -274,7 +274,7 @@ export const uploadFile = async (req, res) => {
           file_name: file.file_name,
           document_type: file.document_type,
           subject_code: file.subject_code,
-          course: file.course, // Return course
+          course: file.course,
           semester: file.semester,
           school_year: file.school_year,
           status: file.status,
@@ -433,7 +433,7 @@ export const updateFileStatus = async (req, res) => {
       faculty_id: updatedFile.faculty_id,
       faculty_name: updatedFile.faculty_name,
       subject_code: updatedFile.subject_code,
-      course: updatedFile.course, // Course instead of sections
+      course: updatedFile.course,
       document_type: updatedFile.document_type,
       status: updatedFile.status
     });

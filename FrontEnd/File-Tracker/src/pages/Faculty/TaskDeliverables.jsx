@@ -1,81 +1,47 @@
 import { useState, useEffect } from "react";
+import { CheckCircle, XCircle, Filter, Search, ArrowUpDown, MoreVertical, Eye } from "lucide-react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, ClipboardPlus, Download, Filter, ArrowUpDown, History } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
-import * as XLSX from 'xlsx';
 
-// Set app element for react-modal
 Modal.setAppElement("#root");
 
-export default function TaskDeliverablesManagement() {
+export default function TaskDeliverables() {
   const [taskDeliverables, setTaskDeliverables] = useState([]);
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const taskDeliverablesPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // History of Records states
-  const [historyView, setHistoryView] = useState(false);
-
-  // Filtering and Sorting states
+  // Filters
+  const [search, setSearch] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseSectionFilter, setCourseSectionFilter] = useState("");
-  const [monthFilter, setMonthFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState("");
+  const [schoolYearFilter, setSchoolYearFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Feedback modal states
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
-  const [feedbackType, setFeedbackType] = useState("success");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-
-  const navigate = useNavigate();
+  // Modals
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [actionDropdown, setActionDropdown] = useState(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Add authentication check on component mount
-  useEffect(() => {
-    // Check if user is authenticated
-    const token = tokenService.getFacultyAccessToken();
-    const facultyData = localStorage.getItem('faculty');
-    
-    if (!token || !facultyData) {
-      showFeedback("error", "Please login to access this page");
-      navigate('/auth/login');
-      return;
-    }
-    
-    fetchTaskDeliverables();
-  }, [navigate]);
-
-  // Fetch task deliverables from backend
+  // Fetch task deliverables
   const fetchTaskDeliverables = async () => {
     try {
       setLoading(true);
-      
       if (!tokenService.isFacultyAuthenticated()) {
-        showFeedback("error", "Please login again");
-        navigate('/auth/login');
+        console.error("No token found");
         return;
       }
-  
-      // Use authFetch instead of direct fetch
+
       const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/task-deliverables`);
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          tokenService.clearFacultyTokens();
-          showFeedback("error", "Session expired. Please login again.");
-          navigate('/auth/login');
-          return;
-        }
-        throw new Error("Server responded with " + response.status);
-      }
-      
+      if (!response.ok) throw new Error("Server responded with " + response.status);
       const result = await response.json();
-      console.log("Fetched task deliverables for current user:", result);
+      console.log("Fetched task deliverables:", result);
       
       if (result.success && Array.isArray(result.data)) {
         setTaskDeliverables(result.data);
@@ -86,209 +52,125 @@ export default function TaskDeliverablesManagement() {
     } catch (err) {
       console.error("Error fetching task deliverables:", err);
       if (err.message === 'Token refresh failed') {
-        showFeedback("error", "Session expired. Please login again.");
         tokenService.clearFacultyTokens();
-        navigate('/auth/login');
       }
-      setTaskDeliverables([]);
+      setTaskDeliverables([]); 
     } finally {
       setLoading(false);
     }
   };
 
-  // Show feedback modal
-  const showFeedback = (type, message) => {
-    setFeedbackType(type);
-    setFeedbackMessage(message);
-    setFeedbackModalOpen(true);
-  };
+  useEffect(() => {
+    fetchTaskDeliverables();
+  }, []);
 
-  // Calculate overall status for a task
-  const calculateOverallStatus = (task) => {
-    const fields = [task.syllabus, task.tos_midterm, task.tos_final, task.midterm_exam, task.final_exam, task.instructional_materials];
-    const completedCount = fields.filter(field => field === 'completed').length;
-    const rejectedCount = fields.filter(field => field === 'rejected').length;
-    
-    let overallStatus = 'pending';
-    let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-    
-    if (rejectedCount > 0) {
-      overallStatus = 'rejected';
-      overallColor = 'bg-red-100 text-red-800 border border-red-200';
-    } else if (completedCount === 6) {
-      overallStatus = 'completed';
-      overallColor = 'bg-green-100 text-green-800 border border-green-200';
-    } else if (completedCount > 0) {
-      overallStatus = 'in-progress';
-      overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-    }
-
-    return { overallStatus, overallColor, completedCount };
-  };
-
-  // Calculate stats for charts
-  const calculateStats = (taskList) => {
-    if (!Array.isArray(taskList) || taskList.length === 0) {
-      return { total: 0, pending: 0, completed: 0, rejected: 0, totalDeliverables: 0 };
-    }
-
-    let pendingCount = 0;
-    let completedCount = 0;
-    let rejectedCount = 0;
-
-    taskList.forEach(task => {
-      // Count individual field statuses including both TOS types
-      const fields = [
-        task.syllabus, 
-        task.tos_midterm, 
-        task.tos_final,
-        task.midterm_exam, 
-        task.final_exam, 
-        task.instructional_materials
-      ];
-
-      fields.forEach(field => {
-        if (field === 'pending') pendingCount++;
-        else if (field === 'completed') completedCount++;
-        else if (field === 'rejected') rejectedCount++;
-      });
-    });
-
-    const totalDeliverables = pendingCount + completedCount + rejectedCount;
-
-    return {
-      total: taskList.length, 
-      pending: pendingCount, 
-      completed: completedCount, 
-      rejected: rejectedCount,
-      totalDeliverables: totalDeliverables 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (actionDropdown && !e.target.closest('.action-dropdown-container')) {
+        setActionDropdown(null);
+      }
     };
+    
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [actionDropdown]);
+
+  // Handle preview
+  const handlePreview = (task) => {
+    setSelectedTask(task);
+    setPreviewModalOpen(true);
+    setActionDropdown(null);
   };
 
   // Get unique values for filters
   const getUniqueValues = (key) => {
     let filtered = (Array.isArray(taskDeliverables) ? taskDeliverables : []);
-
     const values = new Set();
     
     filtered.forEach(task => {
       if (key === 'subject_code' && task.subject_code) {
         values.add(task.subject_code);
-      } else if (key === 'course_section' && task.course_section) {
-        values.add(task.course_section);
-      } else if (key === 'months') {
-        if (task.updated_at || task.created_at) {
-          const date = task.updated_at || task.created_at;
-          const month = new Date(date).getMonth();
-          const monthNames = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-          ];
-          values.add(monthNames[month]);
-        }
-      } else if (key === 'years') {
-        if (task.updated_at || task.created_at) {
-          const date = task.updated_at || task.created_at;
-          const year = new Date(date).getFullYear();
-          values.add(year);
-        }
+      } else if (key === 'course' && task.course) {
+        values.add(task.course);
+      } else if (key === 'semester' && task.semester) {
+        values.add(task.semester);
+      } else if (key === 'school_year' && task.school_year) {
+        values.add(task.school_year);
       }
     });
 
     return Array.from(values).sort();
   };
 
-  // Get unique years for filter
-  const getUniqueYears = () => {
-    const years = new Set();
-    taskDeliverables.forEach(task => {
-      if (task.updated_at || task.created_at) {
-        const date = task.updated_at || task.created_at;
-        const year = new Date(date).getFullYear();
-        years.add(year);
-      }
-    });
-    return Array.from(years).sort((a, b) => b - a);
-  };
-
   // Reset all filters
   const resetFilters = () => {
     setSubjectCodeFilter("");
-    setCourseSectionFilter("");
-    setMonthFilter("");
-    setYearFilter("");
+    setCourseFilter("");
+    setSemesterFilter("");
+    setSchoolYearFilter("");
+    setStatusFilter("");
     setSortOption("most_recent");
     setCurrentPage(1);
   };
 
-  // Get filtered task deliverables based on search and filters
-  const getFilteredTaskDeliverables = () => {
-    let filtered = (Array.isArray(taskDeliverables) ? taskDeliverables : [])
-      .filter((td) => {
-        if (!td) return false;
-        
-        const searchableFields = [
-          td.task_deliverables_id, 
-          td.subject_code, 
-          td.course_section, 
-          td.syllabus, 
-          td.tos_midterm, 
-          td.tos_final,
-          td.midterm_exam, 
-          td.final_exam, 
-          td.instructional_materials
-        ].filter(field => field !== undefined && field !== null);
-        
-        return searchableFields.some((field) => 
-          field.toString().toLowerCase().includes(search.toLowerCase())
-        );
-      });
+  // Apply filters and sorting
+  const getFilteredTasks = () => {
+    let filtered = (Array.isArray(taskDeliverables) ? taskDeliverables : []);
+
+    // Apply search filter
+    filtered = filtered.filter((task) =>
+      [task.subject_code, task.subject_title, task.course, task.semester, task.school_year]
+        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
+    );
 
     // Apply advanced filters
     if (subjectCodeFilter) {
       filtered = filtered.filter(task => task.subject_code === subjectCodeFilter);
     }
     
-    if (courseSectionFilter) {
-      filtered = filtered.filter(task => task.course_section === courseSectionFilter);
+    if (courseFilter) {
+      filtered = filtered.filter(task => task.course === courseFilter);
+    }
+    
+    if (semesterFilter) {
+      filtered = filtered.filter(task => task.semester === semesterFilter);
+    }
+    
+    if (schoolYearFilter) {
+      filtered = filtered.filter(task => task.school_year === schoolYearFilter);
     }
 
-    // Apply month filter
-    if (monthFilter) {
-      const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      const monthIndex = monthNames.indexOf(monthFilter);
-      
+    // Apply status filter
+    if (statusFilter) {
       filtered = filtered.filter(task => {
-        if (!task.updated_at && !task.created_at) return false;
-        const date = task.updated_at || task.created_at;
-        const taskMonth = new Date(date).getMonth();
-        return taskMonth === monthIndex;
-      });
-    }
-
-    // Apply year filter
-    if (yearFilter) {
-      filtered = filtered.filter(task => {
-        if (!task.updated_at && !task.created_at) return false;
-        const date = task.updated_at || task.created_at;
-        const taskYear = new Date(date).getFullYear();
-        return taskYear === parseInt(yearFilter);
+        // Check if any of the task statuses match the filter
+        const statuses = [
+          task.syllabus,
+          task.tos_midterm,
+          task.tos_final,
+          task.midterm_exam,
+          task.final_exam,
+          task.instructional_materials
+        ];
+        return statuses.includes(statusFilter);
       });
     }
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const dateA = new Date(a.updated_at || a.created_at);
-      const dateB = new Date(b.updated_at || b.created_at);
+      const dateA = new Date(a.updated_at);
+      const dateB = new Date(b.updated_at);
       
       switch (sortOption) {
         case "most_recent":
           return dateB - dateA;
         case "oldest":
           return dateA - dateB;
+        case "subject_asc":
+          return a.subject_code.localeCompare(b.subject_code);
+        case "subject_desc":
+          return b.subject_code.localeCompare(a.subject_code);
         default:
           return dateB - dateA;
       }
@@ -297,27 +179,70 @@ export default function TaskDeliverablesManagement() {
     return filtered;
   };
 
-  const filteredTaskDeliverables = getFilteredTaskDeliverables();
-  const taskDeliverablesStats = calculateStats(filteredTaskDeliverables);
+  const filteredTasks = getFilteredTasks();
 
-  // Pagination
-  const totalPages = Math.ceil(filteredTaskDeliverables.length / taskDeliverablesPerPage);
-  const startIndex = (currentPage - 1) * taskDeliverablesPerPage;
-  const currentTaskDeliverables = filteredTaskDeliverables.slice(startIndex, startIndex + taskDeliverablesPerPage);
-
-  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
-  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
+  // Calculate completion percentage
+  const calculateCompletion = (task) => {
+    const statuses = [
+      task.syllabus,
+      task.tos_midterm,
+      task.tos_final,
+      task.midterm_exam,
+      task.final_exam,
+      task.instructional_materials
+    ];
+    
+    const completedCount = statuses.filter(status => status === 'completed').length;
+    const totalCount = statuses.length;
+    
+    return {
+      percentage: Math.round((completedCount / totalCount) * 100),
+      completed: completedCount,
+      total: totalCount
+    };
+  };
 
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
-      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200'; 
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-yellow-100 text-yellow-800';
     }
   };
 
-  // Refresh data periodically to get latest sync status
+  // Get completion badge color
+  const getCompletionColor = (percentage) => {
+    if (percentage >= 80) return 'bg-green-100 text-green-800';
+    if (percentage >= 50) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  // Get course badge color
+  const getCourseColor = (course) => {
+    if (course === 'BSCS') return 'bg-purple-100 text-purple-800';
+    if (course === 'BSIT') return 'bg-green-100 text-green-800';
+    if (course === 'BSIS') return 'bg-blue-100 text-blue-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  // Get semester badge color
+  const getSemesterColor = (semester) => {
+    if (semester?.includes('1st')) return 'bg-purple-100 text-purple-800';
+    if (semester?.includes('2nd')) return 'bg-green-100 text-green-800';
+    if (semester?.includes('Summer')) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentTasks = filteredTasks.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
+
+  // Auto-refresh every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTaskDeliverables();
@@ -326,199 +251,23 @@ export default function TaskDeliverablesManagement() {
     return () => clearInterval(interval);
   }, []);
 
-  // History of Records export function
-  const handleExportReport = async () => {
-    try {
-      if (filteredTaskDeliverables.length === 0) {
-        showFeedback("info", "No records to export with the current filters.");
-        return;
-      }
-      
-      // Prepare data for Excel
-      const excelData = filteredTaskDeliverables.map(task => {
-        const { overallStatus, completedCount } = calculateOverallStatus(task);
-        
-        return {
-          'Task ID': task.task_deliverables_id,
-          'Subject Code': task.subject_code,
-          'Course Section': task.course_section,
-          'Syllabus': task.syllabus || 'N/A',
-          'TOS Midterm': task.tos_midterm || 'N/A',
-          'TOS Final': task.tos_final || 'N/A',
-          'Midterm Exam': task.midterm_exam || 'N/A',
-          'Final Exam': task.final_exam || 'N/A',
-          'Instructional Materials': task.instructional_materials || 'N/A',
-          'Completed Deliverables': `${completedCount}/6`,
-          'Overall Status': overallStatus,
-          'Last Updated': new Date(task.updated_at || task.created_at).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        };
-      });
-      
-      // Create a new workbook
-      const wb = XLSX.utils.book_new();
-      
-      // Create a worksheet
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      
-      // Set column widths for better readability
-      const colWidths = [
-        { wch: 20 }, // Task ID
-        { wch: 15 }, // Subject Code
-        { wch: 15 }, // Course Section
-        { wch: 15 }, // Syllabus
-        { wch: 15 }, // TOS Midterm
-        { wch: 15 }, // TOS Final
-        { wch: 15 }, // Midterm Exam
-        { wch: 15 }, // Final Exam
-        { wch: 25 }, // Instructional Materials
-        { wch: 20 }, // Completed Deliverables
-        { wch: 15 }, // Overall Status
-        { wch: 25 }  // Last Updated
-      ];
-      ws['!cols'] = colWidths;
-      
-      // Add header styling
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const cell_address = XLSX.utils.encode_cell({r: 0, c: C});
-        if (!ws[cell_address]) continue;
-        
-        ws[cell_address].s = {
-          font: {
-            bold: true,
-            color: { rgb: "FFFFFF" }
-          },
-          fill: {
-            fgColor: { rgb: "000000" }
-          },
-          alignment: {
-            horizontal: "center",
-            vertical: "center"
-          }
-        };
-      }
-      
-      // Create sheet name with filters
-      let sheetName = "Task_Deliverables";
-      if (yearFilter) sheetName += `_${yearFilter}`;
-      if (monthFilter) sheetName += `_${monthFilter.substring(0, 3)}`;
-      sheetName = sheetName.substring(0, 31); // Excel sheet name limit
-      
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-      
-      // Generate Excel file
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      
-      // Create and download file
-      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      
-      // Create filename with filters
-      let filename = 'task-deliverables-report';
-      if (yearFilter) filename += `-${yearFilter}`;
-      if (monthFilter) filename += `-${monthFilter.replace(/\s+/g, '-')}`;
-      if (subjectCodeFilter) filename += `-${subjectCodeFilter}`;
-      if (courseSectionFilter) filename += `-${courseSectionFilter}`;
-      filename += '.xlsx';
-      
-      link.href = url;
-      link.download = filename;
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      showFeedback("success", `Exported ${filteredTaskDeliverables.length} task deliverables with current filters as Excel file successfully!`);
-    } catch (error) {
-      console.error("Error exporting report:", error);
-      showFeedback("error", "Error exporting report as Excel file");
-    }
-  };
-
-  // Reset filters when switching views
-  useEffect(() => {
-    resetFilters();
-  }, [historyView]);
-
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - EXACT SAME LAYOUT AS FILE MANAGEMENT */}
-        <div className="flex flex-col justify-between items-start mb-6 gap-3">
-          <div className="w-full">
-            <h1 className="text-2xl font-bold text-gray-800">
-              {historyView ? 'History of Records' : 'Task Deliverables'}
-            </h1>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Task Deliverables</h1>
             <p className="text-sm text-gray-500">
-              {historyView 
-                ? 'Viewing historical task deliverables data'
-                : 'Monitor the status of your submitted deliverables.'
-              }
+              Automatically synced from Faculty Load and File Upload. Shows document completion status.
             </p>
           </div>
           
-          {/* Top Row: Show Filters button (only button in this row) */}
-          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3 mb-4">
-            {/* Show Filters Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full md:w-auto"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-              
-            </button>
-          </div>
-
-          {/* Second Row: View Toggle and Search Bar */}
-          <div className="flex flex-col md:flex-row justify-between items-center w-full gap-3 mb-4">
-            {/* View Toggle Buttons */}
-            <div className="flex border border-gray-300 rounded-md overflow-hidden w-full md:w-auto">
-              <button
-                onClick={() => {
-                  setHistoryView(false);
-                  setCurrentPage(1);
-                }}
-                className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
-                  !historyView 
-                    ? 'bg-black text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Current
-              </button>
-              <button
-                onClick={() => {
-                  setHistoryView(true);
-                  setCurrentPage(1);
-                }}
-                className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
-                  historyView 
-                    ? 'bg-black text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center gap-2 justify-center">
-                  <History className="w-4 h-4" />
-                  Report
-                </div>
-              </button>
-            </div>
-
+          <div className="flex gap-3 w-full md:w-auto">
             <input
               type="text"
-              placeholder={`Search ${historyView ? 'historical records' : 'task deliverables'}...`}
+              placeholder="Search task deliverables..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -526,225 +275,184 @@ export default function TaskDeliverablesManagement() {
               }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
           </div>
-
-          {/* Filtering and Sorting Options - 4x4 Grid */}
-          {showFilters && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
-              {/* First Row - 4 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Subject Code
-                  </label>
-                  <select
-                    value={subjectCodeFilter}
-                    onChange={(e) => {
-                      setSubjectCodeFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  >
-                    <option value="">All Subjects</option>
-                    {getUniqueValues('subject_code').map(code => (
-                      <option key={code} value={code}>{code}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Course Section
-                  </label>
-                  <select
-                    value={courseSectionFilter}
-                    onChange={(e) => {
-                      setCourseSectionFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  >
-                    <option value="">All Sections</option>
-                    {getUniqueValues('course_section').map(section => (
-                      <option key={section} value={section}>{section}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Month
-                  </label>
-                  <select
-                    value={monthFilter}
-                    onChange={(e) => {
-                      setMonthFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  >
-                    <option value="">All Months</option>
-                    <option value="January">January</option>
-                    <option value="February">February</option>
-                    <option value="March">March</option>
-                    <option value="April">April</option>
-                    <option value="May">May</option>
-                    <option value="June">June</option>
-                    <option value="July">July</option>
-                    <option value="August">August</option>
-                    <option value="September">September</option>
-                    <option value="October">October</option>
-                    <option value="November">November</option>
-                    <option value="December">December</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Year
-                  </label>
-                  <select
-                    value={yearFilter}
-                    onChange={(e) => {
-                      setYearFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  >
-                    <option value="">All Years</option>
-                    {getUniqueYears().map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Second Row - 4 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Sort by:
-                  </label>
-                  <select
-                    value={sortOption}
-                    onChange={(e) => {
-                      setSortOption(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  >
-                    <option value="most_recent">Most Recent</option>
-                    <option value="oldest">Oldest</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Third Row - 3 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                <div className="col-span-1">
-                  <span className="text-xs text-gray-500">
-                    {filteredTaskDeliverables.length} of {taskDeliverables.length} records
-                    {subjectCodeFilter || courseSectionFilter || monthFilter || yearFilter || sortOption !== "most_recent" ? (
-                      <span className="ml-2 text-blue-600">
-                        ({[
-                          subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
-                          courseSectionFilter && `Section: ${courseSectionFilter}`,
-                          monthFilter && monthFilter,
-                          yearFilter && yearFilter
-                        ].filter(Boolean).join(", ")})
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
-                
-                <div className="col-span-1">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpDown className="w-4 h-4 text-gray-500" />
-                    <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
-                  </div>
-                </div>
-                
-                <div className="col-span-1 text-right">
-                  {(subjectCodeFilter || courseSectionFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
-                    <button
-                      onClick={resetFilters}
-                      className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                    >
-                      Reset All Filters
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* History of Records Management Bar */}
-          {historyView && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 w-full">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <ClipboardPlus className="w-5 h-5 text-gray-600" />
-                  <span className="text-sm text-gray-800">
-                    Viewing {filteredTaskDeliverables.length} task deliverables records
-                    {yearFilter && ` from ${yearFilter}`}
-                    {monthFilter && `, ${monthFilter}`}
-                    {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
-                    {courseSectionFilter && ` • Section: ${courseSectionFilter}`}
-                  </span>
-                </div>
-                <div className="flex gap-2 mt-2 md:mt-0">
-                  <button
-                    onClick={handleExportReport}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export Filtered Report
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Export will include only the records matching current filters: {filteredTaskDeliverables.length} record(s)
-              </p>
-            </div>
-          )}
         </div>
 
-        {/* Auto-sync Notice - HIDDEN in history view */}
-        {!historyView && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <CheckCircle className="text-blue-500 w-5 h-5 mr-2" />
-              <p className="text-blue-700 text-sm">
-                <strong>Auto-sync Enabled:</strong> Task deliverables are automatically created when you add faculty loads. 
-                Each course section from your faculty loads gets its own task deliverables entry.
-              </p>
+        {/* Filtering Options */}
+        {showFilters && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Subject Code
+                </label>
+                <select
+                  value={subjectCodeFilter}
+                  onChange={(e) => {
+                    setSubjectCodeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Subject Codes</option>
+                  {getUniqueValues('subject_code').map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Course
+                </label>
+                <select
+                  value={courseFilter}
+                  onChange={(e) => {
+                    setCourseFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Courses</option>
+                  {getUniqueValues('course').map(course => (
+                    <option key={course} value={course}>{course}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Semester
+                </label>
+                <select
+                  value={semesterFilter}
+                  onChange={(e) => {
+                    setSemesterFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Semesters</option>
+                  {getUniqueValues('semester').map(semester => (
+                    <option key={semester} value={semester}>{semester}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Academic Year
+                </label>
+                <select
+                  value={schoolYearFilter}
+                  onChange={(e) => {
+                    setSchoolYearFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Academic Years</option>
+                  {getUniqueValues('school_year').map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Status Filter
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="">All Status</option>
+                  <option value="completed">Completed</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Sort by
+                </label>
+                <select
+                  value={sortOption}
+                  onChange={(e) => {
+                    setSortOption(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                >
+                  <option value="most_recent">Most Recent</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="subject_asc">Subject A-Z</option>
+                  <option value="subject_desc">Subject Z-A</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  onClick={resetFilters}
+                  className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors w-full"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            </div>
+
+            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
+              {filteredTasks.length} of {taskDeliverables.length} task deliverables
+              {subjectCodeFilter || courseFilter || semesterFilter || schoolYearFilter || statusFilter ? (
+                <span className="ml-2 text-blue-600">
+                  ({[
+                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                    courseFilter && `Course: ${courseFilter}`,
+                    semesterFilter && `Semester: ${semesterFilter}`,
+                    schoolYearFilter && `Year: ${schoolYearFilter}`,
+                    statusFilter && `Status: ${statusFilter}`
+                  ].filter(Boolean).join(", ")})
+                </span>
+              ) : null}
             </div>
           </div>
         )}
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
-            <div className="text-2xl font-bold text-blue-800">{taskDeliverablesStats.total}</div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Pending Deliverables</div>
-            <div className="text-2xl font-bold text-yellow-800">{taskDeliverablesStats.pending}</div>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Completed Deliverables</div>
-            <div className="text-2xl font-bold text-green-800">{taskDeliverablesStats.completed}</div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
-            <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
+            <div className="text-2xl font-bold text-blue-800">{taskDeliverables.length}</div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Completion Rate</div>
-            <div className="text-2xl font-bold text-purple-800">
-              {taskDeliverablesStats.totalDeliverables > 0 ? 
-                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
+            <div className="text-purple-600 text-sm font-medium">Unique Subjects</div>
+            <div className="text-2xl font-bold text-purple-800">{getUniqueValues('subject_code').length}</div>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="text-green-600 text-sm font-medium">Total Courses</div>
+            <div className="text-2xl font-bold text-green-800">{getUniqueValues('course').length}</div>
+          </div>
+          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <div className="text-yellow-600 text-sm font-medium">Avg Completion</div>
+            <div className="text-2xl font-bold text-yellow-800">
+              {taskDeliverables.length > 0 
+                ? Math.round(taskDeliverables.reduce((acc, task) => 
+                    acc + calculateCompletion(task).percentage, 0) / taskDeliverables.length) 
+                : 0}%
             </div>
           </div>
         </div>
@@ -754,79 +462,119 @@ export default function TaskDeliverablesManagement() {
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Task ID</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course Section</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Syllabus</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Midterm</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">TOS Final</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Midterm Exam</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Final Exam</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Instructional Materials</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Overall Status</th>
-                <th className="px-4 py-3 text-left border-gray-600">Last Updated</th>
+                <th className="px-4 py-3 text-left">Task ID</th>
+                <th className="px-4 py-3 text-left">Subject Code</th>
+                <th className="px-4 py-3 text-left">Subject Title</th>
+                <th className="px-4 py-3 text-left">Course</th>
+                <th className="px-4 py-3 text-left">Semester</th>
+                <th className="px-4 py-3 text-left">Academic Year</th>
+                <th className="px-4 py-3 text-left">Completion</th>
+                <th className="px-4 py-3 text-left">Document Status</th>
+                <th className="px-4 py-3 text-left">Last Updated</th>
+                <th className="px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentTaskDeliverables.length > 0 ? (
-                currentTaskDeliverables.map((task) => {
-                  const { overallStatus, overallColor, completedCount } = calculateOverallStatus(task);
-
+              {loading ? (
+                <tr>
+                  <td colSpan="10" className="text-center py-8">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentTasks.length > 0 ? (
+                currentTasks.map((task) => {
+                  const completion = calculateCompletion(task);
                   return (
                     <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{task.task_deliverables_id}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900 font-mono">{task.subject_code}</td>
-                      <td className="px-4 py-3 text-gray-700">{task.course_section}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{task.subject_code}</td>
+                      <td className="px-4 py-3 text-gray-700 text-sm">{task.subject_title}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
-                          {task.syllabus}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(task.course)}`}>
+                          {task.course}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_midterm)}`}>
-                          {task.tos_midterm}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(task.semester)}`}>
+                          {task.semester}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-gray-700">{task.school_year}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_final)}`}>
-                          {task.tos_final}
-                        </span>
+                        <div className="flex items-center">
+                          <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                            <div 
+                              className={`h-2 rounded-full ${getCompletionColor(completion.percentage)}`}
+                              style={{ width: `${completion.percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs font-medium">{completion.percentage}%</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {completion.completed}/{completion.total} documents
+                        </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
-                          {task.midterm_exam}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
-                          {task.final_exam}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
-                          {task.instructional_materials}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
-                          {overallStatus} ({completedCount}/6)
-                        </span>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(task.syllabus)}`}>
+                            Syllabus
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(task.tos_midterm)}`}>
+                            TOS Midterm
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(task.tos_final)}`}>
+                            TOS Final
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(task.midterm_exam)}`}>
+                            Midterm Exam
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(task.final_exam)}`}>
+                            Final Exam
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${getStatusColor(task.instructional_materials)}`}>
+                            Materials
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-700 text-xs">
-                        {new Date(task.updated_at || task.created_at).toLocaleDateString()} {new Date(task.updated_at || task.created_at).toLocaleTimeString()}
+                        {new Date(task.updated_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-4 py-3 relative action-dropdown-container">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActionDropdown(actionDropdown === task.task_deliverables_id ? null : task.task_deliverables_id);
+                          }}
+                          className="p-1 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        
+                        {actionDropdown === task.task_deliverables_id && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                            <button
+                              onClick={() => handlePreview(task)}
+                              className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
-                    {loading 
-                      ? "Loading task deliverables..." 
-                      : historyView 
-                        ? `No task deliverables found with the current filters`
-                        : "No task deliverables found. Add faculty loads to auto-create task deliverables."
-                    }
+                  <td colSpan="10" className="text-center py-8 text-gray-500">
+                    No task deliverables found. Task deliverables are automatically created when you add a faculty load.
                   </td>
                 </tr>
               )}
@@ -835,140 +583,327 @@ export default function TaskDeliverablesManagement() {
         </div>
 
         {/* Mobile Cards */}
-        <div className="md:hidden grid grid-cols-1 gap-4">
-          {currentTaskDeliverables.length > 0 ? (
-            currentTaskDeliverables.map((task) => {
-              const { overallStatus, overallColor, completedCount } = calculateOverallStatus(task);
-
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
+            </div>
+          ) : currentTasks.length > 0 ? (
+            currentTasks.map((task) => {
+              const completion = calculateCompletion(task);
               return (
                 <div key={task._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                   <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h2 className="font-semibold text-gray-800">{task.subject_code} - {task.course_section}</h2>
-                      <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
+                    <div className="flex-1 min-w-0 mr-2">
+                      <h2 className="font-semibold text-gray-800 truncate">{task.subject_code}</h2>
+                      <p className="text-sm text-gray-600 truncate">{task.subject_title}</p>
+                      <p className="text-xs text-gray-500 font-mono truncate">ID: {task.task_deliverables_id}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
-                      {overallStatus} ({completedCount}/6)
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCompletionColor(completion.percentage)}`}>
+                        {completion.percentage}%
+                      </span>
+                      
+                      <div className="relative action-dropdown-container">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActionDropdown(actionDropdown === task.task_deliverables_id ? null : task.task_deliverables_id);
+                          }}
+                          className="p-1 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        
+                        {actionDropdown === task.task_deliverables_id && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                            <button
+                              onClick={() => handlePreview(task)}
+                              className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                     <div>
-                      <span className="text-gray-500">Syllabus:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
-                        {task.syllabus}
+                      <span className="text-gray-500">Course:</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${getCourseColor(task.course)}`}>
+                        {task.course}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">TOS Midterm:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_midterm)}`}>
-                        {task.tos_midterm}
+                      <span className="text-gray-500">Semester:</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${getSemesterColor(task.semester)}`}>
+                        {task.semester}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">TOS Final:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_final)}`}>
-                        {task.tos_final}
-                      </span>
+                      <span className="text-gray-500">Academic Year:</span>
+                      <p className="font-medium">{task.school_year}</p>
                     </div>
                     <div>
-                      <span className="text-gray-500">Midterm Exam:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
-                        {task.midterm_exam}
-                      </span>
+                      <span className="text-gray-500">Completion:</span>
+                      <div className="flex items-center mt-1">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${getCompletionColor(completion.percentage)}`}
+                            style={{ width: `${completion.percentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {completion.completed}/{completion.total} documents
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Final Exam:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
-                        {task.final_exam}
+                  </div>
+                  
+                  <div className="mb-3">
+                    <span className="text-gray-500 text-sm">Document Status:</span>
+                    <div className="grid grid-cols-3 gap-1 mt-1">
+                      <span className={`text-xs px-2 py-1 rounded text-center ${getStatusColor(task.syllabus)}`}>
+                        Syllabus
                       </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Instructional Materials:</span>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
-                        {task.instructional_materials}
+                      <span className={`text-xs px-2 py-1 rounded text-center ${getStatusColor(task.tos_midterm)}`}>
+                        TOS Midterm
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded text-center ${getStatusColor(task.tos_final)}`}>
+                        TOS Final
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded text-center ${getStatusColor(task.midterm_exam)}`}>
+                        Midterm Exam
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded text-center ${getStatusColor(task.final_exam)}`}>
+                        Final Exam
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded text-center ${getStatusColor(task.instructional_materials)}`}>
+                        Materials
                       </span>
                     </div>
                   </div>
-
-                  <p className="text-xs text-gray-500 mt-3">
-                    Updated: {new Date(task.updated_at || task.created_at).toLocaleDateString()} {new Date(task.updated_at || task.created_at).toLocaleTimeString()}
-                  </p>
+                  
+                  <div className="text-xs text-gray-500">
+                    Updated: {new Date(task.updated_at).toLocaleDateString()}
+                  </div>
                 </div>
               );
             })
           ) : (
-            <div className="text-center py-8 text-gray-500 font-medium">
-              {loading 
-                ? "Loading task deliverables..." 
-                : historyView 
-                  ? `No task deliverables found with the current filters`
-                  : "No task deliverables found. Add faculty loads to auto-create task deliverables."
-              }
+            <div className="text-center py-8 text-gray-500">
+              No task deliverables found. Task deliverables are automatically created when you add a faculty load.
             </div>
           )}
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
-          <div className="text-sm text-gray-600">
-            Showing {currentTaskDeliverables.length} of {filteredTaskDeliverables.length} tasks
-            {yearFilter && ` from ${yearFilter}`}
-            {monthFilter && `, ${monthFilter}`}
-            {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
-            {courseSectionFilter && ` • Section: ${courseSectionFilter}`}
+        {filteredTasks.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
+            <div className="text-sm text-gray-600">
+              Showing {currentTasks.length} of {filteredTasks.length} task deliverables
+              {subjectCodeFilter || courseFilter || semesterFilter || schoolYearFilter || statusFilter ? (
+                <span className="ml-2 text-blue-600">
+                  ({[
+                    subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                    courseFilter && `Course: ${courseFilter}`,
+                    semesterFilter && `Semester: ${semesterFilter}`,
+                    schoolYearFilter && `Year: ${schoolYearFilter}`,
+                    statusFilter && `Status: ${statusFilter}`
+                  ].filter(Boolean).join(", ")})
+                </span>
+              ) : null}
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handlePrev}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                  currentPage === 1
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-black text-white hover:bg-yellow-400 hover:text-black border-black"
+                }`}
+              >
+                Previous
+              </button>
+              <span className="text-gray-600 text-sm">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+              <button
+                onClick={handleNext}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                  currentPage === totalPages || totalPages === 0
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-black text-white hover:bg-yellow-400 hover:text-black border-black"
+                }`}
+              >
+                Next
+              </button>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handlePrev}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                currentPage === 1
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-black text-white hover:bg-yellow-400 hover:text-black border-black"
-              }`}
-            >
-              Previous
-            </button>
-            <span className="text-gray-600 text-sm">
-              Page {currentPage} of {totalPages || 1}
-            </span>
-            <button
-              onClick={handleNext}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                currentPage === totalPages || totalPages === 0
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-black text-white hover:bg-yellow-400 hover:text-black border-black"
-              }`}
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* Feedback Modal */}
+        {/* Preview Modal */}
         <Modal
-          isOpen={feedbackModalOpen}
-          onRequestClose={() => setFeedbackModalOpen(false)}
-          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
-          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          isOpen={previewModalOpen}
+          onRequestClose={() => setPreviewModalOpen(false)}
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
         >
-          <div className="flex flex-col items-center text-center">
-            {feedbackType === "success" ? (
-              <CheckCircle className="text-green-500 w-12 h-12 mb-4" />
-            ) : (
-              <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            )}
-            <p className="text-lg font-semibold text-gray-800 mb-2">{feedbackMessage}</p>
-            <button
-              onClick={() => setFeedbackModalOpen(false)}
-              className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-300"
-            >
-              Close
-            </button>
-          </div>
+          {selectedTask && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Task Deliverables Details
+                </h3>
+                <button
+                  onClick={() => setPreviewModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Task ID</label>
+                    <p className="mt-1 text-sm text-gray-900 font-mono">{selectedTask.task_deliverables_id}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Faculty</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedTask.faculty_name}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Subject Code</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedTask.subject_code}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Subject Title</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedTask.subject_title}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Course</label>
+                    <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(selectedTask.course)}`}>
+                      {selectedTask.course}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Semester</label>
+                    <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(selectedTask.semester)}`}>
+                      {selectedTask.semester}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Academic Year</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedTask.school_year}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Overall Completion</label>
+                  <div className="flex items-center mb-1">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full ${getCompletionColor(calculateCompletion(selectedTask).percentage)}`}
+                        style={{ width: `${calculateCompletion(selectedTask).percentage}%` }}
+                      ></div>
+                    </div>
+                    <span className="ml-3 text-sm font-medium">{calculateCompletion(selectedTask).percentage}%</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {calculateCompletion(selectedTask).completed}/{calculateCompletion(selectedTask).total} documents completed
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Document Status Details</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium">Syllabus</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedTask.syllabus)}`}>
+                        {selectedTask.syllabus}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium">TOS Midterm</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedTask.tos_midterm)}`}>
+                        {selectedTask.tos_midterm}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium">TOS Final</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedTask.tos_final)}`}>
+                        {selectedTask.tos_final}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium">Midterm Exam</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedTask.midterm_exam)}`}>
+                        {selectedTask.midterm_exam}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium">Final Exam</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedTask.final_exam)}`}>
+                        {selectedTask.final_exam}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium">Instructional Materials</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedTask.instructional_materials)}`}>
+                        {selectedTask.instructional_materials}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Created</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {new Date(selectedTask.created_at || selectedTask.updated_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Last Updated</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {new Date(selectedTask.updated_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>Auto-sync Information:</strong> This task deliverables record was automatically created when you added the faculty load for {selectedTask.subject_code}. Status updates are automatically synced from File Upload.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </Modal>
       </div>
     </div>

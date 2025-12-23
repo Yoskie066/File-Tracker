@@ -19,9 +19,21 @@ const taskDeliverablesSchema = new mongoose.Schema(
       type: String, 
       required: true 
     },
-    course_section: { 
+    subject_title: {
+      type: String,
+      required: true
+    },
+    course: { 
       type: String, 
       required: true 
+    },
+    semester: {
+      type: String,
+      required: true
+    },
+    school_year: {
+      type: String,
+      required: true
     },
     syllabus: { 
       type: String, 
@@ -53,11 +65,6 @@ const taskDeliverablesSchema = new mongoose.Schema(
       default: "pending", 
       enum: ["pending", "completed", "rejected"] 
     },
-    tos_type: {  
-      type: String,
-      enum: ['midterm', 'final', 'both', null],
-      default: null
-    },
     updated_at: { 
       type: Date, 
       default: Date.now 
@@ -69,8 +76,8 @@ const taskDeliverablesSchema = new mongoose.Schema(
 );
 
 // Index for better query performance
-taskDeliverablesSchema.index({ faculty_id: 1, subject_code: 1, course_section: 1 });
-taskDeliverablesSchema.index({ subject_code: 1, course_section: 1 });
+taskDeliverablesSchema.index({ faculty_id: 1, subject_code: 1, course: 1 });
+taskDeliverablesSchema.index({ subject_code: 1, course: 1 });
 
 const TaskDeliverables = mongoose.model("TaskDeliverables", taskDeliverablesSchema);
 export default TaskDeliverables;

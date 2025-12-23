@@ -1,5 +1,4 @@
 import TaskDeliverables from "../../models/FacultyModel/TaskDeliverablesModel.js";
-import FacultyLoaded from "../../models/FacultyModel/FacultyLoadedModel.js";
 
 // Get all task deliverables 
 export const getTaskDeliverables = async (req, res) => {
@@ -62,7 +61,7 @@ export const getTaskDeliverablesById = async (req, res) => {
   }
 };
 
-// Update task deliverables (for TOS type updates)
+// Update task deliverables (for TOS type updates) - KEEP THIS FUNCTION BUT SIMPLIFY IT
 export const updateTaskDeliverables = async (req, res) => {
   try {
     const { id } = req.params;
@@ -96,7 +95,8 @@ export const updateTaskDeliverables = async (req, res) => {
       });
     }
 
-    // Update TOS type
+    // Update TOS type - NOTE: We're keeping this for backward compatibility
+    // but the main updates come from FileUploadController now
     if (tos_type !== undefined) {
       taskDeliverables.tos_type = tos_type;
       taskDeliverables.updated_at = new Date();
@@ -114,28 +114,3 @@ export const updateTaskDeliverables = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
-
-// Get faculty loads for dropdown (REMOVED - no longer needed for manual creation)
-export const getFacultyLoadedsForTaskDeliverables = async (req, res) => {
-  try {
-    // Check if faculty is authenticated
-    if (!req.faculty || !req.faculty.facultyId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required. Please login again."
-      });
-    }
-
-    const facultyLoadeds = await FacultyLoaded.find({ 
-      faculty_id: req.faculty.facultyId 
-    }).select('subject_code course_sections subject_title').sort({ subject_code: 1 });
-    
-    console.log(`Found ${facultyLoadeds.length} faculty loads for faculty: ${req.faculty.facultyId}`);
-    
-    res.status(200).json({ success: true, data: facultyLoadeds });
-  } catch (error) {
-    console.error("Error fetching faculty loads:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
-  }
-};
-

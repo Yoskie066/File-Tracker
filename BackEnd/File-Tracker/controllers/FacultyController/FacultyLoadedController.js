@@ -74,14 +74,14 @@ export const getSubjectsForFacultyLoad = async (req, res) => {
 };
 
 // Auto-create task deliverables for faculty load
-const autoCreateTaskDeliverables = async (facultyLoaded) => {
+const autoCreateTaskDeliverables = async (facultyLoaded, facultyName) => {
   try {
     console.log("Auto-creating task deliverables for faculty load:", facultyLoaded.faculty_loaded_id);
     
     const newTaskDeliverables = new TaskDeliverables({
       task_deliverables_id: generateTaskDeliverablesId(),
       faculty_id: facultyLoaded.faculty_id,
-      faculty_name: facultyLoaded.faculty_name || "Faculty",
+      faculty_name: facultyName || "Faculty",
       subject_code: facultyLoaded.subject_code,
       subject_title: facultyLoaded.subject_title,
       course: facultyLoaded.course,
@@ -198,10 +198,10 @@ export const createFacultyLoaded = async (req, res) => {
 
     // AUTO SYNC: Create task deliverables
     try {
-      const createdTaskDeliverables = await autoCreateTaskDeliverables({
-        ...savedFacultyLoaded.toObject(),
-        faculty_name: req.faculty.facultyName
-      });
+      const createdTaskDeliverables = await autoCreateTaskDeliverables(
+        savedFacultyLoaded.toObject(),
+        req.faculty.facultyName
+      );
       console.log("Auto-created task deliverables");
     } catch (syncError) {
       console.error("Error in auto-sync task deliverables:", syncError);
@@ -352,6 +352,7 @@ export const updateFacultyLoaded = async (req, res) => {
 
     const subject_title = systemVariable.subject_title;
     const oldSubjectCode = existingFacultyLoaded.subject_code;
+    const oldCourse = existingFacultyLoaded.course;
 
     // Check for duplicate (excluding the current one)
     const duplicateFacultyLoaded = await FacultyLoaded.findOne({
@@ -392,7 +393,8 @@ export const updateFacultyLoaded = async (req, res) => {
       const updateResult = await TaskDeliverables.updateMany(
         { 
           faculty_id: req.faculty.facultyId,
-          subject_code: oldSubjectCode
+          subject_code: oldSubjectCode,
+          course: oldCourse
         },
         { 
           subject_code: subject_code,
@@ -458,11 +460,12 @@ export const deleteFacultyLoaded = async (req, res) => {
       });
     }
 
-    const { subject_code } = facultyLoaded;
+    const { subject_code, course } = facultyLoaded;
 
     // AUTO DELETE: Delete corresponding task deliverables
     const deletedTaskDeliverables = await TaskDeliverables.deleteMany({
       subject_code,
+      course,
       faculty_id: req.faculty.facultyId
     });
 
