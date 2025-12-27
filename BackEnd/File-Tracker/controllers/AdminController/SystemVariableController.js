@@ -29,69 +29,69 @@ const validateAcademicYear = (year) => {
   return { valid: true, cleaned: `${startYear}-${endYear}` };
 };
 
-// Subject list data
+// Organized Subject List Data
 const subjectList = [
-  // BSCS Subjects
-  { code: 'COSC 50', title: 'Discrete Structures I', course: 'BSCS' },
-  { code: 'INSY 50', title: 'Fundamentals of Information Systems', course: 'BSCS' },
-  { code: 'COSC 55', title: 'Discrete Structures II', course: 'BSCS' },
-  { code: 'COSC 60', title: 'Digital Logic Design', course: 'BSCS' },
-  { code: 'COSC 65', title: 'Architecture and Organization', course: 'BSCS' },
-  { code: 'COSC 70', title: 'Software Engineering I', course: 'BSCS' },
-  { code: 'COSC 75', title: 'Software Engineering II', course: 'BSCS' },
-  { code: 'COSC 80', title: 'Operating Systems', course: 'BSCS' },
-  { code: 'COSC 85', title: 'Networks and Communication', course: 'BSCS' },
-  { code: 'COSC 90', title: 'Design and Analysis of Algorithm', course: 'BSCS' },
-  { code: 'COSC 95', title: 'Programming Languages', course: 'BSCS' },
-  { code: 'COSC 100', title: 'Automata Theory and Formal Languages', course: 'BSCS' },
-  { code: 'COSC 101', title: 'Computer Graphics and Visual Computing', course: 'BSCS' },
-  { code: 'COSC 105', title: 'Intelligent Systems', course: 'BSCS' },
-  { code: 'COSC 106', title: 'Introduction to Game Development', course: 'BSCS' },
-  { code: 'COSC 110', title: 'Numerical and Symbolic Computation', course: 'BSCS' },
-  { code: 'COSC 111', title: 'Internet of Things', course: 'BSCS' },
-  { code: 'COSC 199', title: 'Practicum (240 hrs.)', course: 'BSCS' },
-  { code: 'COSC 200A', title: 'Undergraduate Thesis I', course: 'BSCS' },
-  { code: 'COSC 200B', title: 'Undergraduate Thesis II', course: 'BSCS' },
+  // DCIT Subjects (Common to BOTH)
+  { code: 'DCIT-21', title: 'Introduction to Computing', course: 'BOTH' },
+  { code: 'DCIT-22', title: 'Computer Programming I', course: 'BOTH' },
+  { code: 'DCIT-23', title: 'Computer Programming II', course: 'BOTH' },
+  { code: 'DCIT-24', title: 'Information Management', course: 'BOTH' },
+  { code: 'DCIT-25', title: 'Data Structures and Algorithms', course: 'BOTH' },
+  { code: 'DCIT-26', title: 'Applications Development and Emerging Technologies', course: 'BOTH' },
+  { code: 'DCIT-50', title: 'Object Oriented Programming', course: 'BOTH' },
+  { code: 'DCIT-55', title: 'Advanced Database System', course: 'BSIT' },
+  { code: 'DCIT-55', title: 'Advanced Database Management System', course: 'BSCS' },
+  { code: 'DCIT-60', title: 'Methods of Research', course: 'BOTH' },
+  { code: 'DCIT-65', title: 'Social and Professional Issues', course: 'BOTH' },
 
-  // BSIT Subjects
-  { code: 'ITEC 55', title: 'Platform Technologies', course: 'BSIT' },
-  { code: 'ITEC 60', title: 'Integrated Programming and Technologies 1', course: 'BSIT' },
-  { code: 'ITEC 65', title: 'Open Source Technology', course: 'BSIT' },
-  { code: 'DCIT 55', title: 'Advanced Database System', course: 'BSIT' },
-  { code: 'ITEC 70', title: 'Multimedia Systems', course: 'BSIT' },
-  { code: 'ITEC 90', title: 'Network Fundamentals', course: 'BSIT' },
-  { code: 'INSY 55', title: 'System Analysis and Design', course: 'BSIT' },
-  { code: 'ITEC 95', title: 'Quantitative Methods (Modeling & Simulation)', course: 'BSIT' },
-  { code: 'ITEC 100', title: 'Information Assurance and Security 2', course: 'BSIT' },
-  { code: 'ITEC 101', title: 'IT ELECTIVE 1 (Human Computer Interaction 2)', course: 'BSIT' },
-  { code: 'ITEC 105', title: 'Network Management', course: 'BSIT' },
-  { code: 'ITEC 106', title: 'IT ELECTIVE 2 (Web System and Technologies 2)', course: 'BSIT' },
-  { code: 'ITEC 110', title: 'Systems Administration and Maintenance', course: 'BSIT' },
-  { code: 'ITEC 111', title: 'IT ELECTIVE 3 (Integrated Programming and Technologies 2)', course: 'BSIT' },
-  { code: 'ITEC 116', title: 'IT ELECTIVE 4 (Systems Integration and Architecture 2)', course: 'BSIT' },
-  { code: 'ITEC 199', title: 'Practicum (minimum 486 hours)', course: 'BSIT' },
-  { code: 'ITEC 200A', title: 'Capstone Project and Research 1', course: 'BSIT' },
-  { code: 'ITEC 200B', title: 'Capstone Project and Research 2', course: 'BSIT' },
+  // INSY Subjects
+  { code: 'INSY-50', title: 'Fundamentals of Information Systems', course: 'BSCS' },
+  { code: 'INSY-55', title: 'System Analysis and Design', course: 'BSIT' },
 
-  // Common Subjects (CS and IT)
-  { code: 'DCIT 21', title: 'Introduction to Computing', course: 'BOTH' },
-  { code: 'DCIT 22', title: 'Computer Programming I', course: 'BOTH' },
-  { code: 'DCIT 23', title: 'Computer Programming II', course: 'BOTH' },
-  { code: 'DCIT 24', title: 'Information Management', course: 'BOTH' },
-  { code: 'DCIT 25', title: 'Data Structures and Algorithms', course: 'BOTH' },
-  { code: 'DCIT 26', title: 'Applications Development and Emerging Technologies', course: 'BOTH' },
-  { code: 'DCIT 50', title: 'Object Oriented Programming', course: 'BOTH' },
-  { code: 'DCIT 60', title: 'Methods of Research', course: 'BOTH' },
-  { code: 'DCIT 65', title: 'Social and Professional Issues', course: 'BOTH' },
-  { code: 'ITEC 80', title: 'Human Computer Interaction', course: 'BOTH' },
-  { code: 'ITEC 85', title: 'Information Assurance and Security', course: 'BOTH' },
+  // COSC Subjects
+  { code: 'COSC-50', title: 'Discrete Structure', course: 'BSIT' },
+  { code: 'COSC-50', title: 'Discrete Structure 1', course: 'BSCS' },
+  { code: 'COSC-55', title: 'Discrete Structures II', course: 'BSCS' },
+  { code: 'COSC-60', title: 'Digital Logic Design', course: 'BSCS' },
+  { code: 'COSC-65', title: 'Architecture and Organization', course: 'BSCS' },
+  { code: 'COSC-70', title: 'Software Engineering I', course: 'BSCS' },
+  { code: 'COSC-75', title: 'Software Engineering II', course: 'BSCS' },
+  { code: 'COSC-80', title: 'Operating Systems', course: 'BSCS' },
+  { code: 'COSC-85', title: 'Networks and Communication', course: 'BSCS' },
+  { code: 'COSC-90', title: 'Design and Analysis of Algorithm', course: 'BSCS' },
+  { code: 'COSC-95', title: 'Programming Languages', course: 'BSCS' },
+  { code: 'COSC-100', title: 'Automata Theory and Formal Languages', course: 'BSCS' },
+  { code: 'COSC-101', title: 'Computer Graphics and Visual Computing', course: 'BSCS' },
+  { code: 'COSC-105', title: 'Intelligent Systems', course: 'BSCS' },
+  { code: 'COSC-106', title: 'Introduction to Game Development', course: 'BSCS' },
+  { code: 'COSC-110', title: 'Numerical and Symbolic Computation', course: 'BSCS' },
+  { code: 'COSC-111', title: 'Internet of Things', course: 'BSCS' },
+  { code: 'COSC-199', title: 'Practicum (240 hrs.)', course: 'BSCS' },
+  { code: 'COSC-200A', title: 'Undergraduate Thesis I', course: 'BSCS' },
+  { code: 'COSC-200B', title: 'Undergraduate Thesis II', course: 'BSCS' },
 
-  // Same subject code but different descriptions for different courses
-  { code: 'DCIT 55', title: 'Advanced Database Management System', course: 'BSCS' },
-  { code: 'ITEC 50', title: 'Web System and Technologies 1', course: 'BSIT' },
-  { code: 'ITEC 50', title: 'Web Systems and Technologies', course: 'BSCS' },
-  { code: 'COSC 50', title: 'Discrete Structure', course: 'BSIT' },
-  { code: 'COSC 50', title: 'Discrete Structure 1', course: 'BSCS' },
+  // ITEC Subjects
+  { code: 'ITEC-50', title: 'Web System and Technologies 1', course: 'BSIT' },
+  { code: 'ITEC-50', title: 'Web Systems and Technologies', course: 'BSCS' },
+  { code: 'ITEC-55', title: 'Platform Technologies', course: 'BSIT' },
+  { code: 'ITEC-60', title: 'Integrated Programming and Technologies 1', course: 'BSIT' },
+  { code: 'ITEC-65', title: 'Open Source Technology', course: 'BSIT' },
+  { code: 'ITEC-70', title: 'Multimedia Systems', course: 'BSIT' },
+  { code: 'ITEC-80', title: 'Introduction to Human Computer Interaction', course: 'BSIT' },
+  { code: 'ITEC-80', title: 'Human Computer Interaction', course: 'BSCS' },
+  { code: 'ITEC-85', title: 'Information Assurance and Security', course: 'BOTH' },
+  { code: 'ITEC-90', title: 'Network Fundamentals', course: 'BSIT' },
+  { code: 'ITEC-95', title: 'Quantitative Methods (Modeling & Simulation)', course: 'BSIT' },
+  { code: 'ITEC-100', title: 'Information Assurance and Security 2', course: 'BSIT' },
+  { code: 'ITEC-101', title: 'IT ELECTIVE 1 (Human Computer Interaction 2)', course: 'BSIT' },
+  { code: 'ITEC-105', title: 'Network Management', course: 'BSIT' },
+  { code: 'ITEC-106', title: 'IT ELECTIVE 2 (Web System and Technologies 2)', course: 'BSIT' },
+  { code: 'ITEC-110', title: 'Systems Administration and Maintenance', course: 'BSIT' },
+  { code: 'ITEC-111', title: 'IT ELECTIVE 3 (Integrated Programming and Technologies 2)', course: 'BSIT' },
+  { code: 'ITEC-116', title: 'IT ELECTIVE 4 (Systems Integration and Architecture 2)', course: 'BSIT' },
+  { code: 'ITEC-199', title: 'Practicum (minimum 486 hours)', course: 'BSIT' },
+  { code: 'ITEC-200A', title: 'Capstone Project and Research 1', course: 'BSIT' },
+  { code: 'ITEC-200B', title: 'Capstone Project and Research 2', course: 'BSIT' },
 ];
 
 // Helper function to get subject details by code and course
@@ -101,7 +101,32 @@ const getSubjectDetails = (subjectCode, course) => {
   );
 };
 
-// Get all available subject codes
+// Get all subjects for dropdown
+export const getAllSubjects = async (req, res) => {
+  try {
+    // Format subjects for dropdown
+    const formattedSubjects = subjectList.map(subject => ({
+      value: subject.code,
+      label: `${subject.code} - ${subject.title}`,
+      subject_code: subject.code,
+      subject_title: subject.title,
+      course: subject.course
+    }));
+
+    // Sort by subject code
+    formattedSubjects.sort((a, b) => a.subject_code.localeCompare(b.subject_code));
+
+    res.status(200).json({ 
+      success: true, 
+      data: formattedSubjects 
+    });
+  } catch (error) {
+    console.error("Error getting all subjects:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Get subject codes (for backward compatibility)
 export const getSubjectCodes = async (req, res) => {
   try {
     // Group subjects by code with their possible courses

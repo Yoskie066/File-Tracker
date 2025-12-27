@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, Filter, ArrowUpDown } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Edit, Trash2, ChevronDown, Search, X, Filter, ArrowUpDown } from "lucide-react";
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -30,6 +30,11 @@ export default function SystemVariableManagement() {
   // Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [variableToDelete, setVariableToDelete] = useState(null);
+
+  // Subject Code Search/Dropdown state
+  const [showSubjectCodeDropdown, setShowSubjectCodeDropdown] = useState(false);
+  const [subjectCodeSearch, setSubjectCodeSearch] = useState("");
+  const dropdownRef = useRef(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -75,10 +80,10 @@ export default function SystemVariableManagement() {
     }
   };
 
-  // Fetch available subject codes
-  const fetchSubjectCodes = async () => {
+  // Fetch all subjects for dropdown
+  const fetchAllSubjects = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables/subject-codes`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/system-variables/all-subjects`);
       if (res.ok) {
         const result = await res.json();
         if (result.success) {
@@ -86,55 +91,43 @@ export default function SystemVariableManagement() {
         }
       }
     } catch (error) {
-      console.error("Error fetching subject codes:", error);
+      console.error("Error fetching all subjects:", error);
     }
   };
 
-  // Fetch subject titles for selected code and course
-  const fetchSubjectTitles = async (subjectCode, course) => {
-    try {
-      if (!subjectCode || !course) {
-        setAvailableTitles([]);
-        return;
-      }
-      
-      const res = await fetch(
-        `${API_BASE_URL}/api/admin/system-variables/subject-titles?subject_code=${encodeURIComponent(subjectCode)}&course=${encodeURIComponent(course)}`
-      );
-      
-      if (res.ok) {
-        const result = await res.json();
-        if (result.success) {
-          setAvailableTitles(result.data);
-          
-          // Auto-select the first title if available
-          if (result.data.length === 1 && !isEditMode) {
-            setFormData(prev => ({
-              ...prev,
-              subject_title: result.data[0]
-            }));
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching subject titles:", error);
-      setAvailableTitles([]);
+  // Filter subjects by search term
+  const getFilteredSubjects = () => {
+    if (!subjectCodeSearch.trim()) {
+      return availableSubjects;
     }
+    
+    const searchTerm = subjectCodeSearch.toLowerCase();
+    return availableSubjects.filter(subject => 
+      subject.value.toLowerCase().includes(searchTerm) ||
+      subject.label.toLowerCase().includes(searchTerm) ||
+      subject.subject_title.toLowerCase().includes(searchTerm) ||
+      subject.course.toLowerCase().includes(searchTerm)
+    );
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowSubjectCodeDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     fetchVariables();
-    fetchSubjectCodes();
+    fetchAllSubjects();
   }, []);
-
-  // Fetch titles when subject code or course changes
-  useEffect(() => {
-    if (formData.subject_code && formData.course) {
-      fetchSubjectTitles(formData.subject_code, formData.course);
-    } else {
-      setAvailableTitles([]);
-    }
-  }, [formData.subject_code, formData.course]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -220,6 +213,30 @@ export default function SystemVariableManagement() {
     }));
   };
 
+  // Handle subject selection from dropdown
+  const handleSubjectSelect = (subject) => {
+    setFormData({
+      ...formData,
+      subject_code: subject.value,
+      subject_title: subject.subject_title,
+      course: subject.course
+    });
+    setSubjectCodeSearch(subject.label);
+    setShowSubjectCodeDropdown(false);
+  };
+
+  // Clear subject search and selection
+  const clearSubjectSearch = () => {
+    setSubjectCodeSearch("");
+    setFormData(prev => ({
+      ...prev,
+      subject_code: "",
+      subject_title: "",
+      course: ""
+    }));
+    setShowSubjectCodeDropdown(false);
+  };
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -227,19 +244,8 @@ export default function SystemVariableManagement() {
     if (name === 'academic_year') {
       handleAcademicYearInput(e);
     } else if (name === 'subject_code') {
-      // Reset subject title when subject code changes
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        subject_title: ""
-      }));
-    } else if (name === 'course') {
-      // Reset subject title when course changes
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        subject_title: ""
-      }));
+      // This is for the search input, not for the actual selection
+      setSubjectCodeSearch(value);
     } else {
       setFormData(prev => ({
         ...prev,
@@ -266,9 +272,11 @@ export default function SystemVariableManagement() {
       academic_year: "",
       created_by: "admin"
     });
+    setSubjectCodeSearch("");
     setAcademicYearError("");
     setAvailableTitles([]);
     setIsEditMode(false);
+    setShowSubjectCodeDropdown(false);
   };
 
   // Search and filter function
@@ -463,6 +471,7 @@ export default function SystemVariableManagement() {
         };
 
         setFormData(formDataObj);
+        setSubjectCodeSearch(`${variable.subject_code} - ${variable.subject_title}`);
         setIsEditMode(true);
         setShowModal(true);
       } else {
@@ -943,7 +952,7 @@ export default function SystemVariableManagement() {
             setShowModal(false);
             resetForm();
           }}
-          className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+          className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
           overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
         >
           <div className="p-6">
@@ -981,75 +990,101 @@ export default function SystemVariableManagement() {
                 </div>
               )}
 
-              {/* Subject Code */}
+              {/* Subject Code - COMBINED SEARCH AND DROPDOWN */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Code *
                 </label>
-                <select
-                  name="subject_code"
-                  value={formData.subject_code}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select subject code</option>
-                  {availableSubjects.map((subject, index) => (
-                    <option key={index} value={subject.code}>
-                      {subject.code} ({subject.courses.join(', ')})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={dropdownRef}>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      name="subject_code"
+                      value={subjectCodeSearch}
+                      onChange={handleInputChange}
+                      onFocus={() => setShowSubjectCodeDropdown(true)}
+                      placeholder="Search subject code or title..."
+                      required
+                      className="w-full border border-gray-300 rounded-md pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                    />
+                    {subjectCodeSearch && (
+                      <button
+                        type="button"
+                        onClick={clearSubjectSearch}
+                        className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowSubjectCodeDropdown(!showSubjectCodeDropdown)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Dropdown with search results */}
+                  {showSubjectCodeDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {getFilteredSubjects().length > 0 ? (
+                        getFilteredSubjects().map((subject, index) => (
+                          <div
+                            key={`${subject.value}-${subject.course}-${index}`}
+                            className={`px-3 py-2 cursor-pointer hover:bg-gray-50 ${
+                              formData.subject_code === subject.value && formData.course === subject.course ? 'bg-blue-50' : ''
+                            }`}
+                            onClick={() => handleSubjectSelect(subject)}
+                          >
+                            <div className="font-medium text-gray-900">{subject.value}</div>
+                            <div className="text-sm text-gray-600">{subject.subject_title}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Course: {subject.course}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-3 text-center text-gray-500">
+                          No subjects found matching "{subjectCodeSearch}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Course */}
+              {/* Course - Auto-populated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Course *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="course"
                   value={formData.course}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!formData.subject_code}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  <option value="">Select course</option>
-                  {courseOptions.map((course) => {
-                    const subject = availableSubjects.find(s => s.code === formData.subject_code);
-                    if (subject && subject.courses.includes(course)) {
-                      return (
-                        <option key={course} value={course}>
-                          {course}
-                        </option>
-                      );
-                    }
-                    return null;
-                  }).filter(Boolean)}
-                </select>
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Will auto-populate when you select a subject"
+                />
               </div>
 
-              {/* Subject Title */}
+              {/* Subject Title - Auto-populated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Title *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="subject_title"
                   value={formData.subject_title}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!formData.subject_code || !formData.course}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  <option value="">Select subject title</option>
-                  {availableTitles.map((title, index) => (
-                    <option key={index} value={title}>
-                      {title}
-                    </option>
-                  ))}
-                </select>
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  placeholder="Will auto-populate when you select a subject"
+                />
               </div>
 
               {/* Semester */}

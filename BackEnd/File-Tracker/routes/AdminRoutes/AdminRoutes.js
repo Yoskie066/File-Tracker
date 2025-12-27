@@ -11,6 +11,7 @@ import {
   createSystemVariable,
   getSystemVariables,
   getSystemVariableById,
+  getAllSubjects,
   updateSystemVariable,
   deleteSystemVariable,
   getVariableStats,
@@ -61,6 +62,7 @@ router.get("/analytics/available-years", getAvailableYears);
 router.post('/system-variables', createSystemVariable);
 router.get('/system-variables', getSystemVariables);
 router.get('/system-variables/stats', getVariableStats);
+router.get('/system-variables/all-subjects', getAllSubjects);
 router.get('/system-variables/subject-codes', getSubjectCodes);
 router.get('/system-variables/subject-titles', getSubjectTitles);
 router.get('/system-variables/faculty-load', getVariablesForFacultyLoad);
