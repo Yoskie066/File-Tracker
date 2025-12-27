@@ -20,6 +20,7 @@ export default function TaskDeliverablesManagement() {
 
   // Filtering and Sorting states
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [sortOption, setSortOption] = useState("most_recent");
@@ -173,6 +174,8 @@ export default function TaskDeliverablesManagement() {
     filtered.forEach(task => {
       if (key === 'subject_code' && task.subject_code) {
         values.add(task.subject_code);
+      } else if (key === 'course' && task.course) {
+        values.add(task.course);
       } else if (key === 'months') {
         if (task.updated_at || task.created_at) {
           const date = task.updated_at || task.created_at;
@@ -211,6 +214,7 @@ export default function TaskDeliverablesManagement() {
   // Reset all filters
   const resetFilters = () => {
     setSubjectCodeFilter("");
+    setCourseFilter("");
     setMonthFilter("");
     setYearFilter("");
     setSortOption("most_recent");
@@ -226,6 +230,7 @@ export default function TaskDeliverablesManagement() {
         const searchableFields = [
           td.task_deliverables_id, 
           td.subject_code, 
+          td.course,
           td.syllabus, 
           td.tos_midterm, 
           td.tos_final,
@@ -242,6 +247,10 @@ export default function TaskDeliverablesManagement() {
     // Apply advanced filters
     if (subjectCodeFilter) {
       filtered = filtered.filter(task => task.subject_code === subjectCodeFilter);
+    }
+
+    if (courseFilter) {
+      filtered = filtered.filter(task => task.course === courseFilter);
     }
 
     // Apply month filter
@@ -332,6 +341,7 @@ export default function TaskDeliverablesManagement() {
         return {
           'Task ID': task.task_deliverables_id,
           'Subject Code': task.subject_code,
+          'Course': task.course || 'N/A',
           'Syllabus': task.syllabus || 'N/A',
           'TOS Midterm': task.tos_midterm || 'N/A',
           'TOS Final': task.tos_final || 'N/A',
@@ -360,6 +370,7 @@ export default function TaskDeliverablesManagement() {
       const colWidths = [
         { wch: 20 }, // Task ID
         { wch: 15 }, // Subject Code
+        { wch: 15 }, // Course
         { wch: 15 }, // Syllabus
         { wch: 15 }, // TOS Midterm
         { wch: 15 }, // TOS Final
@@ -415,6 +426,7 @@ export default function TaskDeliverablesManagement() {
       if (yearFilter) filename += `-${yearFilter}`;
       if (monthFilter) filename += `-${monthFilter.replace(/\s+/g, '-')}`;
       if (subjectCodeFilter) filename += `-${subjectCodeFilter}`;
+      if (courseFilter) filename += `-${courseFilter}`;
       filename += '.xlsx';
       
       link.href = url;
@@ -516,11 +528,11 @@ export default function TaskDeliverablesManagement() {
             />
           </div>
 
-          {/* Filtering and Sorting Options - 3x3 Grid */}
+          {/* Filtering and Sorting Options - 4x3 Grid */}
           {showFilters && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 w-full mb-4">
-              {/* First Row - 3 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* First Row - 4 columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Subject Code
@@ -536,6 +548,25 @@ export default function TaskDeliverablesManagement() {
                     <option value="">All Subjects</option>
                     {getUniqueValues('subject_code').map(code => (
                       <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Course
+                  </label>
+                  <select
+                    value={courseFilter}
+                    onChange={(e) => {
+                      setCourseFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">All Courses</option>
+                    {getUniqueValues('course').map(course => (
+                      <option key={course} value={course}>{course}</option>
                     ))}
                   </select>
                 </div>
@@ -588,9 +619,9 @@ export default function TaskDeliverablesManagement() {
                 </div>
               </div>
 
-              {/* Second Row - 3 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="col-span-2">
+              {/* Second Row - Sort and Reset */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Sort by:
                   </label>
@@ -606,34 +637,16 @@ export default function TaskDeliverablesManagement() {
                     <option value="oldest">Oldest</option>
                   </select>
                 </div>
-              </div>
-
-              {/* Third Row - 3 columns */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                <div className="col-span-1">
-                  <span className="text-xs text-gray-500">
-                    {filteredTaskDeliverables.length} of {taskDeliverables.length} records
-                    {subjectCodeFilter || monthFilter || yearFilter || sortOption !== "most_recent" ? (
-                      <span className="ml-2 text-blue-600">
-                        ({[
-                          subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
-                          monthFilter && monthFilter,
-                          yearFilter && yearFilter
-                        ].filter(Boolean).join(", ")})
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
                 
                 <div className="col-span-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 h-full">
                     <ArrowUpDown className="w-4 h-4 text-gray-500" />
                     <span className="text-xs font-medium text-gray-700">Sorted by: {sortOption === "most_recent" ? "Most Recent" : "Oldest"}</span>
                   </div>
                 </div>
                 
                 <div className="col-span-1 text-right">
-                  {(subjectCodeFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
+                  {(subjectCodeFilter || courseFilter || monthFilter || yearFilter || sortOption !== "most_recent") && (
                     <button
                       onClick={resetFilters}
                       className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -642,6 +655,21 @@ export default function TaskDeliverablesManagement() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Filter Summary */}
+              <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
+                {filteredTaskDeliverables.length} of {taskDeliverables.length} records
+                {subjectCodeFilter || courseFilter || monthFilter || yearFilter ? (
+                  <span className="ml-2 text-blue-600">
+                    ({[
+                      subjectCodeFilter && `Subject: ${subjectCodeFilter}`,
+                      courseFilter && `Course: ${courseFilter}`,
+                      monthFilter && monthFilter,
+                      yearFilter && yearFilter
+                    ].filter(Boolean).join(", ")})
+                  </span>
+                ) : null}
               </div>
             </div>
           )}
@@ -657,6 +685,7 @@ export default function TaskDeliverablesManagement() {
                     {yearFilter && ` from ${yearFilter}`}
                     {monthFilter && `, ${monthFilter}`}
                     {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
+                    {courseFilter && ` • Course: ${courseFilter}`}
                   </span>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
@@ -723,6 +752,7 @@ export default function TaskDeliverablesManagement() {
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Task ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Syllabus</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Midterm</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Final</th>
@@ -742,6 +772,15 @@ export default function TaskDeliverablesManagement() {
                     <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{task.task_deliverables_id}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 font-mono">{task.subject_code}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          task.course === 'BSCS' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                          task.course === 'BSIT' ? 'bg-green-100 text-green-800 border border-green-200' :
+                          'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                        }`}>
+                          {task.course}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
                           {task.syllabus}
@@ -785,7 +824,7 @@ export default function TaskDeliverablesManagement() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
                     {loading 
                       ? "Loading task deliverables..." 
                       : historyView 
@@ -818,6 +857,16 @@ export default function TaskDeliverablesManagement() {
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                      <span className="text-gray-500">Course:</span>
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        task.course === 'BSCS' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                        task.course === 'BSIT' ? 'bg-green-100 text-green-800 border border-green-200' :
+                        'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                      }`}>
+                        {task.course}
+                      </span>
+                    </div>
                     <div>
                       <span className="text-gray-500">Syllabus:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
@@ -881,6 +930,7 @@ export default function TaskDeliverablesManagement() {
             {yearFilter && ` from ${yearFilter}`}
             {monthFilter && `, ${monthFilter}`}
             {subjectCodeFilter && ` • Subject: ${subjectCodeFilter}`}
+            {courseFilter && ` • Course: ${courseFilter}`}
           </div>
           
           <div className="flex items-center gap-3">

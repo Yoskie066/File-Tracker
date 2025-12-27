@@ -19,13 +19,13 @@ const taskDeliverablesSchema = new mongoose.Schema(
       type: String, 
       required: true 
     },
-    subject_title: {
-      type: String,
-      required: true
-    },
     course: { 
       type: String, 
       required: true 
+    },
+    subject_title: {
+      type: String,
+      required: true
     },
     semester: {
       type: String,
@@ -76,7 +76,7 @@ const taskDeliverablesSchema = new mongoose.Schema(
 );
 
 // Index for better query performance
-taskDeliverablesSchema.index({ faculty_id: 1, subject_code: 1, course: 1 });
+taskDeliverablesSchema.index({ faculty_id: 1, subject_code: 1, course: 1, semester: 1, school_year: 1 });
 taskDeliverablesSchema.index({ subject_code: 1, course: 1 });
 
 const TaskDeliverables = mongoose.model("TaskDeliverables", taskDeliverablesSchema);

@@ -83,8 +83,8 @@ const autoCreateTaskDeliverables = async (facultyLoaded, facultyName) => {
       faculty_id: facultyLoaded.faculty_id,
       faculty_name: facultyName || "Faculty",
       subject_code: facultyLoaded.subject_code,
-      subject_title: facultyLoaded.subject_title,
       course: facultyLoaded.course,
+      subject_title: facultyLoaded.subject_title,
       semester: facultyLoaded.semester,
       school_year: facultyLoaded.school_year,
       // All statuses default to "pending"
@@ -97,7 +97,7 @@ const autoCreateTaskDeliverables = async (facultyLoaded, facultyName) => {
     });
 
     await newTaskDeliverables.save();
-    console.log(`Task deliverables created for ${facultyLoaded.subject_code}`);
+    console.log(`Task deliverables created for ${facultyLoaded.subject_code} (${facultyLoaded.course})`);
     
     return newTaskDeliverables;
     
