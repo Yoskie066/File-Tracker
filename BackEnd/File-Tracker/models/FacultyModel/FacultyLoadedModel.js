@@ -15,7 +15,7 @@ const facultyLoadedSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-// Compound index for unique combination
+// **CORRECTED COMPOUND INDEX - This ensures duplicates only when ALL fields match**
 facultyLoadedSchema.index(
   { 
     faculty_id: 1, 
@@ -24,7 +24,10 @@ facultyLoadedSchema.index(
     semester: 1, 
     school_year: 1 
   }, 
-  { unique: true }
+  { 
+    unique: true,
+    name: "faculty_load_unique" 
+  }
 );
 
 const FacultyLoaded = mongoose.model("FacultyLoaded", facultyLoadedSchema);
