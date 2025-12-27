@@ -302,7 +302,7 @@ export default function FacultyLoadManagement() {
     setCurrentPage(1);
   };
 
-  // Handle form submission 
+  // Sa handleSubmit function, update error handling:
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -315,14 +315,14 @@ export default function FacultyLoadManagement() {
         setLoading(false);
         return;
       }
-
+  
       // Validate form
       if (!validateForm()) {
         setLoading(false);
         showFeedback("error", "Please fill in all required fields.");
         return;
       }
-
+  
       const url = isEditMode 
         ? `${API_BASE_URL}/api/faculty/faculty-loaded/${formData.faculty_loaded_id}`
         : `${API_BASE_URL}/api/faculty/faculty-loaded`;
@@ -362,7 +362,7 @@ export default function FacultyLoadManagement() {
         
         // Check for duplicate error
         if (response.status === 409) {
-          showFeedback("error", result.message || "This faculty load already exists. Please check the combination of Subject Code, Course, Semester, and Academic Year.");
+          showFeedback("error", result.message || `This faculty load already exists. Please check the combination of Subject Code, Course, Semester, and Academic Year.`);
           return;
         }
         

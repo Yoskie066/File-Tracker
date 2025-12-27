@@ -75,8 +75,16 @@ const taskDeliverablesSchema = new mongoose.Schema(
   }
 );
 
+// Compound index for unique combination of fields
+taskDeliverablesSchema.index({ 
+  faculty_id: 1, 
+  subject_code: 1, 
+  course: 1, 
+  semester: 1, 
+  school_year: 1 
+}, { unique: true });
+
 // Index for better query performance
-taskDeliverablesSchema.index({ faculty_id: 1, subject_code: 1, course: 1, semester: 1, school_year: 1 });
 taskDeliverablesSchema.index({ subject_code: 1, course: 1 });
 
 const TaskDeliverables = mongoose.model("TaskDeliverables", taskDeliverablesSchema);

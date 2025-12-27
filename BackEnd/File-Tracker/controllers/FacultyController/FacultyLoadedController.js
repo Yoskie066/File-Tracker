@@ -78,6 +78,20 @@ const autoCreateTaskDeliverables = async (facultyLoaded, facultyName) => {
   try {
     console.log("Auto-creating task deliverables for faculty load:", facultyLoaded.faculty_loaded_id);
     
+    // Check if task deliverables already exist for this combination
+    const existingTaskDeliverables = await TaskDeliverables.findOne({
+      faculty_id: facultyLoaded.faculty_id,
+      subject_code: facultyLoaded.subject_code,
+      course: facultyLoaded.course,
+      semester: facultyLoaded.semester,
+      school_year: facultyLoaded.school_year
+    });
+    
+    if (existingTaskDeliverables) {
+      console.log(`Task deliverables already exist for ${facultyLoaded.subject_code} (${facultyLoaded.course})`);
+      return existingTaskDeliverables;
+    }
+    
     const newTaskDeliverables = new TaskDeliverables({
       task_deliverables_id: generateTaskDeliverablesId(),
       faculty_id: facultyLoaded.faculty_id,
@@ -97,7 +111,7 @@ const autoCreateTaskDeliverables = async (facultyLoaded, facultyName) => {
     });
 
     await newTaskDeliverables.save();
-    console.log(`Task deliverables created for ${facultyLoaded.subject_code} (${facultyLoaded.course})`);
+    console.log(`Task deliverables created for ${facultyLoaded.subject_code} (${facultyLoaded.course}) - ${facultyLoaded.semester} ${facultyLoaded.school_year}`);
     
     return newTaskDeliverables;
     
@@ -162,7 +176,7 @@ export const createFacultyLoaded = async (req, res) => {
     if (existingFacultyLoaded) {
       return res.status(409).json({
         success: false,
-        message: "A faculty load with the same Subject Code, Course, Semester, and Academic Year already exists."
+        message: `A faculty load with the same combination already exists: Subject Code (${subject_code}), Course (${course}), Semester (${semester}), Academic Year (${school_year}).`
       });
     }
 
@@ -319,7 +333,7 @@ export const getFacultyLoadedById = async (req, res) => {
   }
 };
 
-// Update faculty load - UPDATED with CORRECT duplicate checking logic
+// Update faculty load - FIXED with CORRECT duplicate checking and task update logic
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
@@ -357,8 +371,19 @@ export const updateFacultyLoaded = async (req, res) => {
     }
 
     const subject_title = systemVariable.subject_title;
+    
+    // Save OLD values for task deliverables update
     const oldSubjectCode = existingFacultyLoaded.subject_code;
     const oldCourse = existingFacultyLoaded.course;
+    const oldSemester = existingFacultyLoaded.semester;
+    const oldSchoolYear = existingFacultyLoaded.school_year;
+
+    console.log("Old values for task deliverables update:", {
+      oldSubjectCode,
+      oldCourse,
+      oldSemester,
+      oldSchoolYear
+    });
 
     // IMPORTANT: Check for duplicate (excluding the current one)
     // Only consider it a duplicate if ALL FOUR fields match: subject_code, course, semester, school_year
@@ -374,7 +399,7 @@ export const updateFacultyLoaded = async (req, res) => {
     if (duplicateFacultyLoaded) {
       return res.status(409).json({
         success: false,
-        message: "A faculty load with the same Subject Code, Course, Semester, and Academic Year already exists."
+        message: `A faculty load with the same combination already exists: Subject Code (${subject_code}), Course (${course}), Semester (${semester}), Academic Year (${school_year}).`
       });
     }
 
@@ -395,13 +420,15 @@ export const updateFacultyLoaded = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    // AUTO UPDATE: Update task deliverables
+    // AUTO UPDATE: Update task deliverables - FIXED QUERY
     try {
       const updateResult = await TaskDeliverables.updateMany(
         { 
           faculty_id: req.faculty.facultyId,
           subject_code: oldSubjectCode,
-          course: oldCourse
+          course: oldCourse,
+          semester: oldSemester,
+          school_year: oldSchoolYear
         },
         { 
           subject_code: subject_code,
@@ -412,7 +439,10 @@ export const updateFacultyLoaded = async (req, res) => {
           updated_at: new Date() 
         }
       );
-      console.log(`Updated ${updateResult.modifiedCount} task deliverables for ${subject_code}`);
+      console.log(`Updated ${updateResult.modifiedCount} task deliverables from:`, {
+        old: { subject_code: oldSubjectCode, course: oldCourse, semester: oldSemester, school_year: oldSchoolYear },
+        new: { subject_code, course, semester, school_year }
+      });
     } catch (syncError) {
       console.error("Error in auto-sync during update:", syncError);
       // Don't fail the main request if sync fails
@@ -441,7 +471,7 @@ export const updateFacultyLoaded = async (req, res) => {
   }
 };
 
-// Delete faculty load
+// Delete faculty load - FIXED query
 export const deleteFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
@@ -467,19 +497,21 @@ export const deleteFacultyLoaded = async (req, res) => {
       });
     }
 
-    const { subject_code, course } = facultyLoaded;
+    const { subject_code, course, semester, school_year } = facultyLoaded;
 
-    // AUTO DELETE: Delete corresponding task deliverables
+    // AUTO DELETE: Delete corresponding task deliverables - FIXED QUERY
     const deletedTaskDeliverables = await TaskDeliverables.deleteMany({
       subject_code,
       course,
+      semester,
+      school_year,
       faculty_id: req.faculty.facultyId
     });
 
     if (deletedTaskDeliverables.deletedCount > 0) {
-      console.log(`Auto-deleted ${deletedTaskDeliverables.deletedCount} task deliverables for ${subject_code}`);
+      console.log(`Auto-deleted ${deletedTaskDeliverables.deletedCount} task deliverables for ${subject_code} (${course})`);
     } else {
-      console.log(`No task deliverables found to delete for ${subject_code}`);
+      console.log(`No task deliverables found to delete for ${subject_code} (${course})`);
     }
 
     // Delete faculty load
