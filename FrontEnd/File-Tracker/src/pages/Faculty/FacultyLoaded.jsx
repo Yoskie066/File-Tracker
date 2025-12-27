@@ -42,6 +42,7 @@ export default function FacultyLoadManagement() {
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const navigate = useNavigate();
 
   // Filtering and Sorting states
@@ -194,6 +195,14 @@ export default function FacultyLoadManagement() {
         [name]: value
       }));
     }
+    
+    // Clear form errors when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ""
+      }));
+    }
   };
 
   // Handle subject code selection from dropdown
@@ -208,6 +217,14 @@ export default function FacultyLoadManagement() {
     });
     setSubjectCodeSearch(subject.label);
     setShowSubjectCodeDropdown(false);
+    
+    // Clear subject code error
+    if (formErrors.subject_code) {
+      setFormErrors(prev => ({
+        ...prev,
+        subject_code: ""
+      }));
+    }
   };
 
   // Clear subject code search and selection
@@ -231,6 +248,34 @@ export default function FacultyLoadManagement() {
     setFeedbackModalOpen(true);
   };
 
+  // Validate form
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.subject_code) {
+      errors.subject_code = "Subject Code is required";
+    }
+    
+    if (!formData.course) {
+      errors.course = "Course is required";
+    }
+    
+    if (!formData.subject_title) {
+      errors.subject_title = "Subject Title is required";
+    }
+    
+    if (!formData.semester) {
+      errors.semester = "Semester is required";
+    }
+    
+    if (!formData.school_year) {
+      errors.school_year = "Academic Year is required";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Reset form
   const resetForm = () => {
     setFormData({
@@ -244,6 +289,7 @@ export default function FacultyLoadManagement() {
     setSubjectCodeSearch("");
     setShowSubjectCodeDropdown(false);
     setIsEditMode(false);
+    setFormErrors({});
   };
 
   // Reset all filters
@@ -260,6 +306,7 @@ export default function FacultyLoadManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setFormErrors({});
   
     try {
       const token = tokenService.getFacultyAccessToken();
@@ -269,10 +316,10 @@ export default function FacultyLoadManagement() {
         return;
       }
 
-      // Validate that subject code is selected
-      if (!formData.subject_code) {
-        showFeedback("error", "Please select a valid subject.");
+      // Validate form
+      if (!validateForm()) {
         setLoading(false);
+        showFeedback("error", "Please fill in all required fields.");
         return;
       }
 
@@ -312,6 +359,13 @@ export default function FacultyLoadManagement() {
           setTimeout(() => navigate('/faculty-login'), 2000);
           return;
         }
+        
+        // Check for duplicate error
+        if (response.status === 409) {
+          showFeedback("error", result.message || "This faculty load already exists. Please check the combination of Subject Code, Course, Semester, and Academic Year.");
+          return;
+        }
+        
         throw new Error(result.message || `HTTP error! status: ${response.status}`);
       }
   
@@ -1002,7 +1056,7 @@ export default function FacultyLoadManagement() {
                       onFocus={() => setShowSubjectCodeDropdown(true)}
                       placeholder="Search subject code or title..."
                       required
-                      className="w-full border border-gray-300 rounded-md pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                      className={`w-full border ${formErrors.subject_code ? 'border-red-500' : 'border-gray-300'} rounded-md pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white`}
                     />
                     {subjectCodeSearch && (
                       <button
@@ -1048,6 +1102,9 @@ export default function FacultyLoadManagement() {
                       )}
                     </div>
                   )}
+                  {formErrors.subject_code && (
+                    <p className="mt-1 text-xs text-red-600">{formErrors.subject_code}</p>
+                  )}
                 </div>
               </div>
 
@@ -1061,9 +1118,12 @@ export default function FacultyLoadManagement() {
                   name="course"
                   value={formData.course}
                   readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  className={`w-full border ${formErrors.course ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
                   placeholder="Will auto-populate when you select a subject"
                 />
+                {formErrors.course && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.course}</p>
+                )}
               </div>
 
               {/* Subject Title - Auto-populated */}
@@ -1076,9 +1136,12 @@ export default function FacultyLoadManagement() {
                   name="subject_title"
                   value={formData.subject_title}
                   readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  className={`w-full border ${formErrors.subject_title ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
                   placeholder="Will auto-populate when you select a subject"
                 />
+                {formErrors.subject_title && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.subject_title}</p>
+                )}
               </div>
 
               {/* Semester - Auto-populated */}
@@ -1091,9 +1154,12 @@ export default function FacultyLoadManagement() {
                   name="semester"
                   value={formData.semester}
                   readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  className={`w-full border ${formErrors.semester ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
                   placeholder="Will auto-populate when you select a subject"
                 />
+                {formErrors.semester && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.semester}</p>
+                )}
               </div>
 
               {/* School Year - Auto-populated */}
@@ -1106,9 +1172,12 @@ export default function FacultyLoadManagement() {
                   name="school_year"
                   value={formData.school_year}
                   readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  className={`w-full border ${formErrors.school_year ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
                   placeholder="Will auto-populate when you select a subject"
                 />
+                {formErrors.school_year && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.school_year}</p>
+                )}
               </div>
 
               {/* Auto-sync notice */}
@@ -1117,6 +1186,8 @@ export default function FacultyLoadManagement() {
                   <strong>Auto-population:</strong> All fields except Subject Code are automatically populated from System Variables.
                   <br />
                   <strong>Auto-sync enabled:</strong> Task deliverables will be automatically created when you add a faculty load.
+                  <br />
+                  <strong>Duplicate Check:</strong> Faculty load is considered duplicate only if ALL FOUR fields match exactly: Subject Code, Course, Semester, and Academic Year.
                 </p>
               </div>
 

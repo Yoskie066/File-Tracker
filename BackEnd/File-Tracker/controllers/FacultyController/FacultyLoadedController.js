@@ -107,7 +107,7 @@ const autoCreateTaskDeliverables = async (facultyLoaded, facultyName) => {
   }
 };
 
-// Create faculty load - UPDATED for auto-fill
+// Create faculty load - UPDATED with CORRECT duplicate checking logic
 export const createFacultyLoaded = async (req, res) => {
   try {
     console.log("Received request body:", req.body);
@@ -149,22 +149,28 @@ export const createFacultyLoaded = async (req, res) => {
 
     const subject_title = systemVariable.subject_title;
 
-    // Check for duplicate faculty load (same subject, course, semester, school year for this faculty)
+    // IMPORTANT: Check for duplicate faculty load (same subject_code, course, semester, school year for this faculty)
+    // All four fields must match exactly for it to be considered a duplicate
     const existingFacultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
-      subject_code,
-      course,
-      semester,
-      school_year
+      subject_code: subject_code,
+      course: course,
+      semester: semester,
+      school_year: school_year
     });
 
     if (existingFacultyLoaded) {
       return res.status(409).json({
         success: false,
-        message: "A faculty load with the same Subject Code, Course, Semester, and School Year already exists."
+        message: "A faculty load with the same Subject Code, Course, Semester, and Academic Year already exists."
       });
     }
 
+    // IMPORTANT: Check for duplicate with different subject_title but same other fields
+    // This allows same subject_code with different course, semester, or school_year
+    // Example: ITEC-50 for BSIT in 1st Semester 2025-2026 is DIFFERENT from ITEC-50 for BSCS in 1st Semester 2025-2026
+    // Example: ITEC-50 for BSIT in 1st Semester 2025-2026 is DIFFERENT from ITEC-50 for BSIT in 2nd Semester 2025-2026
+    
     const faculty_loaded_id = generateFacultyLoadedId();
 
     console.log("Creating faculty load with ID:", faculty_loaded_id, "for faculty:", req.faculty.facultyId);
@@ -313,7 +319,7 @@ export const getFacultyLoadedById = async (req, res) => {
   }
 };
 
-// Update faculty load 
+// Update faculty load - UPDATED with CORRECT duplicate checking logic
 export const updateFacultyLoaded = async (req, res) => {
   try {
     const { id } = req.params;
@@ -354,20 +360,21 @@ export const updateFacultyLoaded = async (req, res) => {
     const oldSubjectCode = existingFacultyLoaded.subject_code;
     const oldCourse = existingFacultyLoaded.course;
 
-    // Check for duplicate (excluding the current one)
+    // IMPORTANT: Check for duplicate (excluding the current one)
+    // Only consider it a duplicate if ALL FOUR fields match: subject_code, course, semester, school_year
     const duplicateFacultyLoaded = await FacultyLoaded.findOne({
       faculty_id: req.faculty.facultyId,
-      subject_code,
-      course,
-      semester,
-      school_year,
+      subject_code: subject_code,
+      course: course,
+      semester: semester,
+      school_year: school_year,
       faculty_loaded_id: { $ne: id } // Exclude current record
     });
 
     if (duplicateFacultyLoaded) {
       return res.status(409).json({
         success: false,
-        message: "A faculty load with the same Subject Code, Course, Semester, and School Year already exists."
+        message: "A faculty load with the same Subject Code, Course, Semester, and Academic Year already exists."
       });
     }
 
