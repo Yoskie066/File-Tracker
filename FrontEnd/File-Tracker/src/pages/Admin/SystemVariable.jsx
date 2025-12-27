@@ -706,7 +706,7 @@ export default function SystemVariableManagement() {
             <div className="text-2xl font-bold text-blue-800">{variableStats.total}</div>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Unique Combinations</div>
+            <div className="text-purple-600 text-sm font-medium">Distinct Subjects</div>
             <div className="text-2xl font-bold text-purple-800">{variableStats.unique_combinations}</div>
             <div className="text-xs text-purple-500 mt-1">(Subject Code + Course)</div>
           </div>

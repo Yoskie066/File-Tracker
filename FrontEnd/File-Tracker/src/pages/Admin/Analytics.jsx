@@ -342,7 +342,7 @@ export default function Analytics() {
     const systemVars = analyticsData?.system_variables || {};
     
     const labels = [
-      'Unique Combinations',
+      'Distinct Subjects',
       'BSCS', 
       'BSIT',
       'BOTH'
@@ -356,7 +356,7 @@ export default function Analytics() {
     ];
 
     const backgroundColors = [
-      '#4F46E5', // Indigo - Unique Combinations
+      '#4F46E5', // Indigo - Distinct Subjects
       '#10B981', // Emerald - BSCS
       '#F59E0B', // Amber - BSIT
       '#EF4444'  // Red - BOTH
@@ -895,7 +895,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* System Variables Card - UPDATED */}
+              {/* System Variables Card  */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="space-y-3">
@@ -904,7 +904,7 @@ export default function Analytics() {
                     <span className="font-semibold">{analyticsData?.system_variables?.total_variables || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Unique Combinations:</span>
+                    <span className="text-gray-600">Distinct Subjects:</span>
                     <span className="font-semibold text-purple-600">{analyticsData?.system_variables?.unique_combinations || 0}</span>
                   </div>
                   <div className="flex justify-between">
