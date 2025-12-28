@@ -42,7 +42,17 @@ export default function FileUpload() {
       console.log("Fetched faculty loads for file upload:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setFacultyLoads(result.data);
+        // Remove duplicates to show only unique subject combinations
+        const uniqueLoads = result.data.reduce((acc, current) => {
+          const x = acc.find(item => item.displayText === current.displayText);
+          if (!x) {
+            return acc.concat([current]);
+          } else {
+            return acc;
+          }
+        }, []);
+        
+        setFacultyLoads(uniqueLoads);
       } else {
         console.error("Unexpected API response format:", result);
         setFacultyLoads([]);
@@ -346,12 +356,11 @@ export default function FileUpload() {
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
-            <li>• Required fields: Document Type, Subject (with Course/Semester/Year), and at least one File</li>
+            <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Course, Semester and Academic Year are automatically synced from your Faculty Load</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
-            <li>• All your faculty loads will appear in the dropdown, even with same subject code but different course/semester/year</li>
           </ul>
         </div>
 
@@ -384,10 +393,10 @@ export default function FileUpload() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Faculty Load Selection - UPDATED to show all unique combinations */}
+              {/* Faculty Load Selection - UPDATED to show only subject code and title */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Subject with Course/Semester/Year *
+                  Select Subject *
                 </label>
                 <select
                   value={formData.faculty_loaded_id}
@@ -395,67 +404,69 @@ export default function FileUpload() {
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select subject with course, semester, and year</option>
+                  <option value="">Select subject</option>
                   {facultyLoads.map((facultyLoad) => (
                     <option 
                       key={facultyLoad.uniqueKey || facultyLoad.faculty_loaded_id} 
                       value={facultyLoad.faculty_loaded_id}
                     >
-                      {facultyLoad.displayText || 
-                        `${facultyLoad.subject_code} - ${facultyLoad.subject_title} (Course: ${facultyLoad.course}, ${facultyLoad.semester}, ${facultyLoad.school_year})`
-                      }
+                      {`${facultyLoad.subject_code} - ${facultyLoad.subject_title}`}
                     </option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  All your faculty loads are shown, including same subject code with different course/semester/year
+                  Select a subject to see the associated course, semester, and academic year details
                 </p>
               </div>
 
-              {/* Display selected faculty load details */}
+              {/* Display selected faculty load details - GRAY CONTAINER */}
               {selectedFacultyLoad && (
-                <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-md">
-                  <h4 className="text-sm font-semibold text-green-800">Selected Course Details:</h4>
+                <div className="space-y-4 p-4 bg-gray-50 border border-gray-300 rounded-md">
+                  <h4 className="text-sm font-semibold text-gray-700">Selected Course Details:</h4>
                   
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Subject Code & Title */}
                     <div>
-                      <label className="block text-xs font-medium text-green-700 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
                         Subject Code & Title
                       </label>
-                      <div className="p-2 bg-white border border-green-300 rounded">
+                      <div className="p-2 bg-gray-100 border border-gray-400 rounded">
                         <div className="text-sm font-medium text-gray-800">
                           {selectedFacultyLoad.subject_code} - {selectedFacultyLoad.subject_title}
                         </div>
                       </div>
                     </div>
                     
+                    {/* Course */}
                     <div>
-                      <label className="block text-xs font-medium text-green-700 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
                         Course
                       </label>
-                      <div className="p-2 bg-white border border-green-300 rounded">
+                      <div className="p-2 bg-gray-100 border border-gray-400 rounded">
                         <div className="text-sm font-medium text-gray-800">
                           {selectedFacultyLoad.course}
                         </div>
                       </div>
                     </div>
 
+                    {/* Semester */}
                     <div>
-                      <label className="block text-xs font-medium text-green-700 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
                         Semester
                       </label>
-                      <div className="p-2 bg-white border border-green-300 rounded">
+                      <div className="p-2 bg-gray-100 border border-gray-400 rounded">
                         <div className="text-sm font-medium text-gray-800">
                           {selectedFacultyLoad.semester}
                         </div>
                       </div>
                     </div>
 
+                    {/* Academic Year */}
                     <div>
-                      <label className="block text-xs font-medium text-green-700 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
                         Academic Year
                       </label>
-                      <div className="p-2 bg-white border border-green-300 rounded">
+                      <div className="p-2 bg-gray-100 border border-gray-400 rounded">
                         <div className="text-sm font-medium text-gray-800">
                           {selectedFacultyLoad.school_year}
                         </div>
@@ -463,7 +474,8 @@ export default function FileUpload() {
                     </div>
                   </div>
                   
-                  <div className="text-xs text-green-600">
+                  {/* Note */}
+                  <div className="text-xs text-gray-500 pt-2 border-t border-gray-300">
                     <strong>Note:</strong> Course, semester, and academic year will be auto-synced for file records
                   </div>
                 </div>
