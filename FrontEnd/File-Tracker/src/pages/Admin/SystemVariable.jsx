@@ -331,12 +331,11 @@ export default function SystemVariableManagement() {
 
   const filteredVariables = getFilteredVariables();
 
-  // Calculate stats for cards
+  // Calculate stats for cards 
   const calculateStats = (variablesList) => {
     if (!Array.isArray(variablesList) || variablesList.length === 0) {
       return { 
         total: 0, 
-        unique_combinations: 0,
         bscs: 0, 
         bsit: 0, 
         both: 0 
@@ -347,13 +346,7 @@ export default function SystemVariableManagement() {
     let bsitCount = 0;
     let bothCount = 0;
     
-    // Calculate unique subject_code + course combinations
-    const uniqueCombinations = new Set();
-  
     variablesList.forEach(variable => {
-      const combination = `${variable.subject_code}-${variable.course}`;
-      uniqueCombinations.add(combination);
-      
       if (variable.course === 'BSCS') {
         bscsCount++;
       } else if (variable.course === 'BSIT') {
@@ -365,7 +358,6 @@ export default function SystemVariableManagement() {
   
     return {
       total: variablesList.length,
-      unique_combinations: uniqueCombinations.size,
       bscs: bscsCount,
       bsit: bsitCount,
       both: bothCount
@@ -699,16 +691,11 @@ export default function SystemVariableManagement() {
           )}
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        {/* Statistics Cards - UPDATED: Removed Distinct Subjects card */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Variables</div>
             <div className="text-2xl font-bold text-blue-800">{variableStats.total}</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Distinct Subjects</div>
-            <div className="text-2xl font-bold text-purple-800">{variableStats.unique_combinations}</div>
-            <div className="text-xs text-purple-500 mt-1">(Subject Code + Course)</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
             <div className="text-green-600 text-sm font-medium">BSCS</div>

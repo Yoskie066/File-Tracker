@@ -67,7 +67,6 @@ const analyticsSchema = new mongoose.Schema(
     // System Variables Stats - UPDATED STRUCTURE
     system_variables: {
       total_variables: Number,
-      unique_combinations: Number,
       bscs_count: Number,
       bsit_count: Number,
       both_count: Number,

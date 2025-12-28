@@ -486,21 +486,6 @@ export const deleteSystemVariable = async (req, res) => {
 export const getVariableStats = async (req, res) => {
   try {
     const totalVariables = await SystemVariable.countDocuments();
-    
-    // Count unique subject_code + course combinations
-    const uniqueSubjectCourseCombinations = await SystemVariable.aggregate([
-      {
-        $group: {
-          _id: {
-            subject_code: "$subject_code",
-            course: "$course"
-          }
-        }
-      },
-      {
-        $count: "unique_combinations"
-      }
-    ]);
 
     // Count by course
     const courseCounts = await SystemVariable.aggregate([
@@ -511,7 +496,6 @@ export const getVariableStats = async (req, res) => {
       success: true,
       data: {
         total: totalVariables,
-        unique_combinations: uniqueSubjectCourseCombinations[0]?.unique_combinations || 0,
         by_course: courseCounts
       }
     });

@@ -342,14 +342,12 @@ export default function Analytics() {
     const systemVars = analyticsData?.system_variables || {};
     
     const labels = [
-      'Distinct Subjects',
       'BSCS', 
       'BSIT',
       'BOTH'
     ];
 
     const data = [
-      systemVars.unique_combinations || 0,
       systemVars.bscs_count || 0,
       systemVars.bsit_count || 0,
       systemVars.both_count || 0
@@ -902,10 +900,6 @@ export default function Analytics() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Variables:</span>
                     <span className="font-semibold">{analyticsData?.system_variables?.total_variables || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Distinct Subjects:</span>
-                    <span className="font-semibold text-purple-600">{analyticsData?.system_variables?.unique_combinations || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">BSCS:</span>

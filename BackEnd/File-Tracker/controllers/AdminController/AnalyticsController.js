@@ -175,22 +175,6 @@ export const getAnalyticsData = async (req, res) => {
     // Get system variables statistics with date filter - UPDATED
     const totalVariables = await SystemVariable.countDocuments(systemVariableFilter);
 
-    // Calculate unique combinations (subject_code + course)
-    const uniqueCombinations = await SystemVariable.aggregate([
-      { $match: systemVariableFilter },
-      {
-        $group: {
-          _id: {
-            subject_code: "$subject_code",
-            course: "$course",
-          },
-        },
-      },
-      {
-        $count: "unique_combinations",
-      },
-    ]);
-
     // Count by course
     const courseCounts = await SystemVariable.aggregate([
       { $match: systemVariableFilter },
@@ -259,7 +243,6 @@ export const getAnalyticsData = async (req, res) => {
       // UPDATED: System Variables with new structure
       system_variables: {
         total_variables: totalVariables,
-        unique_combinations: uniqueCombinations[0]?.unique_combinations || 0,
         bscs_count: bscsCount,
         bsit_count: bsitCount,
         both_count: bothCount,
