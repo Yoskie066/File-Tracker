@@ -287,9 +287,15 @@ export const getFacultyLoadeds = async (req, res) => {
     
     console.log(`Found ${facultyLoadeds.length} faculty loads for faculty: ${req.faculty.facultyId}`);
     
+    // Format the response to include all necessary fields for unique identification
+    const formattedLoads = facultyLoadeds.map(load => ({
+      ...load.toObject(),
+      uniqueIdentifier: `${load.subject_code}-${load.course}-${load.semester}-${load.school_year}`
+    }));
+    
     res.status(200).json({ 
       success: true, 
-      data: facultyLoadeds,
+      data: formattedLoads,
       faculty: {
         facultyId: req.faculty.facultyId,
         facultyName: req.faculty.facultyName
@@ -536,6 +542,53 @@ export const deleteFacultyLoaded = async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleting faculty load:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// Get faculty loads for file upload dropdown - SPECIFIC for file upload with unique identification
+export const getFacultyLoadsForFileUpload = async (req, res) => {
+  try {
+    // Check if faculty is authenticated
+    if (!req.faculty || !req.faculty.facultyId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please login again."
+      });
+    }
+
+    // Get all faculty loads for the logged-in faculty
+    const facultyLoadeds = await FacultyLoaded.find({ 
+      faculty_id: req.faculty.facultyId 
+    }).sort({ 
+      subject_code: 1,
+      course: 1,
+      semester: 1,
+      school_year: 1 
+    });
+    
+    console.log(`Found ${facultyLoadeds.length} faculty loads for file upload dropdown for faculty: ${req.faculty.facultyId}`);
+    
+    // Format the response for file upload dropdown
+    // Each combination of subject_code, course, semester, and school_year is unique
+    const formattedLoads = facultyLoadeds.map(load => ({
+      faculty_loaded_id: load.faculty_loaded_id,
+      subject_code: load.subject_code,
+      subject_title: load.subject_title,
+      course: load.course,
+      semester: load.semester,
+      school_year: load.school_year,
+      displayText: `${load.subject_code} - ${load.subject_title} (Course: ${load.course}, ${load.semester}, ${load.school_year})`,
+      uniqueKey: `${load.subject_code}-${load.course}-${load.semester}-${load.school_year}` // For React key
+    }));
+    
+    res.status(200).json({ 
+      success: true, 
+      data: formattedLoads,
+      count: formattedLoads.length
+    });
+  } catch (error) {
+    console.error("Error fetching faculty loads for file upload:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

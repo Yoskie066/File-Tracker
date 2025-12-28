@@ -26,6 +26,7 @@ router.post("/logout", verifyToken, logoutFaculty);
 
 // Faculty Loaded Routes
 router.get("/faculty-loaded/subjects", verifyToken, getSubjectsForFacultyLoad);
+router.get("/faculty-loaded/file-upload", verifyToken, getFacultyLoadsForFileUpload);
 router.post("/faculty-loaded", verifyToken, createFacultyLoaded);
 router.get("/faculty-loaded", verifyToken, getFacultyLoadeds);
 router.get("/faculty-loaded/:id", verifyToken, getFacultyLoadedById);

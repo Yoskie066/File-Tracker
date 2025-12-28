@@ -133,14 +133,14 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    const { file_name, document_type, subject_code, tos_type } = req.body;
-    console.log("📝 Form data:", { file_name, document_type, subject_code, tos_type });
+    const { file_name, document_type, faculty_loaded_id, tos_type } = req.body;
+    console.log("📝 Form data:", { file_name, document_type, faculty_loaded_id, tos_type });
 
     // Basic validation
-    if (!document_type || !subject_code) {
+    if (!document_type || !faculty_loaded_id) {
       return res.status(400).json({
         success: false,
-        message: "Document type and subject code are required",
+        message: "Document type and faculty load selection are required",
       });
     }
 
@@ -152,21 +152,22 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    // Get faculty loaded data 
+    // Get faculty loaded data using faculty_loaded_id
     const facultyLoaded = await FacultyLoaded.findOne({
-      faculty_id: req.faculty.facultyId,
-      subject_code: subject_code
+      faculty_loaded_id: faculty_loaded_id,
+      faculty_id: req.faculty.facultyId
     });
 
     if (!facultyLoaded) {
       return res.status(400).json({
         success: false,
-        message: "Subject not found in your faculty loads. Please check the subject code.",
+        message: "Selected faculty load not found or you don't have permission to access it.",
       });
     }
 
+    const subject_code = facultyLoaded.subject_code;
     const subject_title = facultyLoaded.subject_title;
-    const course = facultyLoaded.course; // Get course from faculty load
+    const course = facultyLoaded.course;
     const semester = facultyLoaded.semester;
     const school_year = facultyLoaded.school_year;
 
@@ -177,11 +178,13 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    console.log("💾 Auto-synced data:", { 
+    console.log("💾 Auto-synced data from faculty load:", { 
+      faculty_loaded_id,
+      subject_code,
+      subject_title,
       course,
       semester, 
-      school_year, 
-      subject_title 
+      school_year 
     });
 
     console.log("💾 Saving files locally...");
@@ -209,7 +212,7 @@ export const uploadFile = async (req, res) => {
         document_type: finalDocumentType,
         tos_type: document_type === 'tos' ? tos_type : null,
         subject_code,
-        course: course, // Store course instead of sections
+        course: course,
         subject_title,
         semester,
         school_year,
@@ -264,10 +267,13 @@ export const uploadFile = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `${req.files.length} file(s) uploaded successfully for course: ${course}. Status: Pending admin approval.`,
+      message: `${req.files.length} file(s) uploaded successfully for: ${subject_code} - ${course} (${semester}, ${school_year}). Status: Pending admin approval.`,
       data: {
         files_uploaded: req.files.length,
+        subject: `${subject_code} - ${subject_title}`,
         course: course,
+        semester: semester,
+        school_year: school_year,
         total_records: allSavedFiles.length,
         file_details: allSavedFiles.map(file => ({
           file_id: file.file_id,

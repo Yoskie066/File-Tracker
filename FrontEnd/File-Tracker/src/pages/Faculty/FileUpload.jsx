@@ -12,7 +12,7 @@ export default function FileUpload() {
   const [feedbackType, setFeedbackType] = useState("success");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [facultyLoadeds, setFacultyLoadeds] = useState([]);
+  const [facultyLoads, setFacultyLoads] = useState([]);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [fileToPreview, setFileToPreview] = useState(null);
   const [selectedFacultyLoad, setSelectedFacultyLoad] = useState(null);
@@ -21,14 +21,13 @@ export default function FileUpload() {
     file_name: "",
     document_type: "syllabus",
     tos_type: "",
-    subject_code: "",
-    subject_title: ""
+    faculty_loaded_id: "",
   });
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Fetch faculty loadeds for dropdown
-  const fetchFacultyLoadeds = async () => {
+  // Fetch faculty loads for dropdown - UPDATED to use new endpoint
+  const fetchFacultyLoads = async () => {
     try {
       if (!tokenService.isFacultyAuthenticated()) {
         console.error("No token found");
@@ -36,27 +35,27 @@ export default function FileUpload() {
         return;
       }
   
-      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded`);
+      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded/file-upload`);
       
       if (!response.ok) throw new Error("Server responded with " + response.status);
       const result = await response.json();
-      console.log("Fetched faculty loadeds:", result);
+      console.log("Fetched faculty loads for file upload:", result);
       
       if (result.success && Array.isArray(result.data)) {
-        setFacultyLoadeds(result.data);
+        setFacultyLoads(result.data);
       } else {
         console.error("Unexpected API response format:", result);
-        setFacultyLoadeds([]);
+        setFacultyLoads([]);
       }
     } catch (err) {
-      console.error("Error fetching faculty loadeds:", err);
+      console.error("Error fetching faculty loads:", err);
       if (err.message === 'Token refresh failed') {
         showFeedback("error", "Session expired. Please log in again.");
         tokenService.clearFacultyTokens();
       } else {
         showFeedback("error", "Failed to load your subjects");
       }
-      setFacultyLoadeds([]); 
+      setFacultyLoads([]);
     }
   };
 
@@ -93,53 +92,30 @@ export default function FileUpload() {
     }
   };
 
-  // Handle subject code selection
-  const handleSubjectCodeChange = (e) => {
-    const selectedSubjectCode = e.target.value;
+  // Handle faculty load selection - UPDATED to use faculty_loaded_id
+  const handleFacultyLoadChange = (e) => {
+    const selectedFacultyLoadId = e.target.value;
     
-    if (selectedSubjectCode) {
-      // Find the faculty loaded entry for this subject
-      const facultyLoaded = facultyLoadeds.find(fl => fl.subject_code === selectedSubjectCode);
+    if (selectedFacultyLoadId) {
+      // Find the faculty load entry
+      const facultyLoad = facultyLoads.find(fl => fl.faculty_loaded_id === selectedFacultyLoadId);
       
-      if (facultyLoaded) {
+      if (facultyLoad) {
         setFormData(prev => ({
           ...prev,
-          subject_code: selectedSubjectCode,
-          subject_title: facultyLoaded.subject_title || ''
+          faculty_loaded_id: selectedFacultyLoadId
         }));
         
-        // Store the entire faculty load for displaying course, semester and academic year
-        setSelectedFacultyLoad(facultyLoaded);
+        // Store the entire faculty load for displaying all details
+        setSelectedFacultyLoad(facultyLoad);
       }
     } else {
       setFormData(prev => ({
         ...prev,
-        subject_code: "",
-        subject_title: ""
+        faculty_loaded_id: ""
       }));
       setSelectedFacultyLoad(null);
     }
-  };
-
-  // Get unique subject codes from faculty loadeds
-  const getUniqueSubjectCodes = () => {
-    const uniqueSubjects = [];
-    const seenCodes = new Set();
-    
-    facultyLoadeds.forEach(fl => {
-      if (!seenCodes.has(fl.subject_code)) {
-        seenCodes.add(fl.subject_code);
-        uniqueSubjects.push({
-          code: fl.subject_code,
-          title: fl.subject_title,
-          course: fl.course,
-          semester: fl.semester,
-          school_year: fl.school_year
-        });
-      }
-    });
-    
-    return uniqueSubjects;
   };
 
   // Handle file selection - MULTIPLE FILES
@@ -214,8 +190,7 @@ export default function FileUpload() {
       file_name: "",
       document_type: "syllabus",
       tos_type: "",
-      subject_code: "",
-      subject_title: ""
+      faculty_loaded_id: "",
     });
     setSelectedFiles([]);
     setSelectedFacultyLoad(null);
@@ -233,11 +208,11 @@ export default function FileUpload() {
       showFeedback("error", "Please log in to upload files");
       return;
     }
-    fetchFacultyLoadeds();
+    fetchFacultyLoads();
     setShowModal(true);
   };
 
-  // Handle form submission
+  // Handle form submission - UPDATED to send faculty_loaded_id
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -246,7 +221,7 @@ export default function FileUpload() {
       return;
     }
 
-    if (!formData.subject_code) {
+    if (!formData.faculty_loaded_id) {
       showFeedback("error", "Please select a subject");
       return;
     }
@@ -272,7 +247,7 @@ export default function FileUpload() {
       const formDataToSend = new FormData();
       formDataToSend.append('file_name', formData.file_name);
       formDataToSend.append('document_type', formData.document_type);
-      formDataToSend.append('subject_code', formData.subject_code);
+      formDataToSend.append('faculty_loaded_id', formData.faculty_loaded_id);
 
       if (formData.document_type === 'tos' && formData.tos_type) {
         formDataToSend.append('tos_type', formData.tos_type);
@@ -284,9 +259,10 @@ export default function FileUpload() {
       });
 
       console.log("Sending form data:");
+      console.log("- Faculty Load ID:", formData.faculty_loaded_id);
       console.log("- Files:", selectedFiles.length);
       console.log("- File Name:", formData.file_name);
-      console.log("- Subject:", formData.subject_code);
+      console.log("- Subject:", selectedFacultyLoad?.subject_code);
       console.log("- Course (auto-sync):", selectedFacultyLoad?.course);
       console.log("- Semester (auto-sync):", selectedFacultyLoad?.semester);
       console.log("- Academic Year (auto-sync):", selectedFacultyLoad?.school_year);
@@ -311,7 +287,9 @@ export default function FileUpload() {
       if (result.success) {
         resetForm();
         setShowModal(false);
-        showFeedback("success", `${result.data.files_uploaded} file(s) uploaded successfully for course: ${selectedFacultyLoad.course}!`);
+        showFeedback("success", 
+          `${result.data.files_uploaded} file(s) uploaded successfully for: ${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})!`
+        );
       } else {
         showFeedback("error", result.message || "Error uploading files");
       }
@@ -368,11 +346,12 @@ export default function FileUpload() {
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
             <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
-            <li>• Required fields: Document Type, Subject, and at least one File</li>
+            <li>• Required fields: Document Type, Subject (with Course/Semester/Year), and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Course, Semester and Academic Year are automatically synced from your Faculty Load</li>
             <li>• Files will be automatically associated with your account</li>
             <li>• Files will be reviewed and status updated accordingly</li>
+            <li>• All your faculty loads will appear in the dropdown, even with same subject code but different course/semester/year</li>
           </ul>
         </div>
 
@@ -405,78 +384,87 @@ export default function FileUpload() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Subject Code Selection */}
+              {/* Faculty Load Selection - UPDATED to show all unique combinations */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Subject *
+                  Select Subject with Course/Semester/Year *
                 </label>
                 <select
-                  value={formData.subject_code}
-                  onChange={handleSubjectCodeChange}
+                  value={formData.faculty_loaded_id}
+                  onChange={handleFacultyLoadChange}
                   required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
                 >
-                  <option value="">Select subject</option>
-                  {getUniqueSubjectCodes().map((subject) => (
-                    <option key={subject.code} value={subject.code}>
-                      {subject.code} {subject.title && `- ${subject.title}`}
+                  <option value="">Select subject with course, semester, and year</option>
+                  {facultyLoads.map((facultyLoad) => (
+                    <option 
+                      key={facultyLoad.uniqueKey || facultyLoad.faculty_loaded_id} 
+                      value={facultyLoad.faculty_loaded_id}
+                    >
+                      {facultyLoad.displayText || 
+                        `${facultyLoad.subject_code} - ${facultyLoad.subject_title} (Course: ${facultyLoad.course}, ${facultyLoad.semester}, ${facultyLoad.school_year})`
+                      }
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  All your faculty loads are shown, including same subject code with different course/semester/year
+                </p>
               </div>
 
-              {/* Auto-synced Course, Semester, and Academic Year Display (READ-ONLY) */}
-              {formData.subject_code && selectedFacultyLoad && (
-                <div className="space-y-3">
-                  {/* Course Display */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Course (Auto-Sync from Faculty Load)
-                    </label>
-                    <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
-                      <div className="text-sm font-medium text-gray-800">
-                        {selectedFacultyLoad.course}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Semester and Academic Year Display */}
+              {/* Display selected faculty load details */}
+              {selectedFacultyLoad && (
+                <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-md">
+                  <h4 className="text-sm font-semibold text-green-800">Selected Course Details:</h4>
+                  
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Semester (Auto-Sync)
+                      <label className="block text-xs font-medium text-green-700 mb-1">
+                        Subject Code & Title
                       </label>
-                      <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
+                      <div className="p-2 bg-white border border-green-300 rounded">
+                        <div className="text-sm font-medium text-gray-800">
+                          {selectedFacultyLoad.subject_code} - {selectedFacultyLoad.subject_title}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-green-700 mb-1">
+                        Course
+                      </label>
+                      <div className="p-2 bg-white border border-green-300 rounded">
+                        <div className="text-sm font-medium text-gray-800">
+                          {selectedFacultyLoad.course}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-green-700 mb-1">
+                        Semester
+                      </label>
+                      <div className="p-2 bg-white border border-green-300 rounded">
                         <div className="text-sm font-medium text-gray-800">
                           {selectedFacultyLoad.semester}
                         </div>
                       </div>
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Academic Year (Auto-Sync)
+                      <label className="block text-xs font-medium text-green-700 mb-1">
+                        Academic Year
                       </label>
-                      <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
+                      <div className="p-2 bg-white border border-green-300 rounded">
                         <div className="text-sm font-medium text-gray-800">
                           {selectedFacultyLoad.school_year}
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Display selected subject info */}
-              {formData.subject_code && selectedFacultyLoad && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                  <div className="text-sm font-medium text-green-800">Selected Course:</div>
-                  <div className="text-sm text-green-700">
-                    {formData.subject_code} 
-                    {formData.subject_title && ` - ${formData.subject_title}`}
-                    {selectedFacultyLoad.course && ` (Course: ${selectedFacultyLoad.course})`}
-                  </div>
-                  <div className="text-xs text-green-600 mt-1">
-                    Auto-synced: {selectedFacultyLoad.semester}, {selectedFacultyLoad.school_year}
+                  
+                  <div className="text-xs text-green-600">
+                    <strong>Note:</strong> Course, semester, and academic year will be auto-synced for file records
                   </div>
                 </div>
               )}
@@ -627,7 +615,9 @@ export default function FileUpload() {
                     
                     <div className="mt-3 text-xs text-gray-500">
                       <p>• First file name is used as the File Name for all files</p>
-                      <p>• Files will be uploaded for course: {selectedFacultyLoad?.course || 'Not selected'}</p>
+                      <p>• Files will be uploaded for: {selectedFacultyLoad ? 
+                        `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})` : 
+                        'Not selected'}</p>
                       <p>• Total records created: {selectedFiles.length} files</p>
                     </div>
                   </div>
@@ -635,10 +625,10 @@ export default function FileUpload() {
               </div>
 
               {/* Auto-sync notice */}
-              {formData.subject_code && selectedFacultyLoad && (
+              {selectedFacultyLoad && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-sm text-blue-700">
-                    <strong>Auto-sync enabled:</strong> Course, semester, and academic year are automatically synced from your faculty load for {formData.subject_code}.
+                    <strong>Auto-sync enabled:</strong> Course ({selectedFacultyLoad.course}), semester ({selectedFacultyLoad.semester}), and academic year ({selectedFacultyLoad.school_year}) will be automatically synced for file records.
                   </p>
                 </div>
               )}
@@ -657,12 +647,14 @@ export default function FileUpload() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || selectedFiles.length === 0 || !formData.subject_code || !selectedFacultyLoad?.course || (formData.document_type === 'tos' && !formData.tos_type)}
+                  disabled={loading || selectedFiles.length === 0 || !formData.faculty_loaded_id || !selectedFacultyLoad?.course || (formData.document_type === 'tos' && !formData.tos_type)}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading 
                     ? "Uploading..." 
-                    : `Upload ${selectedFiles.length} File(s) for Course: ${selectedFacultyLoad?.course || 'Not selected'}`}
+                    : `Upload ${selectedFiles.length} File(s) for ${selectedFacultyLoad ? 
+                        `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course}` : 
+                        'Selected Course'}`}
                 </button>
               </div>
             </form>
