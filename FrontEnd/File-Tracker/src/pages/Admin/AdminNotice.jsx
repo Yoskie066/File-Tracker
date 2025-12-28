@@ -56,7 +56,10 @@ export default function AdminNoticeManagement() {
   });
 
   const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Calendar states - UPDATED
   const [showCalendar, setShowCalendar] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -228,13 +231,23 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Handle date change via calendar
-  const handleDateChange = (dateString) => {
+  // Handle date change via calendar - UPDATED
+  const handleDateChange = (date) => {
     setFormData(prev => ({
       ...prev,
-      due_date: dateString
+      due_date: date.toISOString().split('T')[0]
     }));
     setShowCalendar(false);
+  };
+
+  // Format date helper
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   // Show feedback modal
@@ -257,6 +270,7 @@ export default function AdminNoticeManagement() {
     });
     setIsEditMode(false);
     setShowCalendar(false);
+    setCurrentMonth(new Date());
   };
 
   // Search and filter function
@@ -462,88 +476,116 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Generate calendar days
-  const generateCalendar = () => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    
-    const days = [];
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(i);
-    }
-    
-    return (
-      <div className="absolute z-50 mt-1 p-4 bg-white border border-gray-300 rounded-lg shadow-lg w-64">
-        <div className="flex justify-between items-center mb-2">
-          <button 
-            onClick={() => {}}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            ←
-          </button>
-          <span className="font-semibold">
-            {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
-          </span>
-          <button 
-            onClick={() => {}}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            →
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-500">
-              {day}
-            </div>
-          ))}
-          {Array(firstDay.getDay()).fill(null).map((_, i) => (
-            <div key={`empty-${i}`} className="h-8"></div>
-          ))}
-          {days.map(day => {
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isToday = day === today.getDate() && currentMonth === today.getMonth();
-            const isSelected = formData.due_date === dateStr;
-            
-            return (
-              <button
-                key={day}
-                onClick={() => handleDateChange(dateStr)}
-                className={`h-8 w-8 flex items-center justify-center text-sm rounded-full ${
-                  isSelected 
-                    ? 'bg-black text-white' 
-                    : isToday 
-                    ? 'bg-yellow-100 text-yellow-800' 
-                    : 'hover:bg-gray-100'
-                }`}
-              >
+  // Custom Calendar Component - IMPROVED VERSION FROM ANALYTICS
+  const CustomCalendar = ({ 
+    selectedDate, 
+    onDateChange, 
+    showCalendar, 
+    setShowCalendar, 
+    currentMonth, 
+    setCurrentMonth 
+  }) => {
+    const handleDateClick = (date) => {
+      onDateChange(date);
+      setShowCalendar(false);
+    };
+
+    const handlePrevMonth = () => {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    };
+
+    const generateCalendar = () => {
+      const today = new Date();
+      const currentYear = currentMonth.getFullYear();
+      const currentMonthIndex = currentMonth.getMonth();
+      
+      const firstDay = new Date(currentYear, currentMonthIndex, 1);
+      const lastDay = new Date(currentYear, currentMonthIndex + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      
+      const days = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        days.push(i);
+      }
+      
+      return (
+        <div className="absolute z-50 mt-1 p-4 bg-white border border-gray-300 rounded-lg shadow-lg w-64">
+          <div className="flex justify-between items-center mb-2">
+            <button 
+              onClick={handlePrevMonth}
+              className="p-1 hover:bg-gray-100 rounded"
+              type="button"
+            >
+              ←
+            </button>
+            <span className="font-semibold">
+              {new Date(currentYear, currentMonthIndex).toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </span>
+            <button 
+              onClick={handleNextMonth}
+              className="p-1 hover:bg-gray-100 rounded"
+              type="button"
+            >
+              →
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="text-center text-xs font-medium text-gray-500">
                 {day}
-              </button>
-            );
-          })}
+              </div>
+            ))}
+            {Array(firstDay.getDay()).fill(null).map((_, i) => (
+              <div key={`empty-${i}`} className="h-8"></div>
+            ))}
+            {days.map(day => {
+              const dateStr = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const date = new Date(dateStr);
+              const isToday = day === today.getDate() && currentMonthIndex === today.getMonth();
+              const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+              
+              return (
+                <button
+                  key={day}
+                  onClick={() => handleDateClick(date)}
+                  className={`h-8 w-8 flex items-center justify-center text-sm rounded-full ${
+                    isSelected 
+                      ? 'bg-black text-white' 
+                      : isToday 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'hover:bg-gray-100'
+                  }`}
+                  type="button"
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 pt-2 border-t">
+            <input
+              type="date"
+              value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
+              onChange={(e) => handleDateClick(new Date(e.target.value))}
+              className="w-full p-2 border rounded text-sm"
+            />
+          </div>
         </div>
-        <div className="mt-2 pt-2 border-t">
-          <input
-            type="date"
-            value={formData.due_date}
-            onChange={(e) => handleDateChange(e.target.value)}
-            className="w-full p-2 border rounded text-sm"
-          />
-        </div>
-      </div>
-    );
+      );
+    };
+
+    return showCalendar ? generateCalendar() : null;
   };
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - UPDATED STRUCTURE */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Admin Notice</h1>
@@ -578,7 +620,7 @@ export default function AdminNoticeManagement() {
           </div>
         </div>
 
-        {/* Show Filters Button - MOVED BELOW HEADER LIKE FACULTY LOAD */}
+        {/* Show Filters Button */}
         <div className="mb-6">
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -586,7 +628,6 @@ export default function AdminNoticeManagement() {
           >
             <Filter className="w-4 h-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
-            
           </button>
 
           {/* Filtering and Sorting Options */}
@@ -737,7 +778,7 @@ export default function AdminNoticeManagement() {
           )}
         </div>
 
-        {/* Statistics Cards - UPDATED */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
             <div className="text-gray-600 text-xs font-medium">Total Files</div>
@@ -951,7 +992,6 @@ export default function AdminNoticeManagement() {
                   </div>
                 )}
 
-                {/* Notes in mobile view */}
                 <div className="mt-2">
                   <span className="text-gray-500 text-sm">Notes:</span>
                   <p className="text-sm text-gray-600 mt-1">
@@ -1039,7 +1079,6 @@ export default function AdminNoticeManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Notice ID (readonly in edit mode) */}
               {isEditMode && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1055,7 +1094,6 @@ export default function AdminNoticeManagement() {
                 </div>
               )}
 
-              {/* Faculty Name - DROPDOWN with existing faculty */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Faculty Name *
@@ -1091,7 +1129,6 @@ export default function AdminNoticeManagement() {
                 )}
               </div>
 
-              {/* Document Type - Combo Box */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Document Type *
@@ -1112,7 +1149,6 @@ export default function AdminNoticeManagement() {
                 </select>
               </div>
 
-              {/* TOS Type (only shown when document_type is TOS) */}
               {formData.document_type === "TOS" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1135,20 +1171,17 @@ export default function AdminNoticeManagement() {
                 </div>
               )}
 
-              {/* Due Date with Calendar Picker */}
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Due Date *
                 </label>
                 <div className="flex gap-2">
                   <input
-                    type="date"
-                    name="due_date"
-                    value={formData.due_date}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    required
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                    type="text"
+                    value={formData.due_date ? formatDate(new Date(formData.due_date)) : ''}
                     readOnly
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                    placeholder="Select due date"
                   />
                   <button
                     type="button"
@@ -1158,14 +1191,16 @@ export default function AdminNoticeManagement() {
                     <Calendar className="w-4 h-4" />
                   </button>
                 </div>
-                {showCalendar && (
-                  <div className="relative">
-                    {generateCalendar()}
-                  </div>
-                )}
+                <CustomCalendar
+                  selectedDate={formData.due_date ? new Date(formData.due_date) : null}
+                  onDateChange={handleDateChange}
+                  showCalendar={showCalendar}
+                  setShowCalendar={setShowCalendar}
+                  currentMonth={currentMonth}
+                  setCurrentMonth={setCurrentMonth}
+                />
               </div>
 
-              {/* Notes Textarea */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Instructions/Notes (Optional)
@@ -1183,7 +1218,6 @@ export default function AdminNoticeManagement() {
                 </p>
               </div>
 
-              {/* Form Actions */}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"

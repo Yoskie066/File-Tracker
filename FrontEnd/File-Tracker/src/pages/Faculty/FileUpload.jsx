@@ -85,7 +85,7 @@ export default function FileUpload() {
         [name]: value,
         tos_type: ""
       }));
-    } else {
+    } else if (name !== 'file_name') { // Exclude file_name from manual changes
       setFormData(prev => ({
         ...prev,
         [name]: value
@@ -148,11 +148,12 @@ export default function FileUpload() {
     if (files.length > 0) {
       setSelectedFiles(prev => [...prev, ...files]);
       
-      // Auto-fill file name with first file's name if empty
-      if (!formData.file_name && files[0]) {
+      // Auto-fill file name with first file's name (without extension)
+      if (files[0]) {
+        const fileNameWithoutExtension = files[0].name.replace(/\.[^/.]+$/, "");
         setFormData(prev => ({
           ...prev,
-          file_name: files[0].name.replace(/\.[^/.]+$/, "")
+          file_name: fileNameWithoutExtension
         }));
       }
     }
@@ -160,12 +161,34 @@ export default function FileUpload() {
 
   // Remove a single file
   const removeFile = (index) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+    
+    // Update file name based on new first file
+    if (newFiles.length > 0) {
+      const fileNameWithoutExtension = newFiles[0].name.replace(/\.[^/.]+$/, "");
+      setFormData(prev => ({
+        ...prev,
+        file_name: fileNameWithoutExtension
+      }));
+    } else {
+      // Clear file name if no files left
+      setFormData(prev => ({
+        ...prev,
+        file_name: ""
+      }));
+    }
   };
 
   // Clear all files
   const clearAllFiles = () => {
     setSelectedFiles([]);
+    // Clear file name
+    setFormData(prev => ({
+      ...prev,
+      file_name: ""
+    }));
     const fileInput = document.getElementById('file-upload');
     if (fileInput) {
       fileInput.value = '';
@@ -262,6 +285,7 @@ export default function FileUpload() {
 
       console.log("Sending form data:");
       console.log("- Files:", selectedFiles.length);
+      console.log("- File Name:", formData.file_name);
       console.log("- Subject:", formData.subject_code);
       console.log("- Course (auto-sync):", selectedFacultyLoad?.course);
       console.log("- Semester (auto-sync):", selectedFacultyLoad?.semester);
@@ -457,19 +481,22 @@ export default function FileUpload() {
                 </div>
               )}
 
-              {/* File Name */}
+              {/* File Name - READ ONLY */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  File Name * 
+                  File Name *
                 </label>
                 <input
                   type="text"
                   name="file_name"
                   value={formData.file_name}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                  placeholder="Enter file name"
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+                  placeholder="File name will appear here when you select a file"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  File name is automatically set from the first selected file and cannot be edited
+                </p>
               </div>
 
               {/* Document Type */}
@@ -576,6 +603,11 @@ export default function FileUpload() {
                                 >
                                   {file.name}
                                 </span>
+                                {index === 0 && (
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                    Primary
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
                                 Size: {formatFileSize(file.size)} | Type: {file.type}
@@ -594,6 +626,7 @@ export default function FileUpload() {
                     </div>
                     
                     <div className="mt-3 text-xs text-gray-500">
+                      <p>• First file name is used as the File Name for all files</p>
                       <p>• Files will be uploaded for course: {selectedFacultyLoad?.course || 'Not selected'}</p>
                       <p>• Total records created: {selectedFiles.length} files</p>
                     </div>
