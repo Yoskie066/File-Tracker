@@ -8,7 +8,8 @@ import {
   getFacultyLoadedById, 
   updateFacultyLoaded, 
   deleteFacultyLoaded,
-  getSubjectsForFacultyLoad 
+  getSubjectsForFacultyLoad,
+  getFacultyLoadsForFileUpload
 } from "../../controllers/FacultyController/FacultyLoadedController.js";
 import { uploadFile, upload, getFacultyFiles } from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
@@ -23,7 +24,6 @@ router.post("/refresh-token", refreshTokenFaculty);
 router.put("/forgot-password", forgotPasswordFaculty);
 router.post("/logout", verifyToken, logoutFaculty);
 
-
 // Faculty Loaded Routes
 router.get("/faculty-loaded/subjects", verifyToken, getSubjectsForFacultyLoad);
 router.get("/faculty-loaded/file-upload", verifyToken, getFacultyLoadsForFileUpload);
@@ -33,11 +33,9 @@ router.get("/faculty-loaded/:id", verifyToken, getFacultyLoadedById);
 router.put("/faculty-loaded/:id", verifyToken, updateFacultyLoaded);
 router.delete("/faculty-loaded/:id", verifyToken, deleteFacultyLoaded);
 
-
 // File upload routes
 router.post("/file-upload", verifyToken, upload.array('files', 10), uploadFile);
 router.get("/file-upload/my-files", verifyToken, getFacultyFiles);
-
 
 // File History Routes 
 router.get("/file-history", verifyToken, getFacultyFileHistory);
@@ -56,6 +54,5 @@ router.put("/notifications/:recipient_id/read-all", markAllAsRead);
 
 router.get("/faculty-notifications/:facultyId", getFacultyNotifications);
 router.get("/faculty-notifications/:facultyId/unread-count", getFacultyUnreadCount);
-
 
 export default router;
