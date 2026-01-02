@@ -33,10 +33,8 @@ export default function useAdminNotification() {
 
     fetchNotifications();
     
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 30000);
+    // Refresh every 15 seconds
+    const interval = setInterval(fetchNotifications, 15000);
     
     return () => clearInterval(interval);
   }, []); 

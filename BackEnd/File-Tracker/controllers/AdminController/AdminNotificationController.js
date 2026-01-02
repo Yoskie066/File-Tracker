@@ -50,10 +50,25 @@ export const getAdminNotifications = async (req, res) => {
     
     console.log(`Found ${notifications.length} notifications`);
     
+    // Format the response to match the frontend expectation
+    const formattedNotifications = notifications.map(notification => ({
+      _id: notification._id, // Keep the MongoDB _id
+      notification_id: notification.notification_id,
+      faculty_id: notification.faculty_id,
+      faculty_name: notification.faculty_name,
+      file_id: notification.file_id,
+      file_name: notification.file_name,
+      document_type: notification.document_type,
+      subject_code: notification.subject_code,
+      semester: notification.semester,
+      school_year: notification.school_year,
+      created_at: notification.created_at
+    }));
+    
     res.status(200).json({ 
       success: true, 
-      data: notifications,
-      count: notifications.length
+      data: formattedNotifications,
+      count: formattedNotifications.length
     });
   } catch (error) {
     console.error("Error fetching admin notifications:", error);
