@@ -38,6 +38,10 @@ const adminNotificationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  is_read: {
+    type: Boolean,
+    default: false,
+  },
   created_at: {
     type: Date,
     default: Date.now,

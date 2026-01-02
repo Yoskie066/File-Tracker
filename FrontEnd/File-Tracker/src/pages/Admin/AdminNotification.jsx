@@ -1,16 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useAdminNotification from "../../hooks/useAdminNotification";
 import { useNavigate } from "react-router-dom";
-import Modal from "react-modal";
-
-Modal.setAppElement("#root");
 
 export default function AdminNotification() {
   const storedAdmin = JSON.parse(localStorage.getItem("admin"));
   const currentUser = storedAdmin;
   const navigate = useNavigate();
   
-  const { notifications, loading } = useAdminNotification();
+  const { notifications, markAsRead, loading, unreadCount } = useAdminNotification();
   const [selectedNote, setSelectedNote] = useState(null);
 
   const getDocumentTypeText = (documentType) => {
@@ -41,9 +38,14 @@ export default function AdminNotification() {
         ) : (
           notifications.map((note) => (
             <div
-              key={note._id || note.notification_id}
-              onClick={() => navigate(`/admin/file-management?search=${note.file_id}`)}
-              className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors`}
+              key={note._id}
+              onClick={() => {
+                markAsRead(note._id);
+                navigate(`/admin/file-management?search=${note.file_id}`);
+              }}
+              className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                !note.is_read ? "bg-yellow-50 border-l-4 border-yellow-400" : ""
+              }`}
             >
               <h2 className="font-semibold text-lg text-gray-800">
                 {note.faculty_name} uploaded a {getDocumentTypeText(note.document_type)} file
@@ -55,6 +57,9 @@ export default function AdminNotification() {
                 <p className="text-sm text-gray-500">
                   {new Date(note.created_at).toLocaleString()}
                 </p>
+                {!note.is_read && (
+                  <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                )}
               </div>
             </div>
           ))

@@ -62,7 +62,8 @@ export const getAdminNotifications = async (req, res) => {
       subject_code: notification.subject_code,
       semester: notification.semester,
       school_year: notification.school_year,
-      created_at: notification.created_at
+      created_at: notification.created_at,
+      is_read: notification.is_read || false
     }));
     
     res.status(200).json({ 
@@ -77,5 +78,37 @@ export const getAdminNotifications = async (req, res) => {
       message: "Server error", 
       error: error.message 
     });
+  }
+};
+
+// Get unread count for admin
+export const getAdminUnreadCount = async (req, res) => {
+  try {
+    const count = await AdminNotification.countDocuments({ is_read: false });
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    console.error("Error fetching unread count:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+// Mark as read
+export const markAdminNotificationAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await AdminNotification.findOneAndUpdate(
+      { _id: id }, 
+      { is_read: true },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Notification not found" });
+    res.status(200).json({ success: true, message: "Marked as read", data: updated });
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

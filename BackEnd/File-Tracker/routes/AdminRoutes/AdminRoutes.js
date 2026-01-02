@@ -20,7 +20,9 @@ import {
   getSubjectTitles
 } from "../../controllers/AdminController/SystemVariableController.js";
 import {
-  getAdminNotifications
+  getAdminNotifications,
+  getAdminUnreadCount,
+  markAdminNotificationAsRead
 } from "../../controllers/AdminController/AdminNotificationController.js";
 
 const router = express.Router();
@@ -75,5 +77,7 @@ router.delete('/system-variables/:id', deleteSystemVariable);
 
 // Admin Notification Routes 
 router.get("/admin-notifications", getAdminNotifications);
+router.get("/admin-notifications/unread-count", getAdminUnreadCount);
+router.put("/admin-notifications/:id/read", markAdminNotificationAsRead);
 
 export default router;
