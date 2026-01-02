@@ -458,11 +458,11 @@ export default function TaskDeliverablesManagement() {
         <div className="flex flex-col justify-between items-start mb-6 gap-3">
           <div className="w-full">
             <h1 className="text-2xl font-bold text-gray-800">
-              {historyView ? 'History of Records' : 'Task Deliverables'}
+              {historyView ? 'Reports' : 'Task Deliverables'}
             </h1>
             <p className="text-sm text-gray-500">
               {historyView 
-                ? 'Viewing historical task deliverables data'
+                ? 'Generate reports for task deliverables data'
                 : 'Monitor the status of your submitted deliverables.'
               }
             </p>
