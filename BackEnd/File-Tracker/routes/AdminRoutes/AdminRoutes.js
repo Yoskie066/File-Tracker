@@ -19,7 +19,9 @@ import {
   getSubjectCodes,
   getSubjectTitles
 } from "../../controllers/AdminController/SystemVariableController.js";
-import { getAdminNotifications } from "../../controllers/AdminController/AdminNotificationController.js";
+import {
+  getAdminNotifications
+} from "../../controllers/AdminController/AdminNotificationController.js";
 
 const router = express.Router();
 
@@ -71,7 +73,7 @@ router.get('/system-variables/:id', getSystemVariableById);
 router.put('/system-variables/:id', updateSystemVariable);
 router.delete('/system-variables/:id', deleteSystemVariable);
 
-// Admin Notification Routes
-router.get("/admin-notifications/:adminId", getAdminNotifications);
+// Admin Notification Routes 
+router.get("/admin-notifications", getAdminNotifications);
 
 export default router;
