@@ -6,23 +6,11 @@ const adminNotificationSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  admin_id: {
-    type: String,
-    required: true,
-  },
   faculty_id: {
     type: String,
     required: true,
   },
   faculty_name: {
-    type: String,
-    required: true,
-  },
-  title: {
-    type: String,
-    required: true,
-  },
-  message: {
     type: String,
     required: true,
   },
@@ -38,19 +26,7 @@ const adminNotificationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  tos_type: {
-    type: String,
-    default: "",
-  },
   subject_code: {
-    type: String,
-    required: true,
-  },
-  subject_title: {
-    type: String,
-    required: true,
-  },
-  course: {
     type: String,
     required: true,
   },
@@ -61,15 +37,6 @@ const adminNotificationSchema = new mongoose.Schema({
   school_year: {
     type: String,
     required: true,
-  },
-  status: {
-    type: String,
-    default: "pending",
-    enum: ["pending", "reviewed", "archived"]
-  },
-  is_read: {
-    type: Boolean,
-    default: false,
   },
   created_at: {
     type: Date,

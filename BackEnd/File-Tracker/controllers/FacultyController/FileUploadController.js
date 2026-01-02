@@ -236,10 +236,7 @@ export const uploadFile = async (req, res) => {
           faculty_name: savedFile.faculty_name,
           file_name: savedFile.file_name,
           document_type: savedFile.document_type,
-          tos_type: savedFile.tos_type,
           subject_code: savedFile.subject_code,
-          subject_title: savedFile.subject_title,
-          course: savedFile.course,
           semester: savedFile.semester,
           school_year: savedFile.school_year
         });
