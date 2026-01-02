@@ -19,6 +19,15 @@ import {
   getSubjectCodes,
   getSubjectTitles
 } from "../../controllers/AdminController/SystemVariableController.js";
+import {
+  getAdminNotifications,
+  getAdminUnreadCount,
+  markAdminNotificationAsRead,
+  markAllAdminNotificationsAsRead,
+  updateAdminNotificationStatus,
+  deleteAdminNotification,
+  bulkDeleteAdminNotifications
+} from "../../controllers/AdminController/AdminNotificationController.js";
 
 const router = express.Router();
 
@@ -69,5 +78,14 @@ router.get('/system-variables/faculty-load', getVariablesForFacultyLoad);
 router.get('/system-variables/:id', getSystemVariableById); 
 router.put('/system-variables/:id', updateSystemVariable);
 router.delete('/system-variables/:id', deleteSystemVariable);
+
+// Admin Notification Routes
+router.get("/admin-notifications/:adminId", getAdminNotifications);
+router.get("/admin-notifications/:adminId/unread-count", getAdminUnreadCount);
+router.put("/admin-notifications/:id/read", markAdminNotificationAsRead);
+router.put("/admin-notifications/:adminId/read-all", markAllAdminNotificationsAsRead);
+router.put("/admin-notifications/:id/status", updateAdminNotificationStatus);
+router.delete("/admin-notifications/:id", deleteAdminNotification);
+router.delete("/admin-notifications/bulk-delete", bulkDeleteAdminNotifications);
 
 export default router;

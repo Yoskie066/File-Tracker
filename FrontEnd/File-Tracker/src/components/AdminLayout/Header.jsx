@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Menu,
@@ -9,37 +9,62 @@ import {
   Archive,
   BarChart3,
   LogOut,
-  Settings
+  Settings,
+  Bell
 } from "lucide-react";
 import tokenService from "../../services/tokenService";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [adminUnreadCount, setAdminUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   const handleLogout = async () => {
-  try {
-    const token = tokenService.getAdminAccessToken();
-    
-    if (token) {
-      await fetch(`${API_BASE_URL}/api/admin/admin-logout`, {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    try {
+      const token = tokenService.getAdminAccessToken();
+      
+      if (token) {
+        await fetch(`${API_BASE_URL}/api/admin/admin-logout`, {
+          method: "POST",
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Logout API call failed:", error);
+    } finally {
+      // Always clear local storage and redirect
+      tokenService.clearAdminTokens();
+      navigate("/auth/admin-login");
     }
-  } catch (error) {
-    console.error("Logout API call failed:", error);
-  } finally {
-    // Always clear local storage and redirect
-    tokenService.clearAdminTokens();
-    navigate("/auth/admin-login");
-  }
-};
+  };
+
+  // Fetch admin unread notification count
+  useEffect(() => {
+    const fetchAdminUnreadCount = async () => {
+      try {
+        const storedAdmin = JSON.parse(localStorage.getItem("admin"));
+        const adminId = storedAdmin?.adminId || "all";
+        
+        const response = await fetch(`${API_BASE_URL}/api/admin/admin-notifications/${adminId}/unread-count`);
+        if (response.ok) {
+          const data = await response.json();
+          setAdminUnreadCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching admin unread count:", error);
+      }
+    };
+
+    fetchAdminUnreadCount();
+    // Refresh every 15 seconds
+    const interval = setInterval(fetchAdminUnreadCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Get admin info from localStorage
   const storedAdmin = JSON.parse(localStorage.getItem("admin"));
@@ -113,6 +138,18 @@ export default function Header() {
         >
           <Settings className="w-4 h-4" />
           System Variables
+        </Link>
+        <Link
+          to="/admin/admin-notification"
+          className="flex items-center gap-1 hover:text-yellow-400 transition duration-200 relative"
+        >
+          <Bell className="w-4 h-4" /> 
+          <span>Notification</span>
+          {adminUnreadCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-yellow-400 text-black font-bold text-xs px-2 py-0.5 rounded-full min-w-[20px] text-center">
+              {adminUnreadCount}
+            </span>
+          )}
         </Link>
         <button
           onClick={handleLogout}
@@ -211,7 +248,21 @@ export default function Header() {
             <Settings className="w-5 h-5" />
             System Variables
           </Link>
-          
+          <Link
+            to="/admin/admin-notification"
+            onClick={() => setIsOpen(false)}
+            className={`py-3 px-4 rounded flex items-center gap-3 hover:bg-yellow-400 ${isActive(
+              "/admin/admin-notification"
+            )}`}
+          >
+            <Bell className="w-5 h-5" /> 
+            <span>Notification</span>
+            {adminUnreadCount > 0 && (
+              <span className="ml-auto bg-yellow-400 text-black font-bold text-xs px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                {adminUnreadCount}
+              </span>
+            )}
+          </Link>
           <button
             onClick={() => {
               setIsOpen(false);

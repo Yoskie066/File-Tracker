@@ -6,6 +6,7 @@ import { createFileHistory } from "../../controllers/FacultyController/FileHisto
 import path from "path";
 import fs from "fs";
 import { autoSyncToArchive } from "../../controllers/AdminController/AdminArchiveController.js";
+import { createAdminNotification } from "../../controllers/AdminController/AdminNotificationController.js";
 
 // Multer Disk Storage Configuration
 const storage = multer.diskStorage({
@@ -226,6 +227,26 @@ export const uploadFile = async (req, res) => {
       const savedFile = await newFile.save();
       allSavedFiles.push(savedFile);
       console.log(`✅ Created file record for: ${file.originalname} with course: ${course}`);
+
+      // Create admin notification for this file
+      try {
+        await createAdminNotification({
+          file_id: savedFile.file_id,
+          faculty_id: savedFile.faculty_id,
+          faculty_name: savedFile.faculty_name,
+          file_name: savedFile.file_name,
+          document_type: savedFile.document_type,
+          tos_type: savedFile.tos_type,
+          subject_code: savedFile.subject_code,
+          subject_title: savedFile.subject_title,
+          course: savedFile.course,
+          semester: savedFile.semester,
+          school_year: savedFile.school_year
+        });
+        console.log("📢 Admin notification created for new file upload");
+      } catch (notificationError) {
+        console.error("⚠️ Error creating admin notification:", notificationError);
+      }
     }
 
     console.log(`🎉 Total created: ${allSavedFiles.length} file records for ${req.files.length} files`);
