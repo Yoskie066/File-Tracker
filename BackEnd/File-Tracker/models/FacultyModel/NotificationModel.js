@@ -51,35 +51,6 @@ const notificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  notification_type: {
-    type: String,
-    enum: ["file_status_update", "general", "admin_notice"],
-    default: "general"
-  },
-  file_id: {
-    type: String,
-    default: ""
-  },
-  file_name: {
-    type: String,
-    default: ""
-  },
-  subject_code: {
-    type: String,
-    default: ""
-  },
-  course: {
-    type: String,
-    default: ""
-  },
-  previous_status: {
-    type: String,
-    default: ""
-  },
-  new_status: {
-    type: String,
-    required: true,
-  },
   created_at: {
     type: Date,
     default: Date.now,
