@@ -19,7 +19,12 @@ export default function useNotifications(currentUser) {
         console.log("Fetching notifications for facultyId:", currentUser.facultyId);
         
         const res = await fetch(
-          `${API_BASE_URL}/api/faculty/faculty-notifications/${currentUser.facultyId}`
+          `${API_BASE_URL}/api/faculty/faculty-notifications/${currentUser.facultyId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('facultyToken')}`
+            }
+          }
         );
         
         if (!res.ok) {
@@ -31,6 +36,16 @@ export default function useNotifications(currentUser) {
 
         const list = data?.data || [];
         console.log(`Processed ${list.length} notifications for faculty`);
+        
+        // Sort by date and unread status
+        list.sort((a, b) => {
+          // Show unread first
+          if (a.is_read !== b.is_read) {
+            return a.is_read ? 1 : -1;
+          }
+          // Then sort by date
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
         
         setNotifications(list);
         setUnreadCount(list.filter((n) => !n.is_read).length);
@@ -48,13 +63,26 @@ export default function useNotifications(currentUser) {
       try {
         console.log("Trying fallback notification fetch...");
         const res = await fetch(
-          `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}`
+          `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('facultyToken')}`
+            }
+          }
         );
         
         if (res.ok) {
           const data = await res.json();
           const list = data?.data || [];
           console.log(`Fallback found ${list.length} notifications`);
+          
+          // Sort by date and unread status
+          list.sort((a, b) => {
+            if (a.is_read !== b.is_read) {
+              return a.is_read ? 1 : -1;
+            }
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
           
           setNotifications(list);
           setUnreadCount(list.filter((n) => !n.is_read).length);
@@ -66,8 +94,8 @@ export default function useNotifications(currentUser) {
 
     fetchNotifications();
     
-    // Refresh every 15 seconds
-    const interval = setInterval(fetchNotifications, 15000); 
+    // Refresh every 10 seconds for real-time updates
+    const interval = setInterval(fetchNotifications, 10000); 
     return () => clearInterval(interval);
   }, [currentUser?.facultyId]); 
 
@@ -77,7 +105,10 @@ export default function useNotifications(currentUser) {
       console.log("Marking notification as read:", id);
       const response = await fetch(`${API_BASE_URL}/api/faculty/notifications/${id}/read`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${localStorage.getItem('facultyToken')}`
+        },
       });
       
       if (response.ok) {
@@ -91,5 +122,42 @@ export default function useNotifications(currentUser) {
     }
   };
 
-  return { notifications, unreadCount, loading, markAsRead };
+  // Mark all as read
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}/read-all`, 
+        {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            'Authorization': `Bearer ${localStorage.getItem('facultyToken')}`
+          },
+        }
+      );
+      
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => ({ ...n, is_read: true }))
+        );
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error("Error marking all as read:", err);
+    }
+  };
+
+  // Get file status notifications only
+  const getFileStatusNotifications = () => {
+    return notifications.filter(n => n.notification_type === "file_status_update");
+  };
+
+  return { 
+    notifications, 
+    unreadCount, 
+    loading, 
+    markAsRead, 
+    markAllAsRead,
+    getFileStatusNotifications
+  };
 }

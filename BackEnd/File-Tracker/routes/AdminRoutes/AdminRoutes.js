@@ -24,6 +24,10 @@ import {
   getAdminUnreadCount,
   markAdminNotificationAsRead
 } from "../../controllers/AdminController/AdminNotificationController.js";
+import {
+  getFileStatusNotifications,
+  getNotificationsByFileId
+} from "../../controllers/FacultyController/NotificationController.js";
 
 const router = express.Router();
 
@@ -42,8 +46,8 @@ router.delete("/delete-faculty/:facultyId", deleteFaculty);
 router.get("/file-management", getFiles);
 router.get("/file-management/:id", getFileById);
 router.delete("/file-management/:id", deleteFile);
-router.put("/file-management/:id/status", updateFileStatus);
-router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
+router.put("/file-management/:id/status", verifyToken, updateFileStatus);
+router.put("/file-management/bulk-complete", verifyToken, bulkCompleteAllFiles);
 
 // Archive Management Routes
 router.get("/archive", getArchivedFiles);
@@ -79,5 +83,9 @@ router.delete('/system-variables/:id', deleteSystemVariable);
 router.get("/admin-notifications", getAdminNotifications);
 router.get("/admin-notifications/unread-count", getAdminUnreadCount);
 router.put("/admin-notifications/:id/read", markAdminNotificationAsRead);
+
+// File Status Notification Routes
+router.get("/file-status-notifications/:facultyId", getFileStatusNotifications);
+router.get("/notifications-by-file/:file_id", getNotificationsByFileId);
 
 export default router;

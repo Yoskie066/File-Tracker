@@ -439,9 +439,17 @@ export const deleteFile = async (req, res) => {
 export const updateFileStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, admin_name = "System Administrator" } = req.body;
 
     console.log(`Updating file status: ${id} to ${status}`);
+
+    // Get current file to know previous status
+    const currentFile = await FileManagement.findOne({ file_id: id });
+    if (!currentFile) {
+      return res.status(404).json({ success: false, message: "File not found" });
+    }
+
+    const previous_status = currentFile.status;
 
     const updatedFile = await FileManagement.findOneAndUpdate(
       { file_id: id },
@@ -467,11 +475,26 @@ export const updateFileStatus = async (req, res) => {
       await autoSyncToArchive(updatedFile);
     }
 
-    console.log(`File status updated and synced to Task Deliverables for course: ${updatedFile.course}`);
+    // Create notification for faculty about status update
+    await createFileStatusNotification({
+      faculty_id: updatedFile.faculty_id,
+      faculty_name: updatedFile.faculty_name,
+      file_id: updatedFile.file_id,
+      file_name: updatedFile.file_name,
+      subject_code: updatedFile.subject_code,
+      course: updatedFile.course,
+      document_type: updatedFile.document_type,
+      tos_type: updatedFile.tos_type,
+      previous_status: previous_status,
+      new_status: status,
+      admin_name: admin_name
+    });
+
+    console.log(`File status updated and notification sent to ${updatedFile.faculty_name}`);
 
     res.status(200).json({
       success: true,
-      message: "File status updated successfully and synchronized with Task Deliverables",
+      message: "File status updated successfully and notification sent to faculty",
       data: updatedFile,
     });
   } catch (error) {
@@ -488,6 +511,7 @@ export const updateFileStatus = async (req, res) => {
 export const bulkCompleteAllFiles = async (req, res) => {
   try {
     console.log("Bulk completing all files...");
+    const { admin_name = "System Administrator" } = req.body;
     
     // Get all pending files
     const pendingFiles = await FileManagement.find({ 
@@ -503,6 +527,15 @@ export const bulkCompleteAllFiles = async (req, res) => {
 
     const updatedFiles = [];
     const errors = [];
+
+    // Group files by faculty for efficient notification
+    const filesByFaculty = {};
+    pendingFiles.forEach(file => {
+      if (!filesByFaculty[file.faculty_id]) {
+        filesByFaculty[file.faculty_id] = [];
+      }
+      filesByFaculty[file.faculty_id].push(file);
+    });
 
     // Update each file to completed
     for (const file of pendingFiles) {
@@ -540,11 +573,25 @@ export const bulkCompleteAllFiles = async (req, res) => {
       }
     }
 
+    // Create notifications for all affected faculty
+    for (const facultyId in filesByFaculty) {
+      const facultyFiles = filesByFaculty[facultyId];
+      if (facultyFiles.length > 0) {
+        try {
+          await createBulkCompleteNotifications(facultyFiles, admin_name);
+          console.log(`Created bulk notifications for faculty ${facultyId}`);
+        } catch (notificationError) {
+          console.error(`Error creating notifications for faculty ${facultyId}:`, notificationError);
+        }
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: `Successfully completed ${updatedFiles.length} files and auto-archived them`,
+      message: `Successfully completed ${updatedFiles.length} files. Notifications sent to ${Object.keys(filesByFaculty).length} faculty members.`,
       data: {
         completed: updatedFiles.length,
+        faculty_notified: Object.keys(filesByFaculty).length,
         errors: errors.length,
         details: errors.length > 0 ? errors : undefined
       }

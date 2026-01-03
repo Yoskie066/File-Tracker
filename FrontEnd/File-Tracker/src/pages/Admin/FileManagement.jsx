@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown, User } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
@@ -42,7 +42,7 @@ export default function FileManagement() {
   const [facultyFilter, setFacultyFilter] = useState("");
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseFilter, setCourseFilter] = useState(""); // Changed from courseSectionFilter to courseFilter
+  const [courseFilter, setCourseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
   const [schoolYearFilter, setSchoolYearFilter] = useState("");
@@ -53,11 +53,34 @@ export default function FileManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
+  // Get admin name from localStorage
+  const getAdminName = () => {
+    const adminData = localStorage.getItem("admin");
+    if (adminData) {
+      try {
+        const admin = JSON.parse(adminData);
+        return admin.name || admin.email || "Administrator";
+      } catch (e) {
+        return "Administrator";
+      }
+    }
+    return "Administrator";
+  };
+
   // Fetch files from backend
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/api/admin/file-management`);
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        throw new Error("Admin authentication required. Please log in again.");
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/file-management`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
       console.log("Fetched files:", result);
@@ -71,6 +94,9 @@ export default function FileManagement() {
     } catch (err) {
       console.error("Error fetching files:", err);
       setFiles([]);
+      if (err.message.includes("authentication")) {
+        showFeedback("error", "Please log in again as admin.");
+      }
     } finally {
       setLoading(false);
     }
@@ -105,17 +131,28 @@ export default function FileManagement() {
     setPreviewModalOpen(true);
   };
 
-  // Handle update status
+  // Handle update status - UPDATED to include admin name
   const handleUpdateStatus = async () => {
     if (!fileToUpdate || !newStatus) return;
 
     try {
+      const adminName = getAdminName();
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        showFeedback("error", "Admin authentication required. Please log in again.");
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileToUpdate.file_id}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ 
+          status: newStatus,
+          admin_name: adminName 
+        }),
       });
 
       const result = await response.json();
@@ -125,7 +162,7 @@ export default function FileManagement() {
         setStatusModalOpen(false);
         setFileToUpdate(null);
         setNewStatus("");
-        showFeedback("success", "File status updated successfully!");
+        showFeedback("success", "File status updated successfully! Notification has been sent to the faculty.");
       } else {
         showFeedback("error", result.message || "Error updating file status");
       }
@@ -146,8 +183,17 @@ export default function FileManagement() {
   // Handle delete file
   const handleDelete = async (fileId) => {
     try {
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        showFeedback("error", "Admin authentication required. Please log in again.");
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/admin/file-management/${fileId}`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       const result = await response.json();
@@ -173,16 +219,27 @@ export default function FileManagement() {
     setDeleteModalOpen(true);
   };
 
-  // Handle bulk complete all files
+  // Handle bulk complete all files - UPDATED to include admin name
   const handleBulkComplete = async () => {
     try {
       setBulkCompleteLoading(true);
       
+      const adminName = getAdminName();
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        showFeedback("error", "Admin authentication required. Please log in again.");
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/admin/file-management/bulk-complete`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
+        body: JSON.stringify({ 
+          admin_name: adminName 
+        }),
       });
 
       const result = await response.json();
@@ -190,7 +247,7 @@ export default function FileManagement() {
       if (result.success) {
         fetchFiles();
         setBulkCompleteModalOpen(false);
-        showFeedback("success", `Successfully marked ${result.data.completed} files as completed! Task deliverables have been automatically updated.`);
+        showFeedback("success", `Successfully marked ${result.data.completed} files as completed! Notifications have been sent to ${result.data.faculty_notified} faculty members.`);
       } else {
         showFeedback("error", result.message || "Error completing files");
       }
@@ -289,7 +346,7 @@ export default function FileManagement() {
         values.add(getDocumentTypeLabel(file.document_type, file.tos_type));
       } else if (key === 'subject_code' && file.subject_code) {
         values.add(file.subject_code);
-      } else if (key === 'course' && file.course) { // Changed from course_sections to course
+      } else if (key === 'course' && file.course) {
         values.add(file.course);
       } else if (key === 'status' && file.status) {
         values.add(file.status);
@@ -334,7 +391,7 @@ export default function FileManagement() {
     setFacultyFilter("");
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
-    setCourseFilter(""); // Changed from courseSectionFilter to courseFilter
+    setCourseFilter("");
     setStatusFilter("");
     setSemesterFilter("");
     setSchoolYearFilter("");
@@ -369,7 +426,7 @@ export default function FileManagement() {
       filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
     }
     
-    if (courseFilter) { // Changed from courseSectionFilter to courseFilter
+    if (courseFilter) {
       filtered = filtered.filter(file => file.course === courseFilter);
     }
     
@@ -493,7 +550,7 @@ export default function FileManagement() {
         'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
         'TOS Type': f.tos_type || 'N/A',
         'Subject Code': f.subject_code,
-        'Course': f.course, // Changed from Course Sections to Course
+        'Course': f.course,
         'Subject Title': f.subject_title,
         'Semester': f.semester,
         'Academic Year': f.school_year,
@@ -518,7 +575,7 @@ export default function FileManagement() {
         { wch: 20 },
         { wch: 15 },
         { wch: 15 },
-        { wch: 15 }, // Course width reduced from 25 to 15
+        { wch: 15 },
         { wch: 30 },
         { wch: 15 },
         { wch: 15 },
@@ -917,7 +974,7 @@ export default function FileManagement() {
                           facultyFilter && "Faculty",
                           documentTypeFilter && "Type",
                           subjectCodeFilter && "Subject",
-                          courseFilter && "Course", // Changed from Section to Course
+                          courseFilter && "Course",
                           statusFilter && "Status",
                           semesterFilter && "Semester",
                           schoolYearFilter && "Year",
@@ -1014,7 +1071,7 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th> {/* Changed from Course Sections to Course */}
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
@@ -1389,7 +1446,7 @@ export default function FileManagement() {
           )}
         </Modal>
 
-        {/* Status Update Modal */}
+        {/* Status Update Modal - UPDATED with admin info */}
         <Modal
           isOpen={statusModalOpen}
           onRequestClose={() => setStatusModalOpen(false)}
@@ -1433,9 +1490,18 @@ export default function FileManagement() {
                   <p className="text-sm text-gray-600 mb-4">
                     Academic Year: {fileToUpdate.school_year}
                   </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    This update will sync with Task Deliverables for course: {fileToUpdate.course}
-                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <User className="w-4 h-4" />
+                      <span className="text-sm font-medium">Notification will be sent to:</span>
+                    </div>
+                    <p className="text-blue-700 text-sm mt-1">
+                      Faculty: <span className="font-semibold">{fileToUpdate.faculty_name}</span>
+                    </p>
+                    <p className="text-blue-700 text-xs mt-1">
+                      This update will sync with Task Deliverables for course: {fileToUpdate.course}
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -1472,7 +1538,7 @@ export default function FileManagement() {
           )}
         </Modal>
 
-        {/* Bulk Complete Confirmation Modal */}
+        {/* Bulk Complete Confirmation Modal - UPDATED with admin info */}
         <Modal
           isOpen={bulkCompleteModalOpen}
           onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
@@ -1505,12 +1571,26 @@ export default function FileManagement() {
                   <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
                   <li>• Affects files with status: "pending" or "rejected"</li>
                   <li>• Task Deliverables will be automatically updated to "completed" for all courses</li>
+                  <li>• Notifications will be sent to all affected faculty members</li>
                   <li>• This action cannot be undone</li>
                 </ul>
               </div>
 
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-medium">Admin Action:</span>
+                </div>
+                <p className="text-blue-700 text-sm mt-1">
+                  This action will be performed by: <span className="font-semibold">{getAdminName()}</span>
+                </p>
+                <p className="text-blue-700 text-xs mt-1">
+                  All affected faculty will receive notifications about their file status updates.
+                </p>
+              </div>
+
               <p className="text-sm text-gray-600">
-                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables for all courses.
+                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables for all courses and send notifications to faculty.
               </p>
 
               <div className="flex gap-3 pt-4">

@@ -14,7 +14,17 @@ import {
 import { uploadFile, upload, getFacultyFiles } from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import { getTaskDeliverables, getTaskDeliverablesById, updateTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
-import { createNotification, getNotificationsByRecipient, getUnreadCount, markAsRead, markAllAsRead, getFacultyNotifications, getFacultyUnreadCount } from "../../controllers/FacultyController/NotificationController.js";
+import { 
+  createNotification, 
+  getNotificationsByRecipient, 
+  getUnreadCount, 
+  markAsRead, 
+  markAllAsRead, 
+  getFacultyNotifications, 
+  getFacultyUnreadCount,
+  getFileStatusNotifications,
+  getNotificationsByFileId
+} from "../../controllers/FacultyController/NotificationController.js";
 
 const router = express.Router();
 
@@ -47,12 +57,13 @@ router.put("/task-deliverables/:id", verifyToken, updateTaskDeliverables);
 
 // Notification Routes
 router.post("/notifications", createNotification);
-router.get("/notifications/:recipient_id", getNotificationsByRecipient);
-router.get("/notifications/:recipient_id/unread-count", getUnreadCount);
-router.put("/notifications/:id/read", markAsRead);
-router.put("/notifications/:recipient_id/read-all", markAllAsRead);
-
-router.get("/faculty-notifications/:facultyId", getFacultyNotifications);
-router.get("/faculty-notifications/:facultyId/unread-count", getFacultyUnreadCount);
+router.get("/notifications/:recipient_id", verifyToken, getNotificationsByRecipient);
+router.get("/notifications/:recipient_id/unread-count", verifyToken, getUnreadCount);
+router.put("/notifications/:id/read", verifyToken, markAsRead);
+router.put("/notifications/:recipient_id/read-all", verifyToken, markAllAsRead);
+router.get("/faculty-notifications/:facultyId", verifyToken, getFacultyNotifications);
+router.get("/faculty-notifications/:facultyId/unread-count", verifyToken, getFacultyUnreadCount);
+router.get("/file-status-notifications/:facultyId", verifyToken, getFileStatusNotifications);
+router.get("/notifications-by-file/:file_id", verifyToken, getNotificationsByFileId);
 
 export default router;
