@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Modal from 'react-modal';
-import { MoreVertical, Trash2, XCircle, CheckCircle, Filter, ArrowUpDown } from "lucide-react";
+import { MoreVertical, Trash2, XCircle, CheckCircle, Filter, ArrowUpDown, Shield } from "lucide-react";
 
 // Set the app element for accessibility
 Modal.setAppElement("#root");
@@ -78,6 +78,8 @@ export default function UserManagement() {
         values.add(user.role);
       } else if (key === 'status' && user.status) {
         values.add(user.status);
+      } else if (key === 'security_question' && user.security_question) {
+        values.add(user.security_question);
       } else if (key === 'months') {
         if (user.created_at) {
           const month = new Date(user.created_at).getMonth();
@@ -130,6 +132,7 @@ export default function UserManagement() {
     let offlineCount = 0;
     let adminCount = 0;
     let facultyCount = 0;
+    let withSecurityQuestion = 0;
   
     usersList.forEach(user => {
       const status = user.status?.toLowerCase().trim();
@@ -145,6 +148,10 @@ export default function UserManagement() {
       } else if (user.role === 'faculty') {
         facultyCount++;
       }
+
+      if (user.security_question && user.security_question !== 'Not set') {
+        withSecurityQuestion++;
+      }
     });
   
     return {
@@ -152,7 +159,8 @@ export default function UserManagement() {
       online: onlineCount,
       offline: offlineCount,
       admin: adminCount,
-      faculty: facultyCount
+      faculty: facultyCount,
+      withSecurityQuestion
     };
   };
 
@@ -162,7 +170,7 @@ export default function UserManagement() {
 
     // Apply search filter
     filtered = filtered.filter((user) =>
-      [user.user_id, user.name, user.number, user.role]
+      [user.user_id, user.name, user.number, user.role, user.security_question]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
@@ -286,7 +294,7 @@ export default function UserManagement() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
             <p className="text-sm text-gray-500">
-              A secure and organized system for managing user accounts, roles, and access
+              A secure and organized system for managing user accounts, roles, security questions, and access
             </p>
           </div>
           
@@ -480,7 +488,7 @@ export default function UserManagement() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Users</div>
             <div className="text-2xl font-bold text-blue-800">{userStats.total}</div>
@@ -499,6 +507,13 @@ export default function UserManagement() {
               {userStats.total > 0 ? Math.round((userStats.online / userStats.total) * 100) : 0}%
             </div>
           </div>
+          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <div className="text-yellow-600 text-sm font-medium flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Security Enabled
+            </div>
+            <div className="text-2xl font-bold text-yellow-800">{userStats.withSecurityQuestion}</div>
+          </div>
         </div>
 
         {/* Desktop Table */}
@@ -512,6 +527,7 @@ export default function UserManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Password</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Role</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Security Question</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Created At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
@@ -549,6 +565,9 @@ export default function UserManagement() {
                         </span>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 max-w-xs truncate">
+                      {user.security_question || 'Not set'}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {new Date(user.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -582,7 +601,7 @@ export default function UserManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
                     No users found.
                   </td>
                 </tr>
@@ -651,11 +670,16 @@ export default function UserManagement() {
                   </div>
                 </div>
 
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 mb-3">
                   <span className="text-gray-500">Password:</span>
                   <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded ml-2">
                     ••••••••
                   </span>
+                </div>
+
+                <div className="mb-3">
+                  <span className="text-gray-500 text-sm">Security Question:</span>
+                  <p className="text-sm text-gray-600 mt-1">{user.security_question || 'Not set'}</p>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-3">

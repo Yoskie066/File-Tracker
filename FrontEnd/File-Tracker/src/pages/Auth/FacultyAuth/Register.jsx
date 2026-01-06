@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "react-modal";
 import { CheckCircle, XCircle } from "lucide-react";
@@ -12,8 +12,11 @@ const FacultyRegister = () => {
     facultyName: "",
     facultyNumber: "",
     password: "",
+    securityQuestion: "",
+    securityAnswer: "",
   });
 
+  const [securityQuestions, setSecurityQuestions] = useState([]);
   const [modal, setModal] = useState({
     isOpen: false,
     type: "success", 
@@ -21,8 +24,26 @@ const FacultyRegister = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  // Fetch security questions on component mount
+  useEffect(() => {
+    fetchSecurityQuestions();
+  }, []);
+
+  const fetchSecurityQuestions = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/security-questions`);
+      const data = await response.json();
+      if (response.ok) {
+        setSecurityQuestions(data.questions);
+      }
+    } catch (err) {
+      console.error("Error fetching security questions:", err);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -32,15 +53,25 @@ const FacultyRegister = () => {
       newErrors.facultyName = "Faculty name must be at least 8 characters long";
     }
     
-    // Validate faculty number (at least 8 digits)
-    const facultyNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    // Validate faculty number (minimum 2 digits, numbers only)
+    const facultyNumberRegex = /^\d{2,}$/;
     if (!facultyNumberRegex.test(formData.facultyNumber)) {
-      newErrors.facultyNumber = "Faculty number must be at least 8 digits";
+      newErrors.facultyNumber = "Faculty number must contain only numbers (minimum 2 digits)";
     }
     
     // Validate password
     if (formData.password.length < 4) {
       newErrors.password = "Password must be at least 4 characters long";
+    }
+    
+    // Validate security question
+    if (!formData.securityQuestion) {
+      newErrors.securityQuestion = "Please select a security question";
+    }
+    
+    // Validate security answer
+    if (!formData.securityAnswer.trim()) {
+      newErrors.securityAnswer = "Security answer is required";
     }
     
     setErrors(newErrors);
@@ -49,6 +80,7 @@ const FacultyRegister = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
     // Remove non-numeric characters for facultyNumber
     if (name === "facultyNumber") {
       const numericValue = value.replace(/\D/g, '');
@@ -81,11 +113,16 @@ const FacultyRegister = () => {
       return;
     }
 
+    setLoading(true);
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/faculty/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          securityAnswer: formData.securityAnswer.trim()
+        }),
       });
 
       const data = await response.json();
@@ -111,6 +148,8 @@ const FacultyRegister = () => {
         type: "error",
         message: err.message,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -143,7 +182,7 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty name"
+                placeholder="Enter your faculty name (min 8 characters)"
                 title="Faculty name must be at least 8 characters long"
                 required
               />
@@ -165,15 +204,15 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty number"
-                title="Faculty number must be at least 8 digits"
+                placeholder="Enter your faculty number (numbers only, min 2 digits)"
+                title="Faculty number must contain only numbers (minimum 2 digits)"
                 required
               />
               {errors.facultyNumber && (
                 <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                Must be at least 8 digits (numbers only)
+                Must be at least 2 digits (numbers only)
               </p>
             </div>
             
@@ -190,7 +229,7 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.password ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your password"
+                placeholder="Enter your password (min 4 characters)"
                 title="Faculty password must be at least 4 characters long"
                 required
               />
@@ -201,12 +240,67 @@ const FacultyRegister = () => {
                 Password must be at least 4 characters long
               </p>
             </div>
+
+            {/* Security Question */}
+            <div className="mb-4 sm:mb-6">
+              <label htmlFor="securityQuestion" className="block text-gray-700 text-sm font-medium mb-2">
+                Security Question:
+              </label>
+              <select
+                id="securityQuestion"
+                name="securityQuestion"
+                value={formData.securityQuestion}
+                onChange={handleChange}
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.securityQuestion ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              >
+                <option value="">Select a security question</option>
+                {securityQuestions.map((question, index) => (
+                  <option key={index} value={question}>
+                    {question}
+                  </option>
+                ))}
+              </select>
+              {errors.securityQuestion && (
+                <p className="text-red-500 text-xs mt-1">{errors.securityQuestion}</p>
+              )}
+            </div>
+
+            {/* Security Answer */}
+            <div className="mb-4 sm:mb-6">
+              <label htmlFor="securityAnswer" className="block text-gray-700 text-sm font-medium mb-2">
+                Security Answer:
+              </label>
+              <input
+                type="text"
+                id="securityAnswer"
+                name="securityAnswer"
+                value={formData.securityAnswer}
+                onChange={handleChange}
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.securityAnswer ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter your security answer"
+                required
+              />
+              {errors.securityAnswer && (
+                <p className="text-red-500 text-xs mt-1">{errors.securityAnswer}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Answer can contain letters, numbers, and special characters
+              </p>
+            </div>
             
             <button
               type="submit"
-              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
+              disabled={loading}
+              className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              Register
+              {loading ? "Registering..." : "Register"}
             </button>
           </form>
           

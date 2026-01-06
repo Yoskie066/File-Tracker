@@ -15,7 +15,7 @@ const AdminRoutes = () => {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/file-management" element={<FileManagement />} />
-        <Route path="/admin-archive" element={<Archive />} />
+        <Route path="/submitted-documents" element={<Archive />} />
         <Route path="/admin-notice" element={<AdminNotice />} />
         <Route path="/system-variables" element={<SystemVariables />} />
         <Route path="/admin-notification" element={<AdminNotification />} />

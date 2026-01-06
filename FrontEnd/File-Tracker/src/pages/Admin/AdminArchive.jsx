@@ -292,7 +292,7 @@ export default function AdminArchive() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-3">
           <div className="w-full">
-            <h1 className="text-2xl font-bold text-gray-800">Archive </h1>
+            <h1 className="text-2xl font-bold text-gray-800">Submitted Documents </h1>
             <p className="text-sm text-gray-500">
               Automatically synchronizes completed files from File Management while preserving original file status
             </p>
@@ -304,11 +304,11 @@ export default function AdminArchive() {
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <BarChart className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-800">Archive Statistics</h3>
+              <h3 className="text-lg font-semibold text-gray-800">Submitted Document Stats</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="text-blue-600 text-sm font-medium">Total Archives</div>
+                <div className="text-blue-600 text-sm font-medium">Total Submitted Documents</div>
                 <div className="text-2xl font-bold text-blue-800">{archiveStats.total_archives}</div>
               </div>
               
@@ -536,7 +536,7 @@ export default function AdminArchive() {
                 <th className="px-4 py-3 text-left">Academic Year</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Uploaded At</th>
-                <th className="px-4 py-3 text-left">Archived At</th>
+                <th className="px-4 py-3 text-left">Completed At</th>
                 <th className="px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>

@@ -131,12 +131,12 @@ export default function Sidebar({ isOpen, onClose }) {
           </Link>
           
           <Link
-            to="/admin/admin-archive"
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/admin-archive")}`}
+            to="/admin/submitted-documents"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/submitted-documents")}`}
             onClick={onClose}
           >
             <Archive className="w-5 h-5" />
-            <span className="text-lg">Admin Archive</span>
+            <span className="text-lg">Submitted Documents</span>
           </Link>
           
           <Link
@@ -213,11 +213,11 @@ export default function Sidebar({ isOpen, onClose }) {
           </Link>
           
           <Link
-            to="/admin/admin-archive"
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/admin-archive")}`}
+            to="/admin/submitted-documents"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/submitted-documents")}`}
           >
             <Archive className="w-5 h-5" />
-            <span className="text-lg">Admin Archive</span>
+            <span className="text-lg">Submitted Documents</span>
           </Link>
           
           <Link

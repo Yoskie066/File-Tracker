@@ -1,5 +1,12 @@
 import express from "express";
-import { registerAdmin, loginAdmin, forgotPasswordAdmin, refreshTokenAdmin } from "../../controllers/AdminController/AdminController.js";
+import { 
+  registerAdmin, 
+  loginAdmin, 
+  forgotPasswordAdmin, 
+  refreshTokenAdmin,
+  getSecurityQuestions,
+  getAdminSecurityQuestion
+} from "../../controllers/AdminController/AdminController.js";
 import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLogout.js";
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
@@ -26,6 +33,10 @@ import {
 } from "../../controllers/AdminController/AdminNotificationController.js";
 
 const router = express.Router();
+
+// Security Questions Routes
+router.get("/security-questions", getSecurityQuestions);
+router.get("/security-question", getAdminSecurityQuestion);
 
 router.post("/admin-register", registerAdmin);
 router.post("/admin-login", loginAdmin);

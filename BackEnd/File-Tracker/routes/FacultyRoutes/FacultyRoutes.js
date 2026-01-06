@@ -1,5 +1,12 @@
 import express from "express";
-import { registerFaculty, loginFaculty, forgotPasswordFaculty, refreshTokenFaculty } from "../../controllers/FacultyController/FacultyController.js";
+import { 
+  registerFaculty, 
+  loginFaculty, 
+  forgotPasswordFaculty, 
+  refreshTokenFaculty,
+  getSecurityQuestions,
+  getFacultySecurityQuestion
+} from "../../controllers/FacultyController/FacultyController.js";
 import { logoutFaculty } from "../../controllers/FacultyController/FacultyLogoutController.js"
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { 
@@ -17,6 +24,10 @@ import { getTaskDeliverables, getTaskDeliverablesById, updateTaskDeliverables } 
 import { createNotification, getNotificationsByRecipient, getUnreadCount, markAsRead, markAllAsRead, getFacultyNotifications, getFacultyUnreadCount } from "../../controllers/FacultyController/NotificationController.js";
 
 const router = express.Router();
+
+// Security Questions Routes
+router.get("/security-questions", getSecurityQuestions);
+router.get("/security-question", getFacultySecurityQuestion);
 
 router.post("/register", registerFaculty);
 router.post("/login", loginFaculty);

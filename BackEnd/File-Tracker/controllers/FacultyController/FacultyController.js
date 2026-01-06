@@ -29,10 +29,71 @@ const generateTokens = (faculty) => {
   return { accessToken, refreshToken };
 };
 
+// Security questions array
+export const securityQuestions = [
+  "What was your first pet's name?",
+  "What is your mother's maiden name?",
+  "What was the name of your first school?",
+  "What is your favorite book?",
+  "What is your favorite movie?",
+  "What is your favorite food?",
+  "What is your favorite color?",
+  "What is your favorite sport?",
+  "What is your favorite teacher's name?",
+  "What is your favorite car?"
+];
+
+// Get security questions
+export const getSecurityQuestions = async (req, res) => {
+  try {
+    res.status(200).json({
+      questions: securityQuestions
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching security questions",
+      error: error.message,
+    });
+  }
+};
+
+// Get faculty security question
+export const getFacultySecurityQuestion = async (req, res) => {
+  try {
+    const { facultyNumber, facultyName } = req.query;
+
+    if (!facultyNumber || !facultyName) {
+      return res.status(400).json({ 
+        message: "Faculty number and name are required" 
+      });
+    }
+
+    const faculty = await Faculty.findOne({ 
+      facultyNumber,
+      facultyName: { $regex: new RegExp(`^${facultyName}$`, 'i') }
+    });
+
+    if (!faculty) {
+      return res.status(404).json({ 
+        message: "Faculty not found" 
+      });
+    }
+
+    res.status(200).json({
+      securityQuestion: faculty.securityQuestion
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching security question",
+      error: error.message,
+    });
+  }
+};
+
 // REGISTER FACULTY
 export const registerFaculty = async (req, res) => {
   try {
-    const { facultyName, facultyNumber, password } = req.body;
+    const { facultyName, facultyNumber, password, securityQuestion, securityAnswer } = req.body;
 
     // Validate faculty name length
     if (facultyName.length < 8) {
@@ -41,11 +102,25 @@ export const registerFaculty = async (req, res) => {
       });
     }
 
-    // Validate faculty number format 
-    const facultyNumberRegex = /^\d{8,}$/;  
+    // Validate faculty number format - minimum 2 digits, numbers only
+    const facultyNumberRegex = /^\d{2,}$/;
     if (!facultyNumberRegex.test(facultyNumber)) {
       return res.status(400).json({ 
-        message: "Faculty number must be at least 8 digits" 
+        message: "Faculty number must contain only numbers (minimum 2 digits)" 
+      });
+    }
+
+    // Validate security question
+    if (!securityQuestions.includes(securityQuestion)) {
+      return res.status(400).json({ 
+        message: "Invalid security question" 
+      });
+    }
+
+    // Validate security answer
+    if (!securityAnswer || securityAnswer.trim().length === 0) {
+      return res.status(400).json({ 
+        message: "Security answer is required" 
       });
     }
 
@@ -62,6 +137,8 @@ export const registerFaculty = async (req, res) => {
       facultyName,
       facultyNumber,
       password: hashedPassword,
+      securityQuestion,
+      securityAnswer: securityAnswer.trim(),
       role: "faculty",
       status: "offline",
       registeredAt: new Date(),
@@ -93,11 +170,11 @@ export const loginFaculty = async (req, res) => {
   try {
     const { facultyNumber, password } = req.body;
 
-    // Validate faculty number format 
-    const facultyNumberRegex = /^\d{8,}$/;  
+    // Validate faculty number format - minimum 2 digits, numbers only
+    const facultyNumberRegex = /^\d{2,}$/;
     if (!facultyNumberRegex.test(facultyNumber)) {
       return res.status(400).json({ 
-        message: "Faculty number must be at least 8 digits" 
+        message: "Faculty number must contain only numbers (minimum 2 digits)" 
       });
     }
 
@@ -144,7 +221,8 @@ export const loginFaculty = async (req, res) => {
         facultyName: faculty.facultyName,
         facultyNumber: faculty.facultyNumber,
         role: faculty.role,
-        status: faculty.status, 
+        status: faculty.status,
+        securityQuestion: faculty.securityQuestion,
       },
     });
   } catch (error) {
@@ -200,7 +278,7 @@ export const refreshTokenFaculty = async (req, res) => {
 // Forgot Password Faculty
 export const forgotPasswordFaculty = async (req, res) => {
   try {
-    const { facultyNumber, facultyName, newPassword } = req.body;
+    const { facultyNumber, facultyName, securityQuestion, securityAnswer, newPassword } = req.body;
 
     // Validate faculty name length
     if (facultyName.length < 8) {
@@ -209,11 +287,25 @@ export const forgotPasswordFaculty = async (req, res) => {
       });
     }
 
-    // Validate faculty number format 
-    const facultyNumberRegex = /^\d{8,}$/;  
+    // Validate faculty number format - minimum 2 digits, numbers only
+    const facultyNumberRegex = /^\d{2,}$/;
     if (!facultyNumberRegex.test(facultyNumber)) {
       return res.status(400).json({ 
-        message: "Faculty number must be at least 8 digits" 
+        message: "Faculty number must contain only numbers (minimum 2 digits)" 
+      });
+    }
+
+    // Validate security question
+    if (!securityQuestions.includes(securityQuestion)) {
+      return res.status(400).json({ 
+        message: "Invalid security question" 
+      });
+    }
+
+    // Validate security answer
+    if (!securityAnswer || securityAnswer.trim().length === 0) {
+      return res.status(400).json({ 
+        message: "Security answer is required" 
       });
     }
 
@@ -225,6 +317,20 @@ export const forgotPasswordFaculty = async (req, res) => {
     if (!faculty) {
       return res.status(404).json({ 
         message: "Faculty not found. Please check your Faculty Number and Name." 
+      });
+    }
+
+    // Check security question
+    if (faculty.securityQuestion !== securityQuestion) {
+      return res.status(400).json({ 
+        message: "Security question does not match" 
+      });
+    }
+
+    // Check security answer (case-insensitive)
+    if (faculty.securityAnswer.toLowerCase() !== securityAnswer.toLowerCase().trim()) {
+      return res.status(400).json({ 
+        message: "Security answer is incorrect" 
       });
     }
 

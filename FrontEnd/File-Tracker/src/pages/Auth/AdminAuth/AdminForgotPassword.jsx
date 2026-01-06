@@ -1,41 +1,76 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "react-modal";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 
 Modal.setAppElement("#root");
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 const AdminForgotPassword = () => {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    adminName: "",
     adminNumber: "",
+    adminName: "",
+    securityQuestion: "",
+    securityAnswer: "",
     newPassword: "",
   });
 
+  const [securityQuestions, setSecurityQuestions] = useState([]);
+  const [fetchedQuestion, setFetchedQuestion] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("success"); 
   const [modalMessage, setModalMessage] = useState("");
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  const validateForm = () => {
+  // Fetch security questions on component mount
+  useEffect(() => {
+    fetchSecurityQuestions();
+  }, []);
+
+  const fetchSecurityQuestions = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/security-questions`);
+      const data = await response.json();
+      if (response.ok) {
+        setSecurityQuestions(data.questions);
+      }
+    } catch (err) {
+      console.error("Error fetching security questions:", err);
+    }
+  };
+
+  const validateStep1 = () => {
     const newErrors = {};
     
-    // Validate admin name (minimum 8 characters)
+    // Validate admin name length
     if (formData.adminName.length < 8) {
       newErrors.adminName = "Admin name must be at least 8 characters long";
     }
     
-    // Validate admin number (at least 8 digits)
-    const adminNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    // Validate admin number format - minimum 2 digits, numbers only
+    const adminNumberRegex = /^\d{2,}$/;
     if (!adminNumberRegex.test(formData.adminNumber)) {
-      newErrors.adminNumber = "Admin number must be at least 8 digits";
+      newErrors.adminNumber = "Admin number must contain only numbers (minimum 2 digits)";
     }
     
-    // Validate password
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors = {};
+    
+    // Validate security answer
+    if (!formData.securityAnswer.trim()) {
+      newErrors.securityAnswer = "Security answer is required";
+    }
+    
+    // Validate new password
     if (formData.newPassword.length < 4) {
       newErrors.newPassword = "Password must be at least 4 characters long";
     }
@@ -46,6 +81,7 @@ const AdminForgotPassword = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
     // Remove non-numeric characters for adminNumber
     if (name === "adminNumber") {
       const numericValue = value.replace(/\D/g, '');
@@ -66,21 +102,66 @@ const AdminForgotPassword = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleStep1Submit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validateStep1()) {
       setModalType("error");
       setModalMessage("Please fix the errors in the form");
       setModalOpen(true);
       return;
     }
 
+    setLoading(true);
+
+    try {
+      // Fetch security question for this user
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/security-question?adminNumber=${formData.adminNumber}&adminName=${formData.adminName}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "User not found");
+      }
+
+      setFetchedQuestion(data.securityQuestion);
+      setFormData(prev => ({ ...prev, securityQuestion: data.securityQuestion }));
+      setStep(2);
+      
+    } catch (err) {
+      setModalType("error");
+      setModalMessage(err.message);
+      setModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStep2Submit = async (e) => {
+    e.preventDefault();
+
+    if (!validateStep2()) {
+      setModalType("error");
+      setModalMessage("Please fix the errors in the form");
+      setModalOpen(true);
+      return;
+    }
+
+    setLoading(true);
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/admin-forgot-password`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          adminNumber: formData.adminNumber,
+          adminName: formData.adminName,
+          securityQuestion: formData.securityQuestion,
+          securityAnswer: formData.securityAnswer.trim(),
+          newPassword: formData.newPassword
+        }),
       });
 
       const data = await response.json();
@@ -103,7 +184,14 @@ const AdminForgotPassword = () => {
       setModalType("error");
       setModalMessage(err.message);
       setModalOpen(true);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    setStep(1);
+    setErrors({});
   };
 
   const handleLogin = () => {
@@ -117,92 +205,157 @@ const AdminForgotPassword = () => {
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Reset Admin Password</h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              Enter your details to reset your password
+              {step === 1 ? "Enter your details to verify identity" : "Answer your security question"}
             </p>
           </div>
           
-          <form onSubmit={handleSubmit}>
-            {/* Admin Name - First Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="adminName" className="block text-gray-700 text-sm font-medium mb-2">
-                Admin Name:
-              </label>
-              <input
-                type="text"
-                id="adminName"
-                name="adminName"
-                value={formData.adminName}
-                onChange={handleChange}
-                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                  errors.adminName ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Enter your admin name"
-                title="Admin name must be at least 8 characters long"
-                required
-              />
-              {errors.adminName && (
-                <p className="text-red-500 text-xs mt-1">{errors.adminName}</p>
-              )}
-            </div>
+          {step === 1 ? (
+            <form onSubmit={handleStep1Submit}>
+              {/* Admin Name - First Field */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="adminName" className="block text-gray-700 text-sm font-medium mb-2">
+                  Admin Name:
+                </label>
+                <input
+                  type="text"
+                  id="adminName"
+                  name="adminName"
+                  value={formData.adminName}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.adminName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your admin name"
+                  title="Admin name must be at least 8 characters long"
+                  required
+                />
+                {errors.adminName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.adminName}</p>
+                )}
+              </div>
 
-            {/* Admin Number - Second Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="adminNumber" className="block text-gray-700 text-sm font-medium mb-2">
-                Admin Number:
-              </label>
-              <input
-                type="text"
-                id="adminNumber"
-                name="adminNumber"
-                value={formData.adminNumber}
-                onChange={handleChange}
-                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                  errors.adminNumber ? 'border-red-500' : 'border-gray-300'
+              {/* Admin Number - Second Field */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="adminNumber" className="block text-gray-700 text-sm font-medium mb-2">
+                  Admin Number:
+                </label>
+                <input
+                  type="text"
+                  id="adminNumber"
+                  name="adminNumber"
+                  value={formData.adminNumber}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.adminNumber ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your admin number"
+                  title="Admin number must contain only numbers (minimum 2 digits)"
+                  required
+                />
+                {errors.adminNumber && (
+                  <p className="text-red-500 text-xs mt-1">{errors.adminNumber}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Must be at least 2 digits (numbers only)
+                </p>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
-                placeholder="Enter your admin number"
-                title="Admin number must be at least 8 digits"
-                required
-              />
-              {errors.adminNumber && (
-                <p className="text-red-500 text-xs mt-1">{errors.adminNumber}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Must be at least 8 digits (numbers only)
-              </p>
-            </div>
-            
-            {/* New Password - Third Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
-                New Password:
-              </label>
-              <input
-                type="password"
-                id="newPassword"
-                name="newPassword"
-                value={formData.newPassword}
-                onChange={handleChange}
-                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                  errors.newPassword ? 'border-red-500' : 'border-gray-300'
+              >
+                {loading ? "Verifying..." : "Continue"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleStep2Submit}>
+              <div className="mb-4 sm:mb-6">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="flex items-center text-black hover:text-yellow-600 transition-colors text-sm font-medium mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </button>
+              </div>
+
+              {/* Security Question Display */}
+              <div className="mb-4 sm:mb-6">
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Security Question:
+                </label>
+                <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 bg-gray-50 rounded-lg text-sm sm:text-base">
+                  {fetchedQuestion}
+                </div>
+                <input
+                  type="hidden"
+                  name="securityQuestion"
+                  value={formData.securityQuestion}
+                />
+              </div>
+
+              {/* Security Answer */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="securityAnswer" className="block text-gray-700 text-sm font-medium mb-2">
+                  Security Answer:
+                </label>
+                <input
+                  type="text"
+                  id="securityAnswer"
+                  name="securityAnswer"
+                  value={formData.securityAnswer}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.securityAnswer ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your security answer"
+                  required
+                />
+                {errors.securityAnswer && (
+                  <p className="text-red-500 text-xs mt-1">{errors.securityAnswer}</p>
+                )}
+              </div>
+              
+              {/* New Password */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
+                  New Password:
+                </label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  name="newPassword"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.newPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your new password"
+                  required
+                />
+                {errors.newPassword && (
+                  <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Password must be at least 4 characters long
+                </p>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
-                placeholder="Enter your new password"
-                required
-              />
-              {errors.newPassword && (
-                <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Password must be at least 4 characters long
-              </p>
-            </div>
-            
-            <button
-              type="submit"
-              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
-            >
-              Reset Password
-            </button>
-          </form>
+              >
+                {loading ? "Resetting..." : "Reset Password"}
+              </button>
+            </form>
+          )}
           
           {/* Login Section */}
           <div className="mt-4 sm:mt-6 text-center">

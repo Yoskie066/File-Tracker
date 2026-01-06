@@ -1,41 +1,76 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "react-modal";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 
 Modal.setAppElement("#root");
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 const FacultyForgotPassword = () => {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    facultyName: "",
     facultyNumber: "",
+    facultyName: "",
+    securityQuestion: "",
+    securityAnswer: "",
     newPassword: "",
   });
 
+  const [securityQuestions, setSecurityQuestions] = useState([]);
+  const [fetchedQuestion, setFetchedQuestion] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("success"); 
   const [modalMessage, setModalMessage] = useState("");
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  const validateForm = () => {
+  // Fetch security questions on component mount
+  useEffect(() => {
+    fetchSecurityQuestions();
+  }, []);
+
+  const fetchSecurityQuestions = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/faculty/security-questions`);
+      const data = await response.json();
+      if (response.ok) {
+        setSecurityQuestions(data.questions);
+      }
+    } catch (err) {
+      console.error("Error fetching security questions:", err);
+    }
+  };
+
+  const validateStep1 = () => {
     const newErrors = {};
     
-    // Validate faculty name (minimum 8 characters)
+    // Validate faculty name length
     if (formData.facultyName.length < 8) {
       newErrors.facultyName = "Faculty name must be at least 8 characters long";
     }
     
-    // Validate faculty number (at least 8 digits)
-    const facultyNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    // Validate faculty number format - minimum 2 digits, numbers only
+    const facultyNumberRegex = /^\d{2,}$/;
     if (!facultyNumberRegex.test(formData.facultyNumber)) {
-      newErrors.facultyNumber = "Faculty number must be at least 8 digits";
+      newErrors.facultyNumber = "Faculty number must contain only numbers (minimum 2 digits)";
     }
     
-    // Validate password
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors = {};
+    
+    // Validate security answer
+    if (!formData.securityAnswer.trim()) {
+      newErrors.securityAnswer = "Security answer is required";
+    }
+    
+    // Validate new password
     if (formData.newPassword.length < 4) {
       newErrors.newPassword = "Password must be at least 4 characters long";
     }
@@ -46,6 +81,7 @@ const FacultyForgotPassword = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
     // Remove non-numeric characters for facultyNumber
     if (name === "facultyNumber") {
       const numericValue = value.replace(/\D/g, '');
@@ -66,21 +102,66 @@ const FacultyForgotPassword = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleStep1Submit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validateStep1()) {
       setModalType("error");
       setModalMessage("Please fix the errors in the form");
       setModalOpen(true);
       return;
     }
 
+    setLoading(true);
+
+    try {
+      // Fetch security question for this user
+      const response = await fetch(
+        `${API_BASE_URL}/api/faculty/security-question?facultyNumber=${formData.facultyNumber}&facultyName=${formData.facultyName}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "User not found");
+      }
+
+      setFetchedQuestion(data.securityQuestion);
+      setFormData(prev => ({ ...prev, securityQuestion: data.securityQuestion }));
+      setStep(2);
+      
+    } catch (err) {
+      setModalType("error");
+      setModalMessage(err.message);
+      setModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStep2Submit = async (e) => {
+    e.preventDefault();
+
+    if (!validateStep2()) {
+      setModalType("error");
+      setModalMessage("Please fix the errors in the form");
+      setModalOpen(true);
+      return;
+    }
+
+    setLoading(true);
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/faculty/forgot-password`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          facultyNumber: formData.facultyNumber,
+          facultyName: formData.facultyName,
+          securityQuestion: formData.securityQuestion,
+          securityAnswer: formData.securityAnswer.trim(),
+          newPassword: formData.newPassword
+        }),
       });
 
       const data = await response.json();
@@ -103,7 +184,14 @@ const FacultyForgotPassword = () => {
       setModalType("error");
       setModalMessage(err.message);
       setModalOpen(true);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    setStep(1);
+    setErrors({});
   };
 
   const handleLogin = () => {
@@ -117,92 +205,157 @@ const FacultyForgotPassword = () => {
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Reset Faculty Password</h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              Enter your details to reset your password
+              {step === 1 ? "Enter your details to verify identity" : "Answer your security question"}
             </p>
           </div>
           
-          <form onSubmit={handleSubmit}>
-            {/* Faculty Name - First Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="facultyName" className="block text-gray-700 text-sm font-medium mb-2">
-                Faculty Name:
-              </label>
-              <input
-                type="text"
-                id="facultyName"
-                name="facultyName"
-                value={formData.facultyName}
-                onChange={handleChange}
-                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                  errors.facultyName ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Enter your faculty name"
-                title="Faculty name must be at least 8 characters long"
-                required
-              />
-              {errors.facultyName && (
-                <p className="text-red-500 text-xs mt-1">{errors.facultyName}</p>
-              )}
-            </div>
+          {step === 1 ? (
+            <form onSubmit={handleStep1Submit}>
+              {/* Faculty Name - First Field */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="facultyName" className="block text-gray-700 text-sm font-medium mb-2">
+                  Faculty Name:
+                </label>
+                <input
+                  type="text"
+                  id="facultyName"
+                  name="facultyName"
+                  value={formData.facultyName}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.facultyName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your faculty name"
+                  title="Faculty name must be at least 8 characters long"
+                  required
+                />
+                {errors.facultyName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.facultyName}</p>
+                )}
+              </div>
 
-            {/* Faculty Number - Second Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="facultyNumber" className="block text-gray-700 text-sm font-medium mb-2">
-                Faculty Number:
-              </label>
-              <input
-                type="text"
-                id="facultyNumber"
-                name="facultyNumber"
-                value={formData.facultyNumber}
-                onChange={handleChange}
-                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                  errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
+              {/* Faculty Number - Second Field */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="facultyNumber" className="block text-gray-700 text-sm font-medium mb-2">
+                  Faculty Number:
+                </label>
+                <input
+                  type="text"
+                  id="facultyNumber"
+                  name="facultyNumber"
+                  value={formData.facultyNumber}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your faculty number"
+                  title="Faculty number must contain only numbers (minimum 2 digits)"
+                  required
+                />
+                {errors.facultyNumber && (
+                  <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Must be at least 2 digits (numbers only)
+                </p>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
-                placeholder="Enter your faculty number"
-                title="Faculty number must be at least 8 digits"
-                required
-              />
-              {errors.facultyNumber && (
-                <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Must be at least 8 digits (numbers only)
-              </p>
-            </div>
-            
-            {/* New Password - Third Field */}
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
-                New Password:
-              </label>
-              <input
-                type="password"
-                id="newPassword"
-                name="newPassword"
-                value={formData.newPassword}
-                onChange={handleChange}
-                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                  errors.newPassword ? 'border-red-500' : 'border-gray-300'
+              >
+                {loading ? "Verifying..." : "Continue"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleStep2Submit}>
+              <div className="mb-4 sm:mb-6">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="flex items-center text-black hover:text-yellow-600 transition-colors text-sm font-medium mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </button>
+              </div>
+
+              {/* Security Question Display */}
+              <div className="mb-4 sm:mb-6">
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Security Question:
+                </label>
+                <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 bg-gray-50 rounded-lg text-sm sm:text-base">
+                  {fetchedQuestion}
+                </div>
+                <input
+                  type="hidden"
+                  name="securityQuestion"
+                  value={formData.securityQuestion}
+                />
+              </div>
+
+              {/* Security Answer */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="securityAnswer" className="block text-gray-700 text-sm font-medium mb-2">
+                  Security Answer:
+                </label>
+                <input
+                  type="text"
+                  id="securityAnswer"
+                  name="securityAnswer"
+                  value={formData.securityAnswer}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.securityAnswer ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your security answer"
+                  required
+                />
+                {errors.securityAnswer && (
+                  <p className="text-red-500 text-xs mt-1">{errors.securityAnswer}</p>
+                )}
+              </div>
+              
+              {/* New Password */}
+              <div className="mb-4 sm:mb-6">
+                <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
+                  New Password:
+                </label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  name="newPassword"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                    errors.newPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your new password"
+                  required
+                />
+                {errors.newPassword && (
+                  <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Password must be at least 4 characters long
+                </p>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
-                placeholder="Enter your new password"
-                required
-              />
-              {errors.newPassword && (
-                <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Password must be at least 4 characters long
-              </p>
-            </div>
-            
-            <button
-              type="submit"
-              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
-            >
-              Reset Password
-            </button>
-          </form>
+              >
+                {loading ? "Resetting..." : "Reset Password"}
+              </button>
+            </form>
+          )}
           
           {/* Login Section */}
           <div className="mt-4 sm:mt-6 text-center">

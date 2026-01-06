@@ -15,6 +15,7 @@ export const getAllUsers = async (req, res) => {
         number: a.adminNumber,
         role: a.role || 'admin',
         status: a.status || 'offline',
+        security_question: a.securityQuestion || 'Not set',
         password: "••••••••", 
         created_at: a.registeredAt || a.createdAt,
       })),
@@ -24,6 +25,7 @@ export const getAllUsers = async (req, res) => {
         number: f.facultyNumber,
         role: f.role || 'faculty',
         status: f.status || 'offline',
+        security_question: f.securityQuestion || 'Not set',
         password: "••••••••", 
         created_at: f.registeredAt || f.createdAt,
       }))

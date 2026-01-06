@@ -29,10 +29,71 @@ const generateAdminTokens = (admin) => {
   return { accessToken, refreshToken };
 };
 
+// Security questions array
+export const securityQuestions = [
+  "What was your first pet's name?",
+  "What is your mother's maiden name?",
+  "What was the name of your first school?",
+  "What is your favorite book?",
+  "What is your favorite movie?",
+  "What is your favorite food?",
+  "What is your favorite color?",
+  "What is your favorite sport?",
+  "What is your favorite teacher's name?",
+  "What is your favorite car?"
+];
+
+// Get security questions
+export const getSecurityQuestions = async (req, res) => {
+  try {
+    res.status(200).json({
+      questions: securityQuestions
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching security questions",
+      error: error.message,
+    });
+  }
+};
+
+// Get admin security question
+export const getAdminSecurityQuestion = async (req, res) => {
+  try {
+    const { adminNumber, adminName } = req.query;
+
+    if (!adminNumber || !adminName) {
+      return res.status(400).json({ 
+        message: "Admin number and name are required" 
+      });
+    }
+
+    const admin = await Admin.findOne({ 
+      adminNumber,
+      adminName: { $regex: new RegExp(`^${adminName}$`, 'i') }
+    });
+
+    if (!admin) {
+      return res.status(404).json({ 
+        message: "Admin not found" 
+      });
+    }
+
+    res.status(200).json({
+      securityQuestion: admin.securityQuestion
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching security question",
+      error: error.message,
+    });
+  }
+};
+
 // REGISTER ADMIN
 export const registerAdmin = async (req, res) => {
   try {
-    const { adminName, adminNumber, password } = req.body;
+    const { adminName, adminNumber, password, securityQuestion, securityAnswer } = req.body;
 
     // Validate admin name length
     if (adminName.length < 8) {
@@ -41,11 +102,25 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Validate admin number format 
-    const adminNumberRegex = /^\d{8,}$/;  
+    // Validate admin number format - minimum 2 digits, numbers only
+    const adminNumberRegex = /^\d{2,}$/;
     if (!adminNumberRegex.test(adminNumber)) {
       return res.status(400).json({ 
-        message: "Admin number must be at least 8 digits" 
+        message: "Admin number must contain only numbers (minimum 2 digits)" 
+      });
+    }
+
+    // Validate security question
+    if (!securityQuestions.includes(securityQuestion)) {
+      return res.status(400).json({ 
+        message: "Invalid security question" 
+      });
+    }
+
+    // Validate security answer
+    if (!securityAnswer || securityAnswer.trim().length === 0) {
+      return res.status(400).json({ 
+        message: "Security answer is required" 
       });
     }
 
@@ -62,6 +137,8 @@ export const registerAdmin = async (req, res) => {
       adminName,
       adminNumber,
       password: hashedPassword,
+      securityQuestion,
+      securityAnswer: securityAnswer.trim(),
       role: "admin",
       status: "offline",
       registeredAt: new Date(),
@@ -93,11 +170,11 @@ export const loginAdmin = async (req, res) => {
   try {
     const { adminNumber, password } = req.body;
 
-    // Validate admin number format 
-    const adminNumberRegex = /^\d{8,}$/;  
+    // Validate admin number format - minimum 2 digits, numbers only
+    const adminNumberRegex = /^\d{2,}$/;
     if (!adminNumberRegex.test(adminNumber)) {
       return res.status(400).json({ 
-        message: "Admin number must be at least 8 digits" 
+        message: "Admin number must contain only numbers (minimum 2 digits)" 
       });
     }
 
@@ -142,7 +219,8 @@ export const loginAdmin = async (req, res) => {
         adminName: admin.adminName,
         adminNumber: admin.adminNumber,
         role: admin.role,
-        status: admin.status, 
+        status: admin.status,
+        securityQuestion: admin.securityQuestion,
       },
     });
   } catch (error) {
@@ -198,7 +276,7 @@ export const refreshTokenAdmin = async (req, res) => {
 // Forgot Password ADMIN
 export const forgotPasswordAdmin = async (req, res) => {
   try {
-    const { adminNumber, adminName, newPassword } = req.body;
+    const { adminNumber, adminName, securityQuestion, securityAnswer, newPassword } = req.body;
 
     // Validate admin name length
     if (adminName.length < 8) {
@@ -207,11 +285,25 @@ export const forgotPasswordAdmin = async (req, res) => {
       });
     }
 
-    // Validate admin number format 
-    const adminNumberRegex = /^\d{8,}$/;  
+    // Validate admin number format - minimum 2 digits, numbers only
+    const adminNumberRegex = /^\d{2,}$/;
     if (!adminNumberRegex.test(adminNumber)) {
       return res.status(400).json({ 
-        message: "Admin number must be at least 8 digits" 
+        message: "Admin number must contain only numbers (minimum 2 digits)" 
+      });
+    }
+
+    // Validate security question
+    if (!securityQuestions.includes(securityQuestion)) {
+      return res.status(400).json({ 
+        message: "Invalid security question" 
+      });
+    }
+
+    // Validate security answer
+    if (!securityAnswer || securityAnswer.trim().length === 0) {
+      return res.status(400).json({ 
+        message: "Security answer is required" 
       });
     }
 
@@ -223,6 +315,20 @@ export const forgotPasswordAdmin = async (req, res) => {
     if (!admin) {
       return res.status(404).json({ 
         message: "Admin not found. Please check your Admin Number and Name." 
+      });
+    }
+
+    // Check security question
+    if (admin.securityQuestion !== securityQuestion) {
+      return res.status(400).json({ 
+        message: "Security question does not match" 
+      });
+    }
+
+    // Check security answer (case-insensitive)
+    if (admin.securityAnswer.toLowerCase() !== securityAnswer.toLowerCase().trim()) {
+      return res.status(400).json({ 
+        message: "Security answer is incorrect" 
       });
     }
 
