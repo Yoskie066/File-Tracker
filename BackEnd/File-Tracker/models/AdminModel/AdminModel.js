@@ -11,12 +11,12 @@ const adminSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      minlength: 8,
+      minlength: 2,
       validate: {
         validator: function(v) {
-          return v.length >= 8;
+          return v.length >= 2;
         },
-        message: "Admin name must be at least 8 characters long"
+        message: "Admin name must be at least 2 characters long"
       }
     },
     adminNumber: {

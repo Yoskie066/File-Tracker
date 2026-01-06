@@ -20,10 +20,10 @@ const AdminLogin = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    // Validate admin number (at least 8 digits)
-    const adminNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    // Validate admin number (at least 2 digits)
+    const adminNumberRegex = /^\d{2,}$/;
     if (!adminNumberRegex.test(formData.adminNumber)) {
-      newErrors.adminNumber = "Admin number must be at least 8 digits";
+      newErrors.adminNumber = "Admin number must be at least 2 digits";
     }
     
     // Validate password
@@ -124,14 +124,14 @@ const AdminLogin = () => {
                   errors.adminNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your admin number"
-                title="Admin number must be at least 8 digits"
+                title="Admin number must be at least 2 digits"
                 required
               />
               {errors.adminNumber && (
                 <p className="text-red-500 text-xs mt-1">{errors.adminNumber}</p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                Must be at least 8 digits (numbers only)
+                Must be at least 2 digits (numbers only)
               </p>
             </div>
             

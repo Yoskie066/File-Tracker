@@ -47,9 +47,9 @@ const AdminForgotPassword = () => {
   const validateStep1 = () => {
     const newErrors = {};
     
-    // Validate admin name length
-    if (formData.adminName.length < 8) {
-      newErrors.adminName = "Admin name must be at least 8 characters long";
+    // Validate admin name length - CHANGED FROM 8 TO 2
+    if (formData.adminName.length < 2) {
+      newErrors.adminName = "Admin name must be at least 2 characters long";
     }
     
     // Validate admin number format - minimum 2 digits, numbers only
@@ -226,7 +226,7 @@ const AdminForgotPassword = () => {
                     errors.adminName ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter your admin name"
-                  title="Admin name must be at least 8 characters long"
+                  title="Admin name must be at least 2 characters long" // CHANGED FROM 8 TO 2
                   required
                 />
                 {errors.adminName && (

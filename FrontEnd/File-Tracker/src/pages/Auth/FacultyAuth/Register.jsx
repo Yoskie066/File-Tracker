@@ -48,9 +48,9 @@ const FacultyRegister = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    // Validate faculty name (minimum 8 characters)
-    if (formData.facultyName.length < 8) {
-      newErrors.facultyName = "Faculty name must be at least 8 characters long";
+    // Validate faculty name (minimum 2 characters) - CHANGED FROM 8 TO 2
+    if (formData.facultyName.length < 2) {
+      newErrors.facultyName = "Faculty name must be at least 2 characters long";
     }
     
     // Validate faculty number (minimum 2 digits, numbers only)
@@ -182,8 +182,8 @@ const FacultyRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.facultyName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your faculty name (min 8 characters)"
-                title="Faculty name must be at least 8 characters long"
+                placeholder="Enter your faculty name (min 2 characters)" // CHANGED FROM 8 TO 2
+                title="Faculty name must be at least 2 characters long" // CHANGED FROM 8 TO 2
                 required
               />
               {errors.facultyName && (

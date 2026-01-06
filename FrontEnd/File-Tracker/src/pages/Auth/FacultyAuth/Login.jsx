@@ -4,7 +4,7 @@ import Modal from "react-modal";
 import { CheckCircle, XCircle } from "lucide-react";
 import TokenService from "../../../services/tokenService";
 
-Modal.setAppElement("#root"); 
+Modal.setAppElement("#root");
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -20,10 +20,10 @@ const FacultyLogin = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    // Validate faculty number (at least 8 digits)
-    const facultyNumberRegex = /^\d{8,}$/;  // Changed from exactly 8 to minimum 8
+    // Validate faculty number (at least 2 digits)
+    const facultyNumberRegex = /^\d{2,}$/;
     if (!facultyNumberRegex.test(formData.facultyNumber)) {
-      newErrors.facultyNumber = "Faculty number must be at least 8 digits";
+      newErrors.facultyNumber = "Faculty number must be at least 2 digits";
     }
     
     // Validate password
@@ -123,14 +123,14 @@ const FacultyLogin = () => {
                   errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Enter your faculty number"
-                title="Faculty number must be at least 8 digits"
+                title="Faculty number must be at least 2 digits"
                 required
               />
               {errors.facultyNumber && (
                 <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                Must be at least 8 digits (numbers only)
+                Must be at least 2 digits (numbers only)
               </p>
             </div>
             

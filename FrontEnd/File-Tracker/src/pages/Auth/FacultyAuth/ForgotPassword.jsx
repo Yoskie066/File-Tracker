@@ -47,9 +47,9 @@ const FacultyForgotPassword = () => {
   const validateStep1 = () => {
     const newErrors = {};
     
-    // Validate faculty name length
-    if (formData.facultyName.length < 8) {
-      newErrors.facultyName = "Faculty name must be at least 8 characters long";
+    // Validate faculty name length - CHANGED FROM 8 TO 2
+    if (formData.facultyName.length < 2) {
+      newErrors.facultyName = "Faculty name must be at least 2 characters long";
     }
     
     // Validate faculty number format - minimum 2 digits, numbers only
@@ -226,7 +226,7 @@ const FacultyForgotPassword = () => {
                     errors.facultyName ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter your faculty name"
-                  title="Faculty name must be at least 8 characters long"
+                  title="Faculty name must be at least 2 characters long" // CHANGED FROM 8 TO 2
                   required
                 />
                 {errors.facultyName && (

@@ -48,9 +48,9 @@ const AdminRegister = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    // Validate admin name (minimum 8 characters)
-    if (formData.adminName.length < 8) {
-      newErrors.adminName = "Admin name must be at least 8 characters long";
+    // Validate admin name (minimum 2 characters) - CHANGED FROM 8 TO 2
+    if (formData.adminName.length < 2) {
+      newErrors.adminName = "Admin name must be at least 2 characters long";
     }
     
     // Validate admin number (minimum 2 digits, numbers only)
@@ -182,8 +182,8 @@ const AdminRegister = () => {
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
                   errors.adminName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter your admin name (min 8 characters)"
-                title="Admin name must be at least 8 characters long"
+                placeholder="Enter your admin name (min 2 characters)" // CHANGED FROM 8 TO 2
+                title="Admin name must be at least 2 characters long" // CHANGED FROM 8 TO 2
                 required
               />
               {errors.adminName && (

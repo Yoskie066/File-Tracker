@@ -95,10 +95,10 @@ export const registerAdmin = async (req, res) => {
   try {
     const { adminName, adminNumber, password, securityQuestion, securityAnswer } = req.body;
 
-    // Validate admin name length
-    if (adminName.length < 8) {
+    // Validate admin name length - CHANGED FROM 8 TO 2
+    if (adminName.length < 2) {
       return res.status(400).json({ 
-        message: "Admin name must be at least 8 characters long" 
+        message: "Admin name must be at least 2 characters long" 
       });
     }
 
@@ -278,10 +278,10 @@ export const forgotPasswordAdmin = async (req, res) => {
   try {
     const { adminNumber, adminName, securityQuestion, securityAnswer, newPassword } = req.body;
 
-    // Validate admin name length
-    if (adminName.length < 8) {
+    // Validate admin name length - CHANGED FROM 8 TO 2
+    if (adminName.length < 2) {
       return res.status(400).json({ 
-        message: "Admin name must be at least 8 characters long" 
+        message: "Admin name must be at least 2 characters long" 
       });
     }
 

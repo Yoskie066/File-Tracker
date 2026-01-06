@@ -95,10 +95,10 @@ export const registerFaculty = async (req, res) => {
   try {
     const { facultyName, facultyNumber, password, securityQuestion, securityAnswer } = req.body;
 
-    // Validate faculty name length
-    if (facultyName.length < 8) {
+    // Validate faculty name length - CHANGED FROM 8 TO 2
+    if (facultyName.length < 2) {
       return res.status(400).json({ 
-        message: "Faculty name must be at least 8 characters long" 
+        message: "Faculty name must be at least 2 characters long" 
       });
     }
 
@@ -280,10 +280,10 @@ export const forgotPasswordFaculty = async (req, res) => {
   try {
     const { facultyNumber, facultyName, securityQuestion, securityAnswer, newPassword } = req.body;
 
-    // Validate faculty name length
-    if (facultyName.length < 8) {
+    // Validate faculty name length - CHANGED FROM 8 TO 2
+    if (facultyName.length < 2) {
       return res.status(400).json({ 
-        message: "Faculty name must be at least 8 characters long" 
+        message: "Faculty name must be at least 2 characters long" 
       });
     }
 
