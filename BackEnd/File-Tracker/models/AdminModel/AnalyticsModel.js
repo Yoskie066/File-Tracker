@@ -70,7 +70,7 @@ const analyticsSchema = new mongoose.Schema(
       total_variables: Number,
       bscs_count: Number,
       bsit_count: Number,
-      both_count: Number,
+      distinct_subjects_count: Number,
     },
   },
   {

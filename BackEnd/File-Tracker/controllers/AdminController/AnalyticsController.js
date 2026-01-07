@@ -71,7 +71,7 @@ export const getAnalyticsData = async (req, res) => {
     const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
 
-    // Get file management statistics with date filter - DAGDAG: late_files
+    // Get file management statistics with date filter
     const totalFiles = await FileManagement.countDocuments(fileFilter);
     const pendingFiles = await FileManagement.countDocuments({
       ...fileFilter,
@@ -85,7 +85,7 @@ export const getAnalyticsData = async (req, res) => {
       ...fileFilter,
       status: "rejected",
     });
-    const lateFiles = await FileManagement.countDocuments({  // DAGDAG: Late files count
+    const lateFiles = await FileManagement.countDocuments({
       ...fileFilter,
       status: "late",
     });
@@ -190,19 +190,31 @@ export const getAnalyticsData = async (req, res) => {
       },
     ]);
 
+    // Count distinct subject codes (NEW)
+    const distinctSubjectsResult = await SystemVariable.aggregate([
+      { $match: systemVariableFilter },
+      {
+        $group: {
+          _id: "$subject_code",
+        },
+      },
+      {
+        $count: "distinct_count"
+      }
+    ]);
+
     // Convert course counts to individual variables
     let bscsCount = 0;
     let bsitCount = 0;
-    let bothCount = 0;
+    const distinctSubjectsCount = distinctSubjectsResult.length > 0 ? distinctSubjectsResult[0].distinct_count : 0;
 
     courseCounts.forEach((item) => {
       if (item._id === "BSCS") {
         bscsCount = item.count;
       } else if (item._id === "BSIT") {
         bsitCount = item.count;
-      } else if (item._id === "BOTH") {
-        bothCount = item.count;
       }
+      // Removed BOTH count
     });
 
     // Calculate system health
@@ -215,7 +227,7 @@ export const getAnalyticsData = async (req, res) => {
       overdueNotices
     );
 
-    // Prepare response data - DAGDAG: late_files sa response
+    // Prepare response data
     const analyticsData = {
       user_management: {
         total_users: totalUsers,
@@ -234,7 +246,7 @@ export const getAnalyticsData = async (req, res) => {
         pending_files: pendingFiles,
         completed_files: completedFiles,
         rejected_files: rejectedFiles,
-        late_files: lateFiles,  // DAGDAG: Late files count
+        late_files: lateFiles,
         document_type_distribution: documentTypeDist,
         semester_distribution: semesterDist,
       },
@@ -250,7 +262,7 @@ export const getAnalyticsData = async (req, res) => {
         total_variables: totalVariables,
         bscs_count: bscsCount,
         bsit_count: bsitCount,
-        both_count: bothCount,
+        distinct_subjects_count: distinctSubjectsCount, // CHANGED FROM both_count
       },
       summary: {
         total_records: totalUsers + totalFiles + totalNotices + totalVariables,
@@ -279,7 +291,7 @@ export const getAnalyticsData = async (req, res) => {
   }
 };
 
-// Get faculty performance analytics with date filtering - DAGDAG: late_submissions
+// Get faculty performance analytics with date filtering
 export const getFacultyPerformance = async (req, res) => {
   try {
     console.log("Faculty performance endpoint hit");
@@ -319,7 +331,7 @@ export const getFacultyPerformance = async (req, res) => {
           rejected_submissions: {
             $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] },
           },
-          late_submissions: {  // DAGDAG: Late submissions count
+          late_submissions: {
             $sum: { $cond: [{ $eq: ["$status", "late"] }, 1, 0] },
           },
           average_file_size: { $avg: "$file_size" },

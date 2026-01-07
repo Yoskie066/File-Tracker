@@ -217,18 +217,18 @@ export default function Analytics() {
     ],
   });
 
-  // 3. File Status Distribution - DAGDAG: Late sa chart
+  // 3. File Status Distribution
   const getStatusDistributionData = () => ({
-    labels: ['Pending', 'Completed', 'Rejected', 'Late'],  // DAGDAG: Late
+    labels: ['Pending', 'Completed', 'Rejected', 'Late'],
     datasets: [
       {
         data: [
           analyticsData?.file_management?.pending_files || 0,
           analyticsData?.file_management?.completed_files || 0,
           analyticsData?.file_management?.rejected_files || 0,
-          analyticsData?.file_management?.late_files || 0  // DAGDAG: Late data
+          analyticsData?.file_management?.late_files || 0
         ],
-        backgroundColor: ['#F59E0B', '#10B981', '#EF4444', '#FF8C00'],  // DAGDAG: Orange para sa late
+        backgroundColor: ['#F59E0B', '#10B981', '#EF4444', '#FF8C00'],
         borderColor: ['#F59E0B', '#10B981', '#EF4444', '#FF8C00'],
         borderWidth: 2,
       },
@@ -338,27 +338,26 @@ export default function Analytics() {
     ],
   });
 
-  // 7. System Variables Distribution - UPDATED
+  // 7. System Variables Distribution - UPDATED (REMOVED BOTH, ADDED DISTINCT SUBJECTS)
   const getSystemVariablesData = () => {
     const systemVars = analyticsData?.system_variables || {};
     
     const labels = [
       'BSCS', 
       'BSIT',
-      'BOTH'
+      'Distinct Subjects'  // CHANGED FROM 'BOTH'
     ];
 
     const data = [
       systemVars.bscs_count || 0,
       systemVars.bsit_count || 0,
-      systemVars.both_count || 0
+      systemVars.distinct_subjects_count || 0  // CHANGED FROM both_count
     ];
 
     const backgroundColors = [
-      '#4F46E5', // Indigo - Distinct Subjects
-      '#10B981', // Emerald - BSCS
-      '#F59E0B', // Amber - BSIT
-      '#EF4444'  // Red - BOTH
+      '#4F46E5', // Indigo - BSCS
+      '#10B981', // Emerald - BSIT
+      '#F59E0B', // Amber - Distinct Subjects
     ];
 
     return {
@@ -803,7 +802,7 @@ export default function Analytics() {
 
         {activeTab === 'overview' && analyticsData && (
           <div className="space-y-8">
-            {/* Module Statistics Cards - DAGDAG: Late sa File Management Card */}
+            {/* Module Statistics Cards - UPDATED: System Variables Card changed */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -832,7 +831,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* File Management Card - DAGDAG: Late */}
+              {/* File Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">File Management</h3>
                 <div className="space-y-3">
@@ -852,14 +851,14 @@ export default function Analytics() {
                     <span className="text-gray-600">Rejected:</span>
                     <span className="font-semibold text-red-600">{analyticsData?.file_management?.rejected_files || 0}</span>
                   </div>
-                  <div className="flex justify-between">  {/* DAGDAG: Late row */}
+                  <div className="flex justify-between">
                     <span className="text-gray-600">Late:</span>
                     <span className="font-semibold text-orange-600">{analyticsData?.file_management?.late_files || 0}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Admin Notice Card - UPDATED */}
+              {/* Admin Notice Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Notice</h3>
                 <div className="space-y-3">
@@ -898,7 +897,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* System Variables Card  */}
+              {/* System Variables Card - UPDATED: Removed BOTH, added Distinct Subjects */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="space-y-3">
@@ -915,8 +914,8 @@ export default function Analytics() {
                     <span className="font-semibold text-yellow-600">{analyticsData?.system_variables?.bsit_count || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">BOTH:</span>
-                    <span className="font-semibold text-red-600">{analyticsData?.system_variables?.both_count || 0}</span>
+                    <span className="text-gray-600">Distinct Subjects:</span>
+                    <span className="font-semibold text-orange-600">{analyticsData?.system_variables?.distinct_subjects_count || 0}</span>
                   </div>
                 </div>
               </div>
@@ -940,7 +939,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 3. File Status Distribution - DAGDAG: Late sa chart */}
+              {/* 3. File Status Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">File Status Distribution</h3>
                 <div className="h-64">
@@ -956,7 +955,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 5. Semester Distribution - NEW */}
+              {/* 5. Semester Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Semester Distribution</h3>
                 <div className="h-64">
@@ -980,7 +979,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 8. System Variables Distribution - UPDATED */}
+              {/* 8. System Variables Distribution - UPDATED: Removed BOTH, added Distinct Subjects */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">
@@ -1013,7 +1012,7 @@ export default function Analytics() {
               />
             </div>
 
-            {/* Desktop Table - DAGDAG: Late column */}
+            {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-sm">
                 <thead className="bg-black text-white uppercase text-xs">
@@ -1023,7 +1022,7 @@ export default function Analytics() {
                     <th className="px-4 py-3 text-left border-r border-gray-600">Completed</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Pending</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Rejected</th>
-                    <th className="px-4 py-3 text-left border-r border-gray-600">Late</th> {/* DAGDAG: Late column */}
+                    <th className="px-4 py-3 text-left border-r border-gray-600">Late</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Completion Rate</th>
                     <th className="px-4 py-3 text-left border-gray-600">Avg File Size</th>
                   </tr>
@@ -1037,7 +1036,7 @@ export default function Analytics() {
                         <td className="px-4 py-3 text-green-600 font-medium">{faculty.completed_submissions}</td>
                         <td className="px-4 py-3 text-yellow-600 font-medium">{faculty.pending_submissions}</td>
                         <td className="px-4 py-3 text-red-600 font-medium">{faculty.rejected_submissions}</td>
-                        <td className="px-4 py-3 text-orange-600 font-medium">{faculty.late_submissions}</td> {/* DAGDAG: Late data */}
+                        <td className="px-4 py-3 text-orange-600 font-medium">{faculty.late_submissions}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center">
                             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1056,7 +1055,7 @@ export default function Analytics() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="8" className="text-center py-8 text-gray-500 font-medium"> {/* Updated colSpan to 8 */}
+                      <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
                         {search ? 'No faculty found matching your search.' : 'No faculty performance data available for the selected period.'}
                       </td>
                     </tr>
@@ -1065,7 +1064,7 @@ export default function Analytics() {
               </table>
             </div>
 
-            {/* Mobile Cards - DAGDAG: Late sa mobile */}
+            {/* Mobile Cards */}
             <div className="md:hidden grid grid-cols-1 gap-4">
               {currentUsers.length > 0 ? (
                 currentUsers.map((faculty) => (
@@ -1091,7 +1090,7 @@ export default function Analytics() {
                         <span className="text-gray-500">Rejected:</span>
                         <p className="font-medium text-red-600">{faculty.rejected_submissions}</p>
                       </div>
-                      <div> {/* DAGDAG: Late sa mobile */}
+                      <div>
                         <span className="text-gray-500">Late:</span>
                         <p className="font-medium text-orange-600">{faculty.late_submissions}</p>
                       </div>
