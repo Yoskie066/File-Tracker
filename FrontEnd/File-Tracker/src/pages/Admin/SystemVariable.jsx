@@ -50,12 +50,12 @@ export default function SystemVariableManagement() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [academicYearError, setAcademicYearError] = useState("");
   const [availableSubjects, setAvailableSubjects] = useState([]);
-  const [availableTitles, setAvailableTitles] = useState([]);
+  const [formErrors, setFormErrors] = useState({});
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Course options
-  const courseOptions = ['BSCS', 'BSIT', 'BOTH'];
+  // Course options - Removed BOTH
+  const courseOptions = ['BSCS', 'BSIT'];
 
   // Semester options
   const semesterOptions = ['1st Semester', '2nd Semester', 'Summer'];
@@ -129,7 +129,7 @@ export default function SystemVariableManagement() {
     fetchAllSubjects();
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close action dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setActionDropdown(null);
     document.addEventListener("click", handleClickOutside);
@@ -152,10 +152,10 @@ export default function SystemVariableManagement() {
     const years = new Set();
     variables.forEach(variable => {
       if (variable.academic_year) {
-        // Extract year from "A.Y: 2025-2026"
-        const yearMatch = variable.academic_year.match(/\d{4}/);
+        // Extract year from "A.Y: 2025" or "A.Y: 2025-2026"
+        const yearMatch = variable.academic_year.match(/\d{4}/g);
         if (yearMatch) {
-          years.add(yearMatch[0]);
+          yearMatch.forEach(year => years.add(year));
         }
       }
     });
@@ -172,39 +172,45 @@ export default function SystemVariableManagement() {
     setCurrentPage(1);
   };
 
-  // Validate Academic Year format
+  // Validate Academic Year format - Updated for single year or range
   const validateAcademicYearFormat = (year) => {
     if (!year) return { valid: false, error: "Academic Year is required" };
     
-    // Check format: exactly 4 digits, hyphen, exactly 4 digits
-    const yearRegex = /^\d{4}-\d{4}$/;
+    // Check format: either exactly 4 digits or 4 digits, hyphen, 4 digits
+    const yearRegex = /^\d{4}$|^\d{4}-\d{4}$/;
     
     if (!yearRegex.test(year)) {
-      return { valid: false, error: "Format must be: 2025-2026 (four digits, hyphen, four digits)" };
+      return { valid: false, error: "Format must be: 2025 or 2025-2026 (four digits, optionally hyphen and four digits)" };
     }
     
-    const [startYear, endYear] = year.split('-').map(Number);
-    
-    // Check if end year is exactly one year after start year
-    if (endYear !== startYear + 1) {
-      return { valid: false, error: "Must be consecutive years (e.g., 2025-2026)" };
+    // If it's a range, check consecutive years
+    if (year.includes('-')) {
+      const [startYear, endYear] = year.split('-').map(Number);
+      
+      // Check if end year is exactly one year after start year
+      if (endYear !== startYear + 1) {
+        return { valid: false, error: "Must be consecutive years (e.g., 2025-2026)" };
+      }
     }
     
-    return { valid: true, cleaned: `${startYear}-${endYear}` };
+    return { valid: true, cleaned: year };
   };
 
   // Handle Academic Year input
   const handleAcademicYearInput = (e) => {
     const value = e.target.value;
     setAcademicYearError("");
+    setFormErrors(prev => ({ ...prev, academic_year: "" }));
     
     // Allow only numbers and hyphen
     const sanitizedValue = value.replace(/[^\d-]/g, '');
     
-    // Format as user types
+    // Auto-format as user types
     let formattedValue = sanitizedValue;
     if (sanitizedValue.length === 4 && !sanitizedValue.includes('-')) {
-      formattedValue = sanitizedValue + '-';
+      formattedValue = sanitizedValue;
+    } else if (sanitizedValue.length > 4 && !sanitizedValue.includes('-')) {
+      formattedValue = sanitizedValue.slice(0, 4) + '-' + sanitizedValue.slice(4, 8);
     }
     
     setFormData(prev => ({
@@ -219,10 +225,20 @@ export default function SystemVariableManagement() {
       ...formData,
       subject_code: subject.value,
       subject_title: subject.subject_title,
-      course: subject.course
+      course: subject.course,
+      semester: subject.semester || '1st Semester' // Auto-fill semester
     });
     setSubjectCodeSearch(subject.label);
     setShowSubjectCodeDropdown(false);
+    
+    // Clear form errors
+    setFormErrors(prev => ({
+      ...prev,
+      subject_code: "",
+      course: "",
+      subject_title: "",
+      semester: ""
+    }));
   };
 
   // Clear subject search and selection
@@ -232,7 +248,8 @@ export default function SystemVariableManagement() {
       ...prev,
       subject_code: "",
       subject_title: "",
-      course: ""
+      course: "",
+      semester: ""
     }));
     setShowSubjectCodeDropdown(false);
   };
@@ -250,6 +267,14 @@ export default function SystemVariableManagement() {
       setFormData(prev => ({
         ...prev,
         [name]: value
+      }));
+    }
+    
+    // Clear form errors when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ""
       }));
     }
   };
@@ -274,9 +299,46 @@ export default function SystemVariableManagement() {
     });
     setSubjectCodeSearch("");
     setAcademicYearError("");
-    setAvailableTitles([]);
     setIsEditMode(false);
     setShowSubjectCodeDropdown(false);
+    setFormErrors({});
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.subject_code) {
+      errors.subject_code = "Subject Code is required";
+    }
+    
+    if (!formData.course) {
+      errors.course = "Course is required";
+    }
+    
+    if (!formData.subject_title) {
+      errors.subject_title = "Subject Title is required";
+    }
+    
+    if (!formData.semester) {
+      errors.semester = "Semester is required";
+    }
+    
+    if (!formData.academic_year) {
+      errors.academic_year = "Academic Year is required";
+    } else {
+      const validationResult = validateAcademicYearFormat(formData.academic_year);
+      if (!validationResult.valid) {
+        errors.academic_year = validationResult.error;
+      }
+    }
+    
+    if (!isEditMode && !formData.created_by) {
+      errors.created_by = "Created By is required";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Search and filter function
@@ -306,8 +368,8 @@ export default function SystemVariableManagement() {
     
     if (yearFilter) {
       filtered = filtered.filter(v => {
-        const yearMatch = v.academic_year.match(/\d{4}/);
-        return yearMatch && yearMatch[0] === yearFilter;
+        const yearMatch = v.academic_year.match(/\d{4}/g);
+        return yearMatch && yearMatch.some(year => year === yearFilter);
       });
     }
 
@@ -331,28 +393,31 @@ export default function SystemVariableManagement() {
 
   const filteredVariables = getFilteredVariables();
 
-  // Calculate stats for cards 
+  // Calculate stats for cards - Updated to remove BOTH count
   const calculateStats = (variablesList) => {
     if (!Array.isArray(variablesList) || variablesList.length === 0) {
       return { 
         total: 0, 
         bscs: 0, 
-        bsit: 0, 
-        both: 0 
+        bsit: 0,
+        distinctSubjects: 0
       };
     }
   
     let bscsCount = 0;
     let bsitCount = 0;
-    let bothCount = 0;
+    const subjectSet = new Set();
     
     variablesList.forEach(variable => {
       if (variable.course === 'BSCS') {
         bscsCount++;
       } else if (variable.course === 'BSIT') {
         bsitCount++;
-      } else if (variable.course === 'BOTH') {
-        bothCount++;
+      }
+      
+      // Count distinct subject codes
+      if (variable.subject_code) {
+        subjectSet.add(variable.subject_code);
       }
     });
   
@@ -360,7 +425,7 @@ export default function SystemVariableManagement() {
       total: variablesList.length,
       bscs: bscsCount,
       bsit: bsitCount,
-      both: bothCount
+      distinctSubjects: subjectSet.size
     };
   };
 
@@ -379,21 +444,14 @@ export default function SystemVariableManagement() {
     e.preventDefault();
     setLoading(true);
     setAcademicYearError("");
+    setFormErrors({});
 
     try {
-      // Validate all required fields
-      if (!formData.subject_code || !formData.subject_title || !formData.course || 
-          !formData.semester || !formData.academic_year || (!isEditMode && !formData.created_by)) {
-        throw new Error("Please fill in all required fields");
-      }
-
-      // Validate Academic Year format
-      if (formData.academic_year) {
-        const validationResult = validateAcademicYearFormat(formData.academic_year);
-        if (!validationResult.valid) {
-          setAcademicYearError(validationResult.error);
-          throw new Error(validationResult.error);
-        }
+      // Validate form
+      if (!validateForm()) {
+        setLoading(false);
+        showFeedback("error", "Please fill in all required fields correctly.");
+        return;
       }
 
       const url = isEditMode 
@@ -402,10 +460,10 @@ export default function SystemVariableManagement() {
       
       const method = isEditMode ? "PUT" : "POST";
 
+      // Note: semester is now auto-filled from subject selection
       const requestData = {
         subject_code: formData.subject_code,
         course: formData.course,
-        semester: formData.semester,
         academic_year: formData.academic_year,
         created_by: formData.created_by
       };
@@ -691,7 +749,7 @@ export default function SystemVariableManagement() {
           )}
         </div>
 
-        {/* Statistics Cards - UPDATED: Removed Distinct Subjects card */}
+        {/* Statistics Cards - Updated: Removed BOTH, added Distinct Subjects */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Variables</div>
@@ -705,9 +763,9 @@ export default function SystemVariableManagement() {
             <div className="text-yellow-600 text-sm font-medium">BSIT</div>
             <div className="text-2xl font-bold text-yellow-800">{variableStats.bsit}</div>
           </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">BOTH</div>
-            <div className="text-2xl font-bold text-red-800">{variableStats.both}</div>
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div className="text-purple-600 text-sm font-medium">Distinct Subjects</div>
+            <div className="text-2xl font-bold text-purple-800">{variableStats.distinctSubjects}</div>
           </div>
         </div>
 
@@ -740,8 +798,7 @@ export default function SystemVariableManagement() {
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         variable.course === 'BSCS' ? 'bg-purple-100 text-purple-800' :
-                        variable.course === 'BSIT' ? 'bg-green-100 text-green-800' :
-                        'bg-yellow-100 text-yellow-800'
+                        'bg-green-100 text-green-800'
                       }`}>
                         {variable.course}
                       </span>
@@ -815,8 +872,7 @@ export default function SystemVariableManagement() {
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       variable.course === 'BSCS' ? 'bg-purple-100 text-purple-800' :
-                      variable.course === 'BSIT' ? 'bg-green-100 text-green-800' :
-                      'bg-yellow-100 text-yellow-800'
+                      'bg-green-100 text-green-800'
                     }`}>
                       {variable.course}
                     </span>
@@ -995,7 +1051,7 @@ export default function SystemVariableManagement() {
                       onFocus={() => setShowSubjectCodeDropdown(true)}
                       placeholder="Search subject code or title..."
                       required
-                      className="w-full border border-gray-300 rounded-md pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
+                      className={`w-full border ${formErrors.subject_code ? 'border-red-500' : 'border-gray-300'} rounded-md pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white`}
                     />
                     {subjectCodeSearch && (
                       <button
@@ -1030,7 +1086,7 @@ export default function SystemVariableManagement() {
                             <div className="font-medium text-gray-900">{subject.value}</div>
                             <div className="text-sm text-gray-600">{subject.subject_title}</div>
                             <div className="text-xs text-gray-500 mt-1">
-                              Course: {subject.course}
+                              Course: {subject.course} • Semester: {subject.semester}
                             </div>
                           </div>
                         ))
@@ -1040,6 +1096,9 @@ export default function SystemVariableManagement() {
                         </div>
                       )}
                     </div>
+                  )}
+                  {formErrors.subject_code && (
+                    <p className="mt-1 text-xs text-red-600">{formErrors.subject_code}</p>
                   )}
                 </div>
               </div>
@@ -1054,9 +1113,12 @@ export default function SystemVariableManagement() {
                   name="course"
                   value={formData.course}
                   readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  className={`w-full border ${formErrors.course ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
                   placeholder="Will auto-populate when you select a subject"
                 />
+                {formErrors.course && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.course}</p>
+                )}
               </div>
 
               {/* Subject Title - Auto-populated */}
@@ -1069,30 +1131,30 @@ export default function SystemVariableManagement() {
                   name="subject_title"
                   value={formData.subject_title}
                   readOnly
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                  className={`w-full border ${formErrors.subject_title ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
                   placeholder="Will auto-populate when you select a subject"
                 />
+                {formErrors.subject_title && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.subject_title}</p>
+                )}
               </div>
 
-              {/* Semester */}
+              {/* Semester - Auto-populated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Semester *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="semester"
                   value={formData.semester}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors bg-white"
-                >
-                  <option value="">Select semester</option>
-                  {semesterOptions.map((semester) => (
-                    <option key={semester} value={semester}>
-                      {semester}
-                    </option>
-                  ))}
-                </select>
+                  readOnly
+                  className={`w-full border ${formErrors.semester ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed`}
+                  placeholder="Will auto-populate when you select a subject"
+                />
+                {formErrors.semester && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.semester}</p>
+                )}
               </div>
 
               {/* Academic Year */}
@@ -1110,19 +1172,19 @@ export default function SystemVariableManagement() {
                     value={formData.academic_year}
                     onChange={handleInputChange}
                     required
-                    className="w-full border border-gray-300 rounded-r-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
-                    placeholder="2025-2026"
+                    className={`w-full border ${formErrors.academic_year ? 'border-red-500' : 'border-gray-300'} rounded-r-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                    placeholder="2025 or 2025-2026"
                     maxLength={9}
-                    pattern="\d{4}-\d{4}"
-                    title="Enter academic year in format: 2025-2026"
+                    title="Enter academic year in format: 2025 or 2025-2026"
                   />
                 </div>
-                {academicYearError && (
-                  <p className="mt-1 text-xs text-red-600">{academicYearError}</p>
+                {formErrors.academic_year ? (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.academic_year}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Format: 2025 or 2025-2026 (consecutive years for range)
+                  </p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Format: 2025-2026 (consecutive years only)
-                </p>
               </div>
 
               {/* Created By (hidden in edit mode) */}
@@ -1137,11 +1199,21 @@ export default function SystemVariableManagement() {
                     value={formData.created_by}
                     onChange={handleInputChange}
                     required
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                    className={`w-full border ${formErrors.created_by ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
                     placeholder="Enter creator name"
                   />
+                  {formErrors.created_by && (
+                    <p className="mt-1 text-xs text-red-600">{formErrors.created_by}</p>
+                  )}
                 </div>
               )}
+
+              {/* Auto-population notice */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>Auto-population:</strong> Course, Subject Title, and Semester are automatically populated when you select a Subject Code.
+                </p>
+              </div>
 
               {/* Form Actions */}
               <div className="flex gap-3 pt-4">
@@ -1157,7 +1229,7 @@ export default function SystemVariableManagement() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !formData.subject_code || !formData.subject_title || !formData.course || !formData.semester || !formData.academic_year}
+                  disabled={loading || !formData.subject_code || !formData.course || !formData.semester || !formData.academic_year}
                   className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Variable" : "Add Variable")}
