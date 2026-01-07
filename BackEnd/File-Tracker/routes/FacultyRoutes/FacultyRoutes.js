@@ -18,7 +18,12 @@ import {
   getSubjectsForFacultyLoad,
   getFacultyLoadsForFileUpload
 } from "../../controllers/FacultyController/FacultyLoadedController.js";
-import { uploadFile, upload, getFacultyFiles } from "../../controllers/FacultyController/FileUploadController.js"; 
+import { 
+  uploadFile, 
+  upload, 
+  getFacultyFiles, 
+  downloadFile  // DAGDAG DITO
+} from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import { getTaskDeliverables, getTaskDeliverablesById, updateTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
 import { createNotification, getNotificationsByRecipient, getUnreadCount, markAsRead, markAllAsRead, getFacultyNotifications, getFacultyUnreadCount } from "../../controllers/FacultyController/NotificationController.js";
@@ -47,6 +52,7 @@ router.delete("/faculty-loaded/:id", verifyToken, deleteFacultyLoaded);
 // File upload routes
 router.post("/file-upload", verifyToken, upload.array('files', 10), uploadFile);
 router.get("/file-upload/my-files", verifyToken, getFacultyFiles);
+router.get("/file-upload/download/:id", verifyToken, downloadFile);
 
 // File History Routes 
 router.get("/file-history", verifyToken, getFacultyFileHistory);

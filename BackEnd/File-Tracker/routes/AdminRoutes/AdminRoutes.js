@@ -10,7 +10,14 @@ import {
 import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLogout.js";
 import { verifyToken } from "../../middleware/verifyToken.js";
 import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
-import { getFiles, getFileById, deleteFile, updateFileStatus, bulkCompleteAllFiles } from "../../controllers/FacultyController/FileUploadController.js";
+import { 
+  getFiles, 
+  getFileById, 
+  deleteFile, 
+  updateFileStatus, 
+  bulkCompleteAllFiles,
+  downloadFile  // DAGDAG DITO
+} from "../../controllers/FacultyController/FileUploadController.js";
 import { getArchivedFiles, getArchiveStatistics } from "../../controllers/AdminController/AdminArchiveController.js";
 import { getAdminNotices, getAllFaculty, getAdminNoticeStats, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
 import { getAnalyticsData, getFacultyPerformance, getAvailableYears } from "../../controllers/AdminController/AnalyticsController.js";
@@ -55,6 +62,7 @@ router.get("/file-management/:id", getFileById);
 router.delete("/file-management/:id", deleteFile);
 router.put("/file-management/:id/status", updateFileStatus);
 router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
+router.get("/file-management/download/:id", downloadFile);
 
 // Archive Management Routes
 router.get("/archive", getArchivedFiles);

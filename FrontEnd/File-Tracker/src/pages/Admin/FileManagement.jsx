@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown, Download } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
@@ -42,7 +42,7 @@ export default function FileManagement() {
   const [facultyFilter, setFacultyFilter] = useState("");
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseFilter, setCourseFilter] = useState(""); // Changed from courseSectionFilter to courseFilter
+  const [courseFilter, setCourseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
   const [schoolYearFilter, setSchoolYearFilter] = useState("");
@@ -97,6 +97,33 @@ export default function FileManagement() {
     setFeedbackType(type);
     setFeedbackMessage(message);
     setFeedbackModalOpen(true);
+  };
+
+  // Handle download file - UPDATED to use new download endpoint
+  const handleDownload = async (file) => {
+    try {
+      console.log("Downloading file:", file);
+      
+      // Create download URL using the new download endpoint
+      const downloadUrl = `${API_BASE_URL}/api/admin/file-management/download/${file.file_id}`;
+      console.log("Download URL:", downloadUrl);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.target = '_blank';
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showFeedback("success", `File "${file.original_name}" is being downloaded!`);
+      
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      showFeedback("error", `Failed to download file: ${error.message}`);
+    }
   };
 
   // Handle preview file
@@ -289,7 +316,7 @@ export default function FileManagement() {
         values.add(getDocumentTypeLabel(file.document_type, file.tos_type));
       } else if (key === 'subject_code' && file.subject_code) {
         values.add(file.subject_code);
-      } else if (key === 'course' && file.course) { // Changed from course_sections to course
+      } else if (key === 'course' && file.course) {
         values.add(file.course);
       } else if (key === 'status' && file.status) {
         values.add(file.status);
@@ -334,7 +361,7 @@ export default function FileManagement() {
     setFacultyFilter("");
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
-    setCourseFilter(""); // Changed from courseSectionFilter to courseFilter
+    setCourseFilter("");
     setStatusFilter("");
     setSemesterFilter("");
     setSchoolYearFilter("");
@@ -369,7 +396,7 @@ export default function FileManagement() {
       filtered = filtered.filter(file => file.subject_code === subjectCodeFilter);
     }
     
-    if (courseFilter) { // Changed from courseSectionFilter to courseFilter
+    if (courseFilter) {
       filtered = filtered.filter(file => file.course === courseFilter);
     }
     
@@ -493,7 +520,7 @@ export default function FileManagement() {
         'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
         'TOS Type': f.tos_type || 'N/A',
         'Subject Code': f.subject_code,
-        'Course': f.course, // Changed from Course Sections to Course
+        'Course': f.course,
         'Subject Title': f.subject_title,
         'Semester': f.semester,
         'Academic Year': f.school_year,
@@ -518,7 +545,7 @@ export default function FileManagement() {
         { wch: 20 },
         { wch: 15 },
         { wch: 15 },
-        { wch: 15 }, // Course width reduced from 25 to 15
+        { wch: 15 },
         { wch: 30 },
         { wch: 15 },
         { wch: 15 },
@@ -917,7 +944,7 @@ export default function FileManagement() {
                           facultyFilter && "Faculty",
                           documentTypeFilter && "Type",
                           subjectCodeFilter && "Subject",
-                          courseFilter && "Course", // Changed from Section to Course
+                          courseFilter && "Course",
                           statusFilter && "Status",
                           semesterFilter && "Semester",
                           schoolYearFilter && "Year",
@@ -1014,7 +1041,7 @@ export default function FileManagement() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th> {/* Changed from Course Sections to Course */}
+                <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Academic Year</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Size</th>
@@ -1082,6 +1109,13 @@ export default function FileManagement() {
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
+                          </button>
+                          <button
+                            onClick={() => handleDownload(file)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download File
                           </button>
                           {!historyView && (
                             <>
@@ -1151,6 +1185,13 @@ export default function FileManagement() {
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             Preview Details
+                          </button>
+                          <button
+                            onClick={() => handleDownload(file)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download File
                           </button>
                           {!historyView && (
                             <>
@@ -1374,6 +1415,13 @@ export default function FileManagement() {
                 </div>
 
                 <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => handleDownload(fileToPreview)}
+                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download File
+                  </button>
                   {!historyView && (
                     <button
                       onClick={() => openStatusModal(fileToPreview)}
@@ -1463,7 +1511,7 @@ export default function FileManagement() {
                   <button
                     onClick={handleUpdateStatus}
                     className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors"
-                    >
+                  >
                     Update Status
                   </button>
                 </div>

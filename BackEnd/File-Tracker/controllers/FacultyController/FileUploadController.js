@@ -435,6 +435,65 @@ export const deleteFile = async (req, res) => {
   }
 };
 
+// DOWNLOAD FILE - NEW FUNCTIONALITY
+export const downloadFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Download request for file ID: ${id}`);
+
+    // Find the file in database
+    const file = await FileManagement.findOne({ file_id: id });
+
+    if (!file) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "File not found" 
+      });
+    }
+
+    // Construct full path to the file
+    const filePath = path.join('.', file.file_path);
+    console.log(`File path: ${filePath}`);
+
+    // Check if file exists in storage
+    if (!fs.existsSync(filePath)) {
+      console.error(`File not found at path: ${filePath}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: "File not found in storage" 
+      });
+    }
+
+    console.log(`Downloading file: ${file.original_name}`);
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    res.setHeader('Content-Length', file.file_size);
+    
+    // Create read stream and pipe to response
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+
+    // Handle stream errors
+    fileStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Error downloading file" 
+      });
+    });
+
+  } catch (error) {
+    console.error("Error in downloadFile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 // Update File Status
 export const updateFileStatus = async (req, res) => {
   try {
