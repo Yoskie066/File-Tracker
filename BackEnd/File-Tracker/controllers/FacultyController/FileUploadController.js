@@ -435,7 +435,7 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-// DOWNLOAD FILE - FIXED VERSION
+// DOWNLOAD FILE - FIXED FUNCTIONALITY
 export const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -451,35 +451,36 @@ export const downloadFile = async (req, res) => {
       });
     }
 
-    // Construct full path to the file - FIXED: Remove leading slash from file_path
+    // Remove leading slash from file_path if present
     const filePath = file.file_path.startsWith('/') 
-      ? path.join('.', file.file_path.substring(1))  // Remove leading slash
-      : path.join('.', file.file_path);
+      ? file.file_path.substring(1) 
+      : file.file_path;
     
-    console.log(`File path: ${filePath}`);
-    console.log(`File exists: ${fs.existsSync(filePath)}`);
+    const fullPath = path.join(process.cwd(), filePath);
+    console.log(`File path: ${fullPath}`);
 
     // Check if file exists in storage
-    if (!fs.existsSync(filePath)) {
-      console.error(`File not found at path: ${filePath}`);
+    if (!fs.existsSync(fullPath)) {
+      console.error(`File not found at path: ${fullPath}`);
       return res.status(404).json({ 
         success: false, 
-        message: "File not found in storage" 
+        message: "File not found in storage. The file may have been deleted or moved." 
       });
     }
 
     console.log(`Downloading file: ${file.original_name}`);
     
-    // Get file stats for size
-    const stats = fs.statSync(filePath);
+    // Get file stats for accurate size
+    const stats = fs.statSync(fullPath);
     
     // Set headers for file download
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
     res.setHeader('Content-Length', stats.size);
+    res.setHeader('Cache-Control', 'no-cache');
     
     // Create read stream and pipe to response
-    const fileStream = fs.createReadStream(filePath);
+    const fileStream = fs.createReadStream(fullPath);
     
     // Handle stream errors
     fileStream.on('error', (error) => {
@@ -487,12 +488,11 @@ export const downloadFile = async (req, res) => {
       if (!res.headersSent) {
         res.status(500).json({ 
           success: false, 
-          message: "Error downloading file" 
+          message: "Error streaming file" 
         });
       }
     });
-
-    // Pipe the file to response
+    
     fileStream.pipe(res);
 
   } catch (error) {

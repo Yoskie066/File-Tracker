@@ -99,32 +99,49 @@ export default function FileManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // Handle download file - UPDATED to use new download endpoint
-  const handleDownload = async (file) => {
-    try {
-      console.log("Downloading file:", file);
-      
-      // Create download URL using the new download endpoint
-      const downloadUrl = `${API_BASE_URL}/api/admin/file-management/download/${file.file_id}`;
-      console.log("Download URL:", downloadUrl);
-      
-      // Create a temporary link element
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.target = '_blank';
-      
-      // Trigger the download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showFeedback("success", `File "${file.original_name}" is being downloaded!`);
-      
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      showFeedback("error", `Failed to download file: ${error.message}`);
+  // Handle download file - UPDATED to use direct file streaming
+const handleDownload = async (file) => {
+  try {
+    console.log("Downloading file:", file);
+    
+    // Create download URL using the new download endpoint
+    const downloadUrl = `${API_BASE_URL}/api/admin/file-management/download/${file.file_id}`;
+    console.log("Download URL:", downloadUrl);
+    
+    // Use fetch to trigger the download
+    const response = await fetch(downloadUrl);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Download failed with status ${response.status}`);
     }
-  };
+    
+    // Get the blob from the response
+    const blob = await response.blob();
+    
+    // Create a download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.original_name;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+    
+    showFeedback("success", `File "${file.original_name}" is being downloaded!`);
+    
+  } catch (error) {
+    console.error("Error downloading file:", error);
+    showFeedback("error", `Failed to download file: ${error.message}`);
+  }
+};
 
   // Handle preview file
   const handlePreview = (file) => {
