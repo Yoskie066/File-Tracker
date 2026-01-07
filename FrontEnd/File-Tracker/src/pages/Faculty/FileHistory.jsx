@@ -164,17 +164,17 @@ export default function FileHistory() {
                       key={file._id} 
                       className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
-                      {/* File Name */}
+                      {/* File Name - UPDATED WITH TRUNCATE */}
                       <div className="col-span-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${documentTypeDetails.color} border`}>
+                          <div className={`p-2 rounded-lg ${documentTypeDetails.color} border flex-shrink-0`}>
                             <DocumentTypeIcon className="w-4 h-4" />
                           </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900 text-sm">
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <h3 className="font-medium text-gray-900 text-sm truncate" title={file.file_name}>
                               {file.file_name}
                             </h3>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 mt-1 truncate" title={file.subject_code}>
                               {file.subject_code}
                             </p>
                           </div>
@@ -192,7 +192,7 @@ export default function FileHistory() {
                       {/* TOS Type */}
                       <div className="col-span-2">
                         {file.tos_type ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize truncate max-w-[120px]">
                             {file.tos_type}
                           </span>
                         ) : (
@@ -203,10 +203,10 @@ export default function FileHistory() {
                       {/* Date Submitted */}
                       <div className="col-span-3">
                         <div className="flex items-center gap-2 text-gray-600 text-sm">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <div className="font-medium">{formatDate(file.date_submitted)}</div>
-                            <div className="text-xs text-gray-500">{formatTime(file.date_submitted)}</div>
+                          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{formatDate(file.date_submitted)}</div>
+                            <div className="text-xs text-gray-500 truncate">{formatTime(file.date_submitted)}</div>
                           </div>
                         </div>
                       </div>
@@ -241,13 +241,13 @@ export default function FileHistory() {
                       <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                         <div>
                           <span className="text-gray-500">TOS Type:</span>
-                          <p className="font-medium capitalize">{file.tos_type || 'N/A'}</p>
+                          <p className="font-medium capitalize truncate">{file.tos_type || 'N/A'}</p>
                         </div>
                         <div className="flex items-center gap-2 text-gray-600">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <div className="font-medium">{formatDate(file.date_submitted)}</div>
-                            <div className="text-xs text-gray-500">{formatTime(file.date_submitted)}</div>
+                          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{formatDate(file.date_submitted)}</div>
+                            <div className="text-xs text-gray-500 truncate">{formatTime(file.date_submitted)}</div>
                           </div>
                         </div>
                       </div>

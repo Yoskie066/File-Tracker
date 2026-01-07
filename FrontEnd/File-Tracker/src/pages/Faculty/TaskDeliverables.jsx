@@ -739,8 +739,8 @@ export default function TaskDeliverablesManagement() {
           </div>
         )}
 
-        {/* Statistics Cards - UPDATED with "late" status */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        {/* Statistics Cards - UPDATED to 3x3 grid with "late" status */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
             <div className="text-2xl font-bold text-blue-800">{taskDeliverablesStats.total}</div>
@@ -757,22 +757,20 @@ export default function TaskDeliverablesManagement() {
             <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
             <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
           </div>
-          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200"> {/* ADDED for late status */}
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
             <div className="text-orange-600 text-sm font-medium">Late Deliverables</div>
             <div className="text-2xl font-bold text-orange-800">{taskDeliverablesStats.late}</div>
           </div>
-        </div>
-
-        {/* Completion Rate Card */}
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-6">
-          <div className="text-purple-600 text-sm font-medium">Overall Completion Rate</div>
-          <div className="text-2xl font-bold text-purple-800">
-            {taskDeliverablesStats.totalDeliverables > 0 ? 
-              Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
-          </div>
-          <div className="text-xs text-purple-600 mt-1">
-            {taskDeliverablesStats.completed} of {taskDeliverablesStats.totalDeliverables} deliverables completed
-            {taskDeliverablesStats.late > 0 && ` • ${taskDeliverablesStats.late} deliverables are late`}
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div className="text-purple-600 text-sm font-medium">Overall Completion Rate</div>
+            <div className="text-2xl font-bold text-purple-800">
+              {taskDeliverablesStats.totalDeliverables > 0 ? 
+                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
+            </div>
+            <div className="text-xs text-purple-600 mt-1">
+              {taskDeliverablesStats.completed} of {taskDeliverablesStats.totalDeliverables} deliverables completed
+              {taskDeliverablesStats.late > 0 && ` • ${taskDeliverablesStats.late} deliverables are late`}
+            </div>
           </div>
         </div>
 
