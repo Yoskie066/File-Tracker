@@ -217,18 +217,19 @@ export default function Analytics() {
     ],
   });
 
-  // 3. File Status Distribution
+  // 3. File Status Distribution - DAGDAG: Late sa chart
   const getStatusDistributionData = () => ({
-    labels: ['Pending', 'Completed', 'Rejected'],
+    labels: ['Pending', 'Completed', 'Rejected', 'Late'],  // DAGDAG: Late
     datasets: [
       {
         data: [
           analyticsData?.file_management?.pending_files || 0,
           analyticsData?.file_management?.completed_files || 0,
-          analyticsData?.file_management?.rejected_files || 0
+          analyticsData?.file_management?.rejected_files || 0,
+          analyticsData?.file_management?.late_files || 0  // DAGDAG: Late data
         ],
-        backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
-        borderColor: ['#F59E0B', '#10B981', '#EF4444'],
+        backgroundColor: ['#F59E0B', '#10B981', '#EF4444', '#FF8C00'],  // DAGDAG: Orange para sa late
+        borderColor: ['#F59E0B', '#10B981', '#EF4444', '#FF8C00'],
         borderWidth: 2,
       },
     ],
@@ -802,7 +803,7 @@ export default function Analytics() {
 
         {activeTab === 'overview' && analyticsData && (
           <div className="space-y-8">
-            {/* Module Statistics Cards */}
+            {/* Module Statistics Cards - DAGDAG: Late sa File Management Card */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* User Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -831,7 +832,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* File Management Card */}
+              {/* File Management Card - DAGDAG: Late */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">File Management</h3>
                 <div className="space-y-3">
@@ -850,6 +851,10 @@ export default function Analytics() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Rejected:</span>
                     <span className="font-semibold text-red-600">{analyticsData?.file_management?.rejected_files || 0}</span>
+                  </div>
+                  <div className="flex justify-between">  {/* DAGDAG: Late row */}
+                    <span className="text-gray-600">Late:</span>
+                    <span className="font-semibold text-orange-600">{analyticsData?.file_management?.late_files || 0}</span>
                   </div>
                 </div>
               </div>
@@ -935,7 +940,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 3. File Status Distribution */}
+              {/* 3. File Status Distribution - DAGDAG: Late sa chart */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">File Status Distribution</h3>
                 <div className="h-64">
@@ -1008,7 +1013,7 @@ export default function Analytics() {
               />
             </div>
 
-            {/* Desktop Table */}
+            {/* Desktop Table - DAGDAG: Late column */}
             <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-sm">
                 <thead className="bg-black text-white uppercase text-xs">
@@ -1018,6 +1023,7 @@ export default function Analytics() {
                     <th className="px-4 py-3 text-left border-r border-gray-600">Completed</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Pending</th>
                     <th className="px-4 py-3 text-left border-r border-gray-600">Rejected</th>
+                    <th className="px-4 py-3 text-left border-r border-gray-600">Late</th> {/* DAGDAG: Late column */}
                     <th className="px-4 py-3 text-left border-r border-gray-600">Completion Rate</th>
                     <th className="px-4 py-3 text-left border-gray-600">Avg File Size</th>
                   </tr>
@@ -1031,6 +1037,7 @@ export default function Analytics() {
                         <td className="px-4 py-3 text-green-600 font-medium">{faculty.completed_submissions}</td>
                         <td className="px-4 py-3 text-yellow-600 font-medium">{faculty.pending_submissions}</td>
                         <td className="px-4 py-3 text-red-600 font-medium">{faculty.rejected_submissions}</td>
+                        <td className="px-4 py-3 text-orange-600 font-medium">{faculty.late_submissions}</td> {/* DAGDAG: Late data */}
                         <td className="px-4 py-3">
                           <div className="flex items-center">
                             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1049,7 +1056,7 @@ export default function Analytics() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
+                      <td colSpan="8" className="text-center py-8 text-gray-500 font-medium"> {/* Updated colSpan to 8 */}
                         {search ? 'No faculty found matching your search.' : 'No faculty performance data available for the selected period.'}
                       </td>
                     </tr>
@@ -1058,7 +1065,7 @@ export default function Analytics() {
               </table>
             </div>
 
-            {/* Mobile Cards */}
+            {/* Mobile Cards - DAGDAG: Late sa mobile */}
             <div className="md:hidden grid grid-cols-1 gap-4">
               {currentUsers.length > 0 ? (
                 currentUsers.map((faculty) => (
@@ -1084,6 +1091,14 @@ export default function Analytics() {
                         <span className="text-gray-500">Rejected:</span>
                         <p className="font-medium text-red-600">{faculty.rejected_submissions}</p>
                       </div>
+                      <div> {/* DAGDAG: Late sa mobile */}
+                        <span className="text-gray-500">Late:</span>
+                        <p className="font-medium text-orange-600">{faculty.late_submissions}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Avg File Size:</span>
+                        <p className="font-medium">{formatFileSize(faculty.average_file_size)}</p>
+                      </div>
                     </div>
 
                     <div className="mb-3">
@@ -1097,11 +1112,6 @@ export default function Analytics() {
                           style={{ width: `${Math.min(faculty.completion_rate || 0, 100)}%` }}
                         ></div>
                       </div>
-                    </div>
-
-                    <div className="text-sm text-gray-600">
-                      <span className="text-gray-500">Avg File Size:</span>
-                      <span className="font-medium ml-2">{formatFileSize(faculty.average_file_size)}</span>
                     </div>
                   </div>
                 ))

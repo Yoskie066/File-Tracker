@@ -71,7 +71,7 @@ export const getAnalyticsData = async (req, res) => {
     const offlineUsers = totalUsers - onlineUsers;
     const activeRate = totalUsers > 0 ? Math.round((onlineUsers / totalUsers) * 100) : 0;
 
-    // Get file management statistics with date filter
+    // Get file management statistics with date filter - DAGDAG: late_files
     const totalFiles = await FileManagement.countDocuments(fileFilter);
     const pendingFiles = await FileManagement.countDocuments({
       ...fileFilter,
@@ -84,6 +84,10 @@ export const getAnalyticsData = async (req, res) => {
     const rejectedFiles = await FileManagement.countDocuments({
       ...fileFilter,
       status: "rejected",
+    });
+    const lateFiles = await FileManagement.countDocuments({  // DAGDAG: Late files count
+      ...fileFilter,
+      status: "late",
     });
 
     // Get document type distributions from FileManagement
@@ -211,7 +215,7 @@ export const getAnalyticsData = async (req, res) => {
       overdueNotices
     );
 
-    // Prepare response data
+    // Prepare response data - DAGDAG: late_files sa response
     const analyticsData = {
       user_management: {
         total_users: totalUsers,
@@ -230,6 +234,7 @@ export const getAnalyticsData = async (req, res) => {
         pending_files: pendingFiles,
         completed_files: completedFiles,
         rejected_files: rejectedFiles,
+        late_files: lateFiles,  // DAGDAG: Late files count
         document_type_distribution: documentTypeDist,
         semester_distribution: semesterDist,
       },
@@ -274,7 +279,7 @@ export const getAnalyticsData = async (req, res) => {
   }
 };
 
-// Get faculty performance analytics with date filtering
+// Get faculty performance analytics with date filtering - DAGDAG: late_submissions
 export const getFacultyPerformance = async (req, res) => {
   try {
     console.log("Faculty performance endpoint hit");
@@ -313,6 +318,9 @@ export const getFacultyPerformance = async (req, res) => {
           },
           rejected_submissions: {
             $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] },
+          },
+          late_submissions: {  // DAGDAG: Late submissions count
+            $sum: { $cond: [{ $eq: ["$status", "late"] }, 1, 0] },
           },
           average_file_size: { $avg: "$file_size" },
           last_submission: { $max: "$uploaded_at" },

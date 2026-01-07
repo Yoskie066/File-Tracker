@@ -28,12 +28,13 @@ const analyticsSchema = new mongoose.Schema(
         offline: Number,
       },
     },
-    // File Management Stats
+    // File Management Stats 
     file_management: {
       total_files: Number,
       pending_files: Number,
       completed_files: Number,
       rejected_files: Number,
+      late_files: Number,
       document_type_distribution: {
         syllabus: Number,
         "tos-midterm": Number,
