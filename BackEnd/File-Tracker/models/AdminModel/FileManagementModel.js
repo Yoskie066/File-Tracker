@@ -19,7 +19,7 @@ const fileManagementSchema = new mongoose.Schema(
     status: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"]
+      enum: ["pending", "completed", "rejected", "late"]
     },
     subject_code: { type: String, required: true }, 
     subject_title: { type: String, required: true },
@@ -30,6 +30,7 @@ const fileManagementSchema = new mongoose.Schema(
     original_name: { type: String, required: true },
     file_size: { type: Number, required: true },
     uploaded_at: { type: Date, default: Date.now },
+    due_date: { type: Date },
   },
   { versionKey: false }
 );

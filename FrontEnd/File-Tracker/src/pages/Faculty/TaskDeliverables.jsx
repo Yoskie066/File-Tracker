@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, ClipboardPlus, Download, Filter, ArrowUpDown, History } from "lucide-react";
+import { CheckCircle, XCircle, ClipboardPlus, Download, Filter, ArrowUpDown, History, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import tokenService from "../../services/tokenService";
 import * as XLSX from 'xlsx';
@@ -103,11 +103,13 @@ export default function TaskDeliverablesManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // Calculate overall status for a task
+  // Calculate overall status for a task - UPDATED with "late" status
   const calculateOverallStatus = (task) => {
     const fields = [task.syllabus, task.tos_midterm, task.tos_final, task.midterm_exam, task.final_exam, task.instructional_materials];
     const completedCount = fields.filter(field => field === 'completed').length;
     const rejectedCount = fields.filter(field => field === 'rejected').length;
+    const lateCount = fields.filter(field => field === 'late').length;
+    const pendingCount = fields.filter(field => field === 'pending').length;
     
     let overallStatus = 'pending';
     let overallColor = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
@@ -115,6 +117,9 @@ export default function TaskDeliverablesManagement() {
     if (rejectedCount > 0) {
       overallStatus = 'rejected';
       overallColor = 'bg-red-100 text-red-800 border border-red-200';
+    } else if (lateCount > 0) {
+      overallStatus = 'late';
+      overallColor = 'bg-orange-100 text-orange-800 border border-orange-200';
     } else if (completedCount === 6) {
       overallStatus = 'completed';
       overallColor = 'bg-green-100 text-green-800 border border-green-200';
@@ -123,18 +128,39 @@ export default function TaskDeliverablesManagement() {
       overallColor = 'bg-blue-100 text-blue-800 border border-blue-200';
     }
 
-    return { overallStatus, overallColor, completedCount };
+    return { overallStatus, overallColor, completedCount, lateCount, pendingCount };
   };
 
-  // Calculate stats for charts
+  // Get status badge color - UPDATED with "late" status
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
+      case 'late': return 'bg-orange-100 text-orange-800 border border-orange-200'; // ADDED for late status
+      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200'; 
+    }
+  };
+
+  // Get status icon - UPDATED with "late" status
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="w-4 h-4 mr-1" />;
+      case 'rejected': return <XCircle className="w-4 h-4 mr-1" />;
+      case 'late': return <Clock className="w-4 h-4 mr-1" />; // ADDED for late status
+      default: return null;
+    }
+  };
+
+  // Calculate stats for charts - UPDATED with "late" status
   const calculateStats = (taskList) => {
     if (!Array.isArray(taskList) || taskList.length === 0) {
-      return { total: 0, pending: 0, completed: 0, rejected: 0, totalDeliverables: 0 };
+      return { total: 0, pending: 0, completed: 0, rejected: 0, late: 0, totalDeliverables: 0 };
     }
 
     let pendingCount = 0;
     let completedCount = 0;
     let rejectedCount = 0;
+    let lateCount = 0;
 
     taskList.forEach(task => {
       // Count individual field statuses including both TOS types
@@ -151,16 +177,18 @@ export default function TaskDeliverablesManagement() {
         if (field === 'pending') pendingCount++;
         else if (field === 'completed') completedCount++;
         else if (field === 'rejected') rejectedCount++;
+        else if (field === 'late') lateCount++;
       });
     });
 
-    const totalDeliverables = pendingCount + completedCount + rejectedCount;
+    const totalDeliverables = pendingCount + completedCount + rejectedCount + lateCount;
 
     return {
       total: taskList.length, 
       pending: pendingCount, 
       completed: completedCount, 
       rejected: rejectedCount,
+      late: lateCount,
       totalDeliverables: totalDeliverables 
     };
   };
@@ -308,15 +336,6 @@ export default function TaskDeliverablesManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Get status badge color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
-      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200'; 
-    }
-  };
-
   // Refresh data periodically to get latest sync status
   useEffect(() => {
     const interval = setInterval(() => {
@@ -336,7 +355,7 @@ export default function TaskDeliverablesManagement() {
       
       // Prepare data for Excel
       const excelData = filteredTaskDeliverables.map(task => {
-        const { overallStatus, completedCount } = calculateOverallStatus(task);
+        const { overallStatus, completedCount, lateCount } = calculateOverallStatus(task);
         
         return {
           'Task ID': task.task_deliverables_id,
@@ -349,6 +368,7 @@ export default function TaskDeliverablesManagement() {
           'Final Exam': task.final_exam || 'N/A',
           'Instructional Materials': task.instructional_materials || 'N/A',
           'Completed Deliverables': `${completedCount}/6`,
+          'Late Deliverables': `${lateCount}/6`,
           'Overall Status': overallStatus,
           'Last Updated': new Date(task.updated_at || task.created_at).toLocaleString('en-US', {
             year: 'numeric',
@@ -378,6 +398,7 @@ export default function TaskDeliverablesManagement() {
         { wch: 15 }, // Final Exam
         { wch: 25 }, // Instructional Materials
         { wch: 20 }, // Completed Deliverables
+        { wch: 20 }, // Late Deliverables
         { wch: 15 }, // Overall Status
         { wch: 25 }  // Last Updated
       ];
@@ -718,7 +739,7 @@ export default function TaskDeliverablesManagement() {
           </div>
         )}
 
-        {/* Statistics Cards */}
+        {/* Statistics Cards - UPDATED with "late" status */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Tasks</div>
@@ -736,16 +757,26 @@ export default function TaskDeliverablesManagement() {
             <div className="text-red-600 text-sm font-medium">Rejected Deliverables</div>
             <div className="text-2xl font-bold text-red-800">{taskDeliverablesStats.rejected}</div>
           </div>
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <div className="text-purple-600 text-sm font-medium">Completion Rate</div>
-            <div className="text-2xl font-bold text-purple-800">
-              {taskDeliverablesStats.totalDeliverables > 0 ? 
-                Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
-            </div>
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200"> {/* ADDED for late status */}
+            <div className="text-orange-600 text-sm font-medium">Late Deliverables</div>
+            <div className="text-2xl font-bold text-orange-800">{taskDeliverablesStats.late}</div>
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Completion Rate Card */}
+        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-6">
+          <div className="text-purple-600 text-sm font-medium">Overall Completion Rate</div>
+          <div className="text-2xl font-bold text-purple-800">
+            {taskDeliverablesStats.totalDeliverables > 0 ? 
+              Math.round((taskDeliverablesStats.completed / taskDeliverablesStats.totalDeliverables) * 100) : 0}%
+          </div>
+          <div className="text-xs text-purple-600 mt-1">
+            {taskDeliverablesStats.completed} of {taskDeliverablesStats.totalDeliverables} deliverables completed
+            {taskDeliverablesStats.late > 0 && ` • ${taskDeliverablesStats.late} deliverables are late`}
+          </div>
+        </div>
+
+        {/* Desktop Table - UPDATED with "late" status badges */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -766,7 +797,7 @@ export default function TaskDeliverablesManagement() {
             <tbody>
               {currentTaskDeliverables.length > 0 ? (
                 currentTaskDeliverables.map((task) => {
-                  const { overallStatus, overallColor, completedCount } = calculateOverallStatus(task);
+                  const { overallStatus, overallColor, completedCount, lateCount } = calculateOverallStatus(task);
 
                   return (
                     <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
@@ -783,37 +814,43 @@ export default function TaskDeliverablesManagement() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
+                          {getStatusIcon(task.syllabus)}
                           {task.syllabus}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_midterm)}`}>
+                          {getStatusIcon(task.tos_midterm)}
                           {task.tos_midterm}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_final)}`}>
+                          {getStatusIcon(task.tos_final)}
                           {task.tos_final}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
+                          {getStatusIcon(task.midterm_exam)}
                           {task.midterm_exam}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
+                          {getStatusIcon(task.final_exam)}
                           {task.final_exam}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
+                          {getStatusIcon(task.instructional_materials)}
                           {task.instructional_materials}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
-                          {overallStatus} ({completedCount}/6)
+                          {overallStatus} ({completedCount}/6{lateCount > 0 ? `, ${lateCount} late` : ''})
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-700 text-xs">
@@ -838,11 +875,11 @@ export default function TaskDeliverablesManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - UPDATED with "late" status */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentTaskDeliverables.length > 0 ? (
             currentTaskDeliverables.map((task) => {
-              const { overallStatus, overallColor, completedCount } = calculateOverallStatus(task);
+              const { overallStatus, overallColor, completedCount, lateCount } = calculateOverallStatus(task);
 
               return (
                 <div key={task._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
@@ -852,7 +889,7 @@ export default function TaskDeliverablesManagement() {
                       <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
                     </div>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
-                      {overallStatus} ({completedCount}/6)
+                      {overallStatus} ({completedCount}/6{lateCount > 0 ? `, ${lateCount} late` : ''})
                     </span>
                   </div>
                   
@@ -870,36 +907,42 @@ export default function TaskDeliverablesManagement() {
                     <div>
                       <span className="text-gray-500">Syllabus:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.syllabus)}`}>
+                        {getStatusIcon(task.syllabus)}
                         {task.syllabus}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">TOS Midterm:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_midterm)}`}>
+                        {getStatusIcon(task.tos_midterm)}
                         {task.tos_midterm}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">TOS Final:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.tos_final)}`}>
+                        {getStatusIcon(task.tos_final)}
                         {task.tos_final}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Midterm Exam:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.midterm_exam)}`}>
+                        {getStatusIcon(task.midterm_exam)}
                         {task.midterm_exam}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Final Exam:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.final_exam)}`}>
+                        {getStatusIcon(task.final_exam)}
                         {task.final_exam}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Instructional Materials:</span>
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.instructional_materials)}`}>
+                        {getStatusIcon(task.instructional_materials)}
                         {task.instructional_materials}
                       </span>
                     </div>

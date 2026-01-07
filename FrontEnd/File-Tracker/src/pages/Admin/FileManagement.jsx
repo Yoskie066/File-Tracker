@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown, Download } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Trash2, Eye, Edit, Calendar, History, CheckCheck, Filter, ArrowUpDown, Download, Clock } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 Modal.setAppElement("#root");
@@ -100,48 +100,48 @@ export default function FileManagement() {
   };
 
   // Handle download file - UPDATED to use direct file streaming
-const handleDownload = async (file) => {
-  try {
-    console.log("Downloading file:", file);
-    
-    // Create download URL using the new download endpoint
-    const downloadUrl = `${API_BASE_URL}/api/admin/file-management/download/${file.file_id}`;
-    console.log("Download URL:", downloadUrl);
-    
-    // Use fetch to trigger the download
-    const response = await fetch(downloadUrl);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Download failed with status ${response.status}`);
+  const handleDownload = async (file) => {
+    try {
+      console.log("Downloading file:", file);
+      
+      // Create download URL using the new download endpoint
+      const downloadUrl = `${API_BASE_URL}/api/admin/file-management/download/${file.file_id}`;
+      console.log("Download URL:", downloadUrl);
+      
+      // Use fetch to trigger the download
+      const response = await fetch(downloadUrl);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Download failed with status ${response.status}`);
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.original_name;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+      
+      showFeedback("success", `File "${file.original_name}" is being downloaded!`);
+      
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      showFeedback("error", `Failed to download file: ${error.message}`);
     }
-    
-    // Get the blob from the response
-    const blob = await response.blob();
-    
-    // Create a download link
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.original_name;
-    link.style.display = 'none';
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up
-    setTimeout(() => {
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    }, 100);
-    
-    showFeedback("success", `File "${file.original_name}" is being downloaded!`);
-    
-  } catch (error) {
-    console.error("Error downloading file:", error);
-    showFeedback("error", `Failed to download file: ${error.message}`);
-  }
-};
+  };
 
   // Handle preview file
   const handlePreview = (file) => {
@@ -248,9 +248,9 @@ const handleDownload = async (file) => {
 
   // Open bulk complete confirmation modal
   const confirmBulkComplete = () => {
-    const pendingCount = files.filter(f => f.status === "pending" || f.status === "rejected").length;
+    const pendingCount = files.filter(f => ["pending", "rejected", "late"].includes(f.status)).length;
     if (pendingCount === 0) {
-      showFeedback("info", "No pending or rejected files to complete.");
+      showFeedback("info", "No pending, late, or rejected files to complete.");
       return;
     }
     setBulkCompleteModalOpen(true);
@@ -295,12 +295,23 @@ const handleDownload = async (file) => {
     return typeMap[documentType] || documentType;
   };
 
-  // Get status badge color
+  // Get status badge color - UPDATED with "late" status
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
+      case 'late': return 'bg-orange-100 text-orange-800 border border-orange-200'; // ADDED for late status
+      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    }
+  };
+
+  // Get status icon - UPDATED with "late" status
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="w-4 h-4 mr-1" />;
+      case 'rejected': return <XCircle className="w-4 h-4 mr-1" />;
+      case 'late': return <Clock className="w-4 h-4 mr-1" />; // ADDED for late status
+      default: return null;
     }
   };
 
@@ -475,15 +486,16 @@ const handleDownload = async (file) => {
 
   const filteredFiles = getFilteredFiles();
 
-  // Calculate stats
+  // Calculate stats - UPDATED with "late" status
   const calculateStats = (filesList) => {
     if (!Array.isArray(filesList) || filesList.length === 0) {
-      return { total: 0, pending: 0, completed: 0, rejected: 0 };
+      return { total: 0, pending: 0, completed: 0, rejected: 0, late: 0 };
     }
   
     let pendingCount = 0;
     let completedCount = 0;
     let rejectedCount = 0;
+    let lateCount = 0;
   
     filesList.forEach(file => {
       const status = file.status?.toLowerCase().trim();
@@ -492,6 +504,8 @@ const handleDownload = async (file) => {
         completedCount++;
       } else if (status === 'rejected') {
         rejectedCount++;
+      } else if (status === 'late') {
+        lateCount++;
       } else {
         pendingCount++;
       }
@@ -501,15 +515,16 @@ const handleDownload = async (file) => {
       total: filesList.length,
       pending: pendingCount,
       completed: completedCount,
-      rejected: rejectedCount
+      rejected: rejectedCount,
+      late: lateCount
     };
   };
 
   const fileStats = calculateStats(filteredFiles);
 
-  // Get pending files count for bulk complete
+  // Get pending files count for bulk complete - UPDATED with "late" status
   const getPendingCount = () => {
-    return files.filter(f => f.status === "pending" || f.status === "rejected").length;
+    return files.filter(f => ["pending", "rejected", "late"].includes(f.status)).length;
   };
 
   // Pagination
@@ -688,10 +703,10 @@ const handleDownload = async (file) => {
                   className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-yellow-400 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center"
                 >
                   <CheckCheck className="w-5 h-5" />
-                  Mark All Files as Completed ({getPendingCount()} pending)
+                  Mark All Files as Completed ({getPendingCount()} pending/late/rejected)
                 </button>
                 <p className="text-xs text-gray-500 mt-2 md:hidden">
-                  This will mark all pending and rejected files as "completed" and automatically update Task Deliverables.
+                  This will mark all pending, late, and rejected files as "completed" and automatically update Task Deliverables.
                 </p>
               </div>
             )}
@@ -841,6 +856,7 @@ const handleDownload = async (file) => {
                     <option value="pending">Pending</option>
                     <option value="completed">Completed</option>
                     <option value="rejected">Rejected</option>
+                    <option value="late">Late</option> {/* ADDED late option */}
                   </select>
                 </div>
               </div>
@@ -1027,8 +1043,8 @@ const handleDownload = async (file) => {
           )}
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Statistics Cards - UPDATED with "late" status */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total {historyView ? 'Records' : 'Files'}</div>
             <div className="text-2xl font-bold text-blue-800">{fileStats.total}</div>
@@ -1044,6 +1060,10 @@ const handleDownload = async (file) => {
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
             <div className="text-red-600 text-sm font-medium">Rejected {historyView ? 'Records' : 'Files'}</div>
             <div className="text-2xl font-bold text-red-800">{fileStats.rejected}</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200"> {/* ADDED for late status */}
+            <div className="text-orange-600 text-sm font-medium">Late {historyView ? 'Records' : 'Files'}</div>
+            <div className="text-2xl font-bold text-orange-800">{fileStats.late}</div>
           </div>
         </div>
 
@@ -1101,6 +1121,7 @@ const handleDownload = async (file) => {
                     <td className="px-4 py-3 text-gray-700">{formatFileSize(file.file_size)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
+                        {getStatusIcon(file.status)}
                         {file.status}
                       </span>
                     </td>
@@ -1180,6 +1201,7 @@ const handleDownload = async (file) => {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
+                      {getStatusIcon(file.status)}
                       {file.status}
                     </span>
                     
@@ -1356,6 +1378,7 @@ const handleDownload = async (file) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Status</label>
                     <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(fileToPreview.status)}`}>
+                      {getStatusIcon(fileToPreview.status)}
                       {fileToPreview.status}
                     </span>
                   </div>
@@ -1454,7 +1477,7 @@ const handleDownload = async (file) => {
           )}
         </Modal>
 
-        {/* Status Update Modal */}
+        {/* Status Update Modal - UPDATED with "late" status */}
         <Modal
           isOpen={statusModalOpen}
           onRequestClose={() => setStatusModalOpen(false)}
@@ -1515,6 +1538,7 @@ const handleDownload = async (file) => {
                     <option value="pending">Pending</option>
                     <option value="completed">Completed</option>
                     <option value="rejected">Rejected</option>
+                    <option value="late">Late</option> {/* ADDED late option */}
                   </select>
                 </div>
 
@@ -1537,7 +1561,7 @@ const handleDownload = async (file) => {
           )}
         </Modal>
 
-        {/* Bulk Complete Confirmation Modal */}
+        {/* Bulk Complete Confirmation Modal - UPDATED with "late" status */}
         <Modal
           isOpen={bulkCompleteModalOpen}
           onRequestClose={() => !bulkCompleteLoading && setBulkCompleteModalOpen(false)}
@@ -1568,14 +1592,14 @@ const handleDownload = async (file) => {
                 </div>
                 <ul className="text-sm text-yellow-700 mt-2 space-y-1">
                   <li>• This will mark <strong>{getPendingCount()} files</strong> as "completed"</li>
-                  <li>• Affects files with status: "pending" or "rejected"</li>
+                  <li>• Affects files with status: "pending", "late", or "rejected"</li>
                   <li>• Task Deliverables will be automatically updated to "completed" for all courses</li>
                   <li>• This action cannot be undone</li>
                 </ul>
               </div>
 
               <p className="text-sm text-gray-600">
-                Are you sure you want to mark all pending and rejected files as completed? This will automatically update the corresponding Task Deliverables for all courses.
+                Are you sure you want to mark all pending, late, and rejected files as completed? This will automatically update the corresponding Task Deliverables for all courses.
               </p>
 
               <div className="flex gap-3 pt-4">

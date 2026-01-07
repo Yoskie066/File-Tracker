@@ -507,7 +507,7 @@ export const downloadFile = async (req, res) => {
   }
 };
 
-// Update File Status
+// Update File Status - UPDATED with "late" status
 export const updateFileStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -556,14 +556,14 @@ export const updateFileStatus = async (req, res) => {
   }
 };
 
-// Bulk Update All Files 
+// Bulk Update All Files - UPDATED with "late" status
 export const bulkCompleteAllFiles = async (req, res) => {
   try {
     console.log("Bulk completing all files...");
     
     // Get all pending files
     const pendingFiles = await FileManagement.find({ 
-      status: { $in: ["pending", "rejected"] } 
+      status: { $in: ["pending", "rejected", "late"] }  // ADDED "late" here
     });
 
     if (pendingFiles.length === 0) {

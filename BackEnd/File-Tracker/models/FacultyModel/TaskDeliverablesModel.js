@@ -38,37 +38,38 @@ const taskDeliverablesSchema = new mongoose.Schema(
     syllabus: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"] 
+      enum: ["pending", "completed", "rejected", "late"]  
     },
     tos_midterm: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"] 
+      enum: ["pending", "completed", "rejected", "late"] 
     },
     tos_final: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"] 
+      enum: ["pending", "completed", "rejected", "late"]  
     },
     midterm_exam: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"] 
+      enum: ["pending", "completed", "rejected", "late"]  
     },
     final_exam: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"] 
+      enum: ["pending", "completed", "rejected", "late"]  
     },
     instructional_materials: { 
       type: String, 
       default: "pending", 
-      enum: ["pending", "completed", "rejected"] 
+      enum: ["pending", "completed", "rejected", "late"]  
     },
     updated_at: { 
       type: Date, 
       default: Date.now 
-    }
+    },
+    due_date: { type: Date }, 
   },
   { 
     versionKey: false 
