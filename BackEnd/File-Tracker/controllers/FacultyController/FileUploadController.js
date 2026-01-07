@@ -435,7 +435,7 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-// DOWNLOAD FILE - NEW FUNCTIONALITY
+// DOWNLOAD FILE - FIXED VERSION
 export const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -447,13 +447,17 @@ export const downloadFile = async (req, res) => {
     if (!file) {
       return res.status(404).json({ 
         success: false, 
-        message: "File not found" 
+        message: "File not found in database" 
       });
     }
 
-    // Construct full path to the file
-    const filePath = path.join('.', file.file_path);
+    // Construct full path to the file - FIXED: Remove leading slash from file_path
+    const filePath = file.file_path.startsWith('/') 
+      ? path.join('.', file.file_path.substring(1))  // Remove leading slash
+      : path.join('.', file.file_path);
+    
     console.log(`File path: ${filePath}`);
+    console.log(`File exists: ${fs.existsSync(filePath)}`);
 
     // Check if file exists in storage
     if (!fs.existsSync(filePath)) {
@@ -466,31 +470,40 @@ export const downloadFile = async (req, res) => {
 
     console.log(`Downloading file: ${file.original_name}`);
     
+    // Get file stats for size
+    const stats = fs.statSync(filePath);
+    
     // Set headers for file download
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
-    res.setHeader('Content-Length', file.file_size);
+    res.setHeader('Content-Length', stats.size);
     
     // Create read stream and pipe to response
     const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-
+    
     // Handle stream errors
     fileStream.on('error', (error) => {
       console.error('Error streaming file:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Error downloading file" 
-      });
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          success: false, 
+          message: "Error downloading file" 
+        });
+      }
     });
+
+    // Pipe the file to response
+    fileStream.pipe(res);
 
   } catch (error) {
     console.error("Error in downloadFile:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
   }
 };
 
