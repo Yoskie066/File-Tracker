@@ -1129,7 +1129,7 @@ const handleDownload = async (file) => {
                           </button>
                           <button
                             onClick={() => handleDownload(file)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
+                            className="flex items-center w-full px-3 py-2 text-sm text-black hover:bg-yellow-500 hover:text-black"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download File
@@ -1205,7 +1205,7 @@ const handleDownload = async (file) => {
                           </button>
                           <button
                             onClick={() => handleDownload(file)}
-                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
+                            className="flex items-center w-full px-3 py-2 text-sm text-black hover:bg-yellow-500 hover:text-black"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download File
@@ -1434,7 +1434,7 @@ const handleDownload = async (file) => {
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={() => handleDownload(fileToPreview)}
-                    className="flex-1 bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors flex items-center justify-center gap-2"
                   >
                     <Download className="w-4 h-4" />
                     Download File
