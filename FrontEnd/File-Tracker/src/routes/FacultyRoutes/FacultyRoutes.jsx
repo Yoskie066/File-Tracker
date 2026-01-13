@@ -10,7 +10,7 @@ const FacultyRoutes = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/faculty-loaded" element={<FacultyLoaded />} />
+        <Route path="/faculty-load" element={<FacultyLoaded />} />
         <Route path="/file-upload" element={<FileUpload />} />
         <Route path="/file-history" element={<FileHistory />} />
         <Route path="/task-deliverables" element={<TaskDeliverables />} />

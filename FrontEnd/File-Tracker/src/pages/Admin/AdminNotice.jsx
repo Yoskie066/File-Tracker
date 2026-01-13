@@ -231,8 +231,22 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Handle date change via calendar - UPDATED
+  // Handle date change via calendar - UPDATED with past date lock
   const handleDateChange = (date) => {
+    // Get today's date at start of day (midnight)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Reset time portion of selected date for comparison
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Check if selected date is in the past
+    if (selectedDate < today) {
+      showFeedback("error", "Cannot select past dates. Please select today's date or a future date.");
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       due_date: date.toISOString().split('T')[0]
@@ -476,7 +490,7 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Custom Calendar Component - IMPROVED VERSION FROM ANALYTICS
+  // Custom Calendar Component - UPDATED WITH PAST DATE LOCKING
   const CustomCalendar = ({ 
     selectedDate, 
     onDateChange, 
@@ -485,7 +499,20 @@ export default function AdminNoticeManagement() {
     currentMonth, 
     setCurrentMonth 
   }) => {
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const handleDateClick = (date) => {
+      // Reset time portion of clicked date
+      const clickedDate = new Date(date);
+      clickedDate.setHours(0, 0, 0, 0);
+      
+      // Check if clicked date is in the past
+      if (clickedDate < today) {
+        return; // Do nothing if it's a past date
+      }
+      
       onDateChange(date);
       setShowCalendar(false);
     };
@@ -498,8 +525,21 @@ export default function AdminNoticeManagement() {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     };
 
+    // Function to check if a date is in the past
+    const isPastDate = (date) => {
+      const dateToCheck = new Date(date);
+      dateToCheck.setHours(0, 0, 0, 0);
+      return dateToCheck < today;
+    };
+
+    // Function to check if a date is today
+    const isToday = (date) => {
+      const dateToCheck = new Date(date);
+      dateToCheck.setHours(0, 0, 0, 0);
+      return dateToCheck.getTime() === today.getTime();
+    };
+
     const generateCalendar = () => {
-      const today = new Date();
       const currentYear = currentMonth.getFullYear();
       const currentMonthIndex = currentMonth.getMonth();
       
@@ -545,21 +585,26 @@ export default function AdminNoticeManagement() {
             {days.map(day => {
               const dateStr = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const date = new Date(dateStr);
-              const isToday = day === today.getDate() && currentMonthIndex === today.getMonth();
+              const isTodayDate = isToday(date);
+              const isPast = isPastDate(date);
               const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
               
               return (
                 <button
                   key={day}
-                  onClick={() => handleDateClick(date)}
+                  onClick={() => !isPast && handleDateClick(date)}
+                  disabled={isPast}
                   className={`h-8 w-8 flex items-center justify-center text-sm rounded-full ${
-                    isSelected 
+                    isPast 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      : isSelected 
                       ? 'bg-black text-white' 
-                      : isToday 
-                      ? 'bg-yellow-100 text-yellow-800' 
+                      : isTodayDate
+                      ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
                       : 'hover:bg-gray-100'
                   }`}
                   type="button"
+                  title={isPast ? "Cannot select past dates" : ""}
                 >
                   {day}
                 </button>
@@ -570,9 +615,18 @@ export default function AdminNoticeManagement() {
             <input
               type="date"
               value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
-              onChange={(e) => handleDateClick(new Date(e.target.value))}
+              onChange={(e) => {
+                const selected = new Date(e.target.value);
+                if (!isPastDate(selected)) {
+                  handleDateClick(selected);
+                }
+              }}
+              min={today.toISOString().split('T')[0]} // Set minimum to today
               className="w-full p-2 border rounded text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Only future dates and today can be selected
+            </p>
           </div>
         </div>
       );
@@ -1196,6 +1250,9 @@ export default function AdminNoticeManagement() {
                   currentMonth={currentMonth}
                   setCurrentMonth={setCurrentMonth}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Only future dates and today can be selected. Past dates are locked.
+                </p>
               </div>
 
               <div>

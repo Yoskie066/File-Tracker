@@ -180,11 +180,6 @@ export const createFacultyLoaded = async (req, res) => {
       });
     }
 
-    // IMPORTANT: Check for duplicate with different subject_title but same other fields
-    // This allows same subject_code with different course, semester, or school_year
-    // Example: ITEC-50 for BSIT in 1st Semester 2025-2026 is DIFFERENT from ITEC-50 for BSCS in 1st Semester 2025-2026
-    // Example: ITEC-50 for BSIT in 1st Semester 2025-2026 is DIFFERENT from ITEC-50 for BSIT in 2nd Semester 2025-2026
-    
     const faculty_loaded_id = generateFacultyLoadedId();
 
     console.log("Creating faculty load with ID:", faculty_loaded_id, "for faculty:", req.faculty.facultyId);

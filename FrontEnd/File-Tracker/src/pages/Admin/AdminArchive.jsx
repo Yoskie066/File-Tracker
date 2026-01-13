@@ -15,7 +15,7 @@ export default function AdminArchive() {
   const [facultyFilter, setFacultyFilter] = useState("");
   const [documentTypeFilter, setDocumentTypeFilter] = useState("");
   const [subjectCodeFilter, setSubjectCodeFilter] = useState("");
-  const [courseFilter, setCourseFilter] = useState(""); // Changed from courseSectionFilter to courseFilter
+  const [courseFilter, setCourseFilter] = useState(""); 
   const [semesterFilter, setSemesterFilter] = useState("");
   const [schoolYearFilter, setSchoolYearFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -54,7 +54,7 @@ export default function AdminArchive() {
       if (facultyFilter) params.append('faculty_name', facultyFilter);
       if (documentTypeFilter) params.append('document_type', documentTypeFilter);
       if (subjectCodeFilter) params.append('subject_code', subjectCodeFilter);
-      if (courseFilter) params.append('course', courseFilter); // Changed from course_section to course
+      if (courseFilter) params.append('course', courseFilter); 
       if (semesterFilter) params.append('semester', semesterFilter);
       if (schoolYearFilter) params.append('school_year', schoolYearFilter);
       if (yearFilter) params.append('year', yearFilter);
@@ -147,7 +147,7 @@ export default function AdminArchive() {
     if (facultyFilter && archive.faculty_name !== facultyFilter) return false;
     if (documentTypeFilter && archive.document_type !== documentTypeFilter) return false;
     if (subjectCodeFilter && archive.subject_code !== subjectCodeFilter) return false;
-    if (courseFilter && archive.course !== courseFilter) return false; // Changed from course_sections to course
+    if (courseFilter && archive.course !== courseFilter) return false; 
     if (semesterFilter && archive.semester !== semesterFilter) return false;
     if (schoolYearFilter && archive.school_year !== schoolYearFilter) return false;
     
@@ -268,7 +268,7 @@ export default function AdminArchive() {
     setFacultyFilter("");
     setDocumentTypeFilter("");
     setSubjectCodeFilter("");
-    setCourseFilter(""); // Changed from courseSectionFilter to courseFilter
+    setCourseFilter(""); 
     setSemesterFilter("");
     setSchoolYearFilter("");
     setYearFilter("");
@@ -521,12 +521,11 @@ export default function AdminArchive() {
           )}
         </div>
 
-        {/* Desktop Table - UPDATED with Course instead of Course/Section */}
+        {/* Desktop Table - UPDATED with Course instead of Course/Section and WITHOUT FILE ID COLUMN */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left">File ID</th>
                 <th className="px-4 py-3 text-left">Faculty Name</th>
                 <th className="px-4 py-3 text-left">File Name</th>
                 <th className="px-4 py-3 text-left">Document Type</th>
@@ -543,7 +542,7 @@ export default function AdminArchive() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="12" className="text-center py-8">
+                  <td colSpan="11" className="text-center py-8">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
                     </div>
@@ -552,7 +551,6 @@ export default function AdminArchive() {
               ) : currentArchives.length > 0 ? (
                 currentArchives.map((archive) => (
                   <tr key={archive._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{archive.file_id}</td>
                     <td className="px-4 py-3 text-gray-700">{archive.faculty_name}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{archive.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(archive.document_type, archive.tos_type)}</td>
@@ -606,7 +604,7 @@ export default function AdminArchive() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="12" className="text-center py-8 text-gray-500">
+                  <td colSpan="11" className="text-center py-8 text-gray-500">
                     No archived files found
                   </td>
                 </tr>
@@ -615,7 +613,7 @@ export default function AdminArchive() {
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED with course instead of sections */}
+        {/* Mobile Cards - UPDATED with course instead of sections and WITHOUT FILE ID */}
         <div className="md:hidden space-y-4">
           {loading ? (
             <div className="text-center py-8">
@@ -627,7 +625,6 @@ export default function AdminArchive() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1 min-w-0 mr-2">
                     <h2 className="font-semibold text-gray-800 truncate">{archive.file_name}</h2>
-                    <p className="text-xs text-gray-600 font-mono truncate">ID: {archive.file_id}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(archive.status)}`}>

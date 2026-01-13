@@ -92,8 +92,8 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Mobile Navigation Links */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2">
           <Link
-            to="/faculty/faculty-loaded"
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/faculty/faculty-loaded")}`}
+            to="/faculty/faculty-load"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/faculty/faculty-load")}`}
             onClick={onClose}
           >
             <Users className="w-5 h-5" />
@@ -159,8 +159,8 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Desktop Navigation Links */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 h-full">
           <Link
-            to="/faculty/faculty-loaded"
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/faculty/faculty-loaded")}`}
+            to="/faculty/faculty-load"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/faculty/faculty-load")}`}
           >
             <Users className="w-5 h-5" />
             <span className="text-lg">Faculty Load</span>

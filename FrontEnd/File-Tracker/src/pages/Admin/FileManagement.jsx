@@ -546,7 +546,6 @@ export default function FileManagement() {
       }
       
       const excelData = filesForExport.map(f => ({
-        'File ID': f.file_id,
         'Faculty Name': f.faculty_name,
         'File Name': f.file_name,
         'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
@@ -571,7 +570,6 @@ export default function FileManagement() {
       const ws = XLSX.utils.json_to_sheet(excelData);
       
       const colWidths = [
-        { wch: 20 },
         { wch: 25 },
         { wch: 30 },
         { wch: 20 },
@@ -1072,7 +1070,6 @@ export default function FileManagement() {
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">{historyView ? 'Record' : 'File'} ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">File Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
@@ -1091,7 +1088,6 @@ export default function FileManagement() {
               {currentFiles.length > 0 ? (
                 currentFiles.map((file) => (
                   <tr key={file._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{file.file_id}</td>
                     <td className="px-4 py-3 text-gray-700">{file.faculty_name}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{file.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(file.document_type, file.tos_type)}</td>
@@ -1180,7 +1176,7 @@ export default function FileManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="13" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="12" className="text-center py-8 text-gray-500 font-medium">
                     {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
                   </td>
                 </tr>
@@ -1197,7 +1193,7 @@ export default function FileManagement() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1 min-w-0 mr-2">
                     <h2 className="font-semibold text-gray-800 truncate">{file.file_name}</h2>
-                    <p className="text-xs text-gray-600 font-mono truncate">ID: {file.file_id}</p>
+                    <p className="text-xs text-gray-600 truncate">{file.faculty_name}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
@@ -1370,18 +1366,12 @@ export default function FileManagement() {
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">{historyView ? 'Record' : 'File'} ID</label>
-                    <p className="mt-1 text-sm text-gray-900 font-mono">{fileToPreview.file_id}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(fileToPreview.status)}`}>
-                      {getStatusIcon(fileToPreview.status)}
-                      {fileToPreview.status}
-                    </span>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(fileToPreview.status)}`}>
+                    {getStatusIcon(fileToPreview.status)}
+                    {fileToPreview.status}
+                  </span>
                 </div>
 
                 <div>

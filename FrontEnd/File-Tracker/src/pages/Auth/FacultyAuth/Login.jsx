@@ -84,7 +84,7 @@ const FacultyLogin = () => {
 
       setTimeout(() => {
         setModalOpen(false);
-        navigate("/faculty/faculty-loaded");
+        navigate("/faculty/faculty-load");
       }, 2000);
     } catch (err) {
       setModalType("error");

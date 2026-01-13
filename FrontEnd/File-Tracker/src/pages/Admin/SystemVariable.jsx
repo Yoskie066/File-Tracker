@@ -769,12 +769,11 @@ export default function SystemVariableManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - WITHOUT VARIABLE ID COLUMN */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Variable ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
@@ -788,7 +787,6 @@ export default function SystemVariableManagement() {
               {currentVariables.length > 0 ? (
                 currentVariables.map((variable) => (
                   <tr key={variable._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{variable.variable_id}</td>
                     <td className="px-4 py-3 font-mono font-medium text-gray-900">
                       {variable.subject_code}
                     </td>
@@ -848,7 +846,7 @@ export default function SystemVariableManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No system variables found {subjectCodeFilter ? `for ${subjectCodeFilter}` : ""}.
                   </td>
                 </tr>
@@ -857,7 +855,7 @@ export default function SystemVariableManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - WITHOUT VARIABLE ID */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentVariables.length > 0 ? (
             currentVariables.map((variable) => (
@@ -867,7 +865,6 @@ export default function SystemVariableManagement() {
                     <h2 className="font-semibold text-gray-800 font-mono">
                       {variable.subject_code}
                     </h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {variable.variable_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

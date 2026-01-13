@@ -353,12 +353,11 @@ export default function TaskDeliverablesManagement() {
         return;
       }
       
-      // Prepare data for Excel
+      // Prepare data for Excel - REMOVED Task ID from export
       const excelData = filteredTaskDeliverables.map(task => {
         const { overallStatus, completedCount, lateCount } = calculateOverallStatus(task);
         
         return {
-          'Task ID': task.task_deliverables_id,
           'Subject Code': task.subject_code,
           'Course': task.course || 'N/A',
           'Syllabus': task.syllabus || 'N/A',
@@ -386,9 +385,8 @@ export default function TaskDeliverablesManagement() {
       // Create a worksheet
       const ws = XLSX.utils.json_to_sheet(excelData);
       
-      // Set column widths for better readability
+      // Set column widths for better readability - REMOVED Task ID column width
       const colWidths = [
-        { wch: 20 }, // Task ID
         { wch: 15 }, // Subject Code
         { wch: 15 }, // Course
         { wch: 15 }, // Syllabus
@@ -774,12 +772,11 @@ export default function TaskDeliverablesManagement() {
           </div>
         </div>
 
-        {/* Desktop Table - UPDATED with "late" status badges */}
+        {/* Desktop Table - UPDATED with "late" status badges - REMOVED Task ID column */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Task ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Syllabus</th>
@@ -799,7 +796,6 @@ export default function TaskDeliverablesManagement() {
 
                   return (
                     <tr key={task._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{task.task_deliverables_id}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 font-mono">{task.subject_code}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -859,7 +855,7 @@ export default function TaskDeliverablesManagement() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="11" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="10" className="text-center py-8 text-gray-500 font-medium">
                     {loading 
                       ? "Loading task deliverables..." 
                       : historyView 
@@ -873,7 +869,7 @@ export default function TaskDeliverablesManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED with "late" status */}
+        {/* Mobile Cards - UPDATED with "late" status - REMOVED Task ID */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentTaskDeliverables.length > 0 ? (
             currentTaskDeliverables.map((task) => {
@@ -884,7 +880,6 @@ export default function TaskDeliverablesManagement() {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h2 className="font-semibold text-gray-800">{task.subject_code}</h2>
-                      <p className="text-sm text-gray-600 font-mono">ID: {task.task_deliverables_id}</p>
                     </div>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallColor}`}>
                       {overallStatus} ({completedCount}/6{lateCount > 0 ? `, ${lateCount} late` : ''})

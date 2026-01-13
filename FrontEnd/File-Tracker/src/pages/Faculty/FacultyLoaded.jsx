@@ -7,7 +7,7 @@ import tokenService from "../../services/tokenService";
 // Set app element for react-modal
 Modal.setAppElement("#root");
 
-export default function FacultyLoadManagement() {
+export default function FacultyLoaded() {
   const [facultyLoads, setFacultyLoads] = useState([]);
   const [systemSubjects, setSystemSubjects] = useState([]);
   const [search, setSearch] = useState("");
@@ -775,12 +775,11 @@ export default function FacultyLoadManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - WITHOUT Load ID COLUMN */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Load ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Code</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Subject Title</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Course</th>
@@ -794,7 +793,6 @@ export default function FacultyLoadManagement() {
               {currentFacultyLoads.length > 0 ? (
                 currentFacultyLoads.map((facultyLoad) => (
                   <tr key={facultyLoad._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{facultyLoad.faculty_loaded_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 font-mono">{facultyLoad.subject_code}</td>
                     <td className="px-4 py-3 text-gray-700 text-sm">{facultyLoad.subject_title}</td>
                     <td className="px-4 py-3">
@@ -857,7 +855,7 @@ export default function FacultyLoadManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No faculty loads found.
                   </td>
                 </tr>
@@ -866,7 +864,7 @@ export default function FacultyLoadManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - WITHOUT Load ID */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentFacultyLoads.length > 0 ? (
             currentFacultyLoads.map((facultyLoad) => (
@@ -874,7 +872,6 @@ export default function FacultyLoadManagement() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h2 className="font-semibold text-gray-800 font-mono">{facultyLoad.subject_code}</h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {facultyLoad.faculty_loaded_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
