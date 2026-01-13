@@ -94,8 +94,8 @@ const AdminLogin = () => {
     }
   };
 
-  const handleRegister = () => {
-    navigate('/auth/admin-register');
+  const handleForgotPassword = () => {
+    navigate('/auth/admin-forgot-password');
   };
 
   return (
@@ -163,7 +163,7 @@ const AdminLogin = () => {
             <div className="flex justify-end mb-4 sm:mb-6">
               <button
                 type="button"
-                onClick={() => navigate('/auth/admin-forgot-password')}
+                onClick={handleForgotPassword}
                 className="text-black hover:text-yellow-600 transition-colors text-sm font-medium"
               >
                 Forgot Password?
@@ -177,18 +177,6 @@ const AdminLogin = () => {
               Login
             </button>
           </form>
-          
-          <div className="mt-4 text-center">
-            <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">
-              Don't have an account yet?
-            </p>
-            <button
-              onClick={handleRegister}
-              className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
-            >
-              Register
-            </button>
-          </div>
         </div>
         
         <div className="bg-gray-50 px-6 sm:px-8 py-3 sm:py-4 border-t border-gray-200">

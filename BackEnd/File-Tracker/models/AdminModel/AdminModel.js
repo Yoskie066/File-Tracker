@@ -7,16 +7,40 @@ const adminSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    adminName: {
+    firstName: {
       type: String,
       required: true,
       trim: true,
       minlength: 2,
       validate: {
         validator: function(v) {
-          return v.length >= 2;
+          return /^[A-Za-z\s]+$/.test(v);
         },
-        message: "Admin name must be at least 2 characters long"
+        message: "First name must contain only letters"
+      }
+    },
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      validate: {
+        validator: function(v) {
+          return /^[A-Za-z\s]+$/.test(v);
+        },
+        message: "Last name must contain only letters"
+      }
+    },
+    middleInitial: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1,
+      validate: {
+        validator: function(v) {
+          return /^[A-Z]$/.test(v);
+        },
+        message: "Middle initial must be a single uppercase letter (A-Z)"
       }
     },
     adminNumber: {
@@ -81,5 +105,10 @@ const adminSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Add a virtual field for full name
+adminSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.middleInitial}. ${this.lastName}`;
+});
 
 export default mongoose.models.Admin || mongoose.model("Admin", adminSchema);

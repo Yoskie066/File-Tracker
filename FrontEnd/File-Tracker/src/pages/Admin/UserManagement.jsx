@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Modal from 'react-modal';
-import { MoreVertical, Trash2, XCircle, CheckCircle, Filter, ArrowUpDown, Shield } from "lucide-react";
+import { MoreVertical, Trash2, XCircle, CheckCircle, Filter, ArrowUpDown, Shield, Edit, Plus } from "lucide-react";
 
 // Set the app element for accessibility
 Modal.setAppElement("#root");
@@ -14,6 +14,22 @@ export default function UserManagement() {
   const [activeMenu, setActiveMenu] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const usersPerPage = 10;
+
+  // Add/Edit Modal states
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [userFormData, setUserFormData] = useState({
+    firstName: "",
+    lastName: "",
+    middleInitial: "",
+    number: "",
+    password: "",
+    role: "",
+    securityQuestion: "",
+    securityAnswer: ""
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   // Filter states
   const [nameFilter, setNameFilter] = useState("");
@@ -29,6 +45,23 @@ export default function UserManagement() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+  // Middle initials A-Z
+  const middleInitials = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
+
+  // Security questions
+  const securityQuestions = [
+    "What was your first pet's name?",
+    "What is your mother's maiden name?",
+    "What was the name of your first school?",
+    "What is your favorite book?",
+    "What is your favorite movie?",
+    "What is your favorite food?",
+    "What is your favorite color?",
+    "What is your favorite sport?",
+    "What is your favorite teacher's name?",
+    "What is your favorite car?"
+  ];
 
   // Fetch users from backend
   const fetchUsers = async () => {
@@ -68,12 +101,216 @@ export default function UserManagement() {
     setFeedbackModalOpen(true);
   };
 
+  // Reset form
+  const resetForm = () => {
+    setUserFormData({
+      firstName: "",
+      lastName: "",
+      middleInitial: "",
+      number: "",
+      password: "",
+      role: "",
+      securityQuestion: "",
+      securityAnswer: ""
+    });
+    setFormErrors({});
+    setIsEditMode(false);
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const errors = {};
+    
+    const nameRegex = /^[A-Za-z\s]+$/;
+    
+    if (!userFormData.firstName.trim()) {
+      errors.firstName = "First name is required";
+    } else if (!nameRegex.test(userFormData.firstName)) {
+      errors.firstName = "First name must contain only letters";
+    }
+    
+    if (!userFormData.lastName.trim()) {
+      errors.lastName = "Last name is required";
+    } else if (!nameRegex.test(userFormData.lastName)) {
+      errors.lastName = "Last name must contain only letters";
+    }
+    
+    if (!userFormData.middleInitial) {
+      errors.middleInitial = "Middle initial is required";
+    }
+    
+    const numberRegex = /^\d{2,}$/;
+    if (!userFormData.number.trim()) {
+      errors.number = "Number is required";
+    } else if (!numberRegex.test(userFormData.number)) {
+      errors.number = "Number must contain only numbers (minimum 2 digits)";
+    }
+    
+    if (!isEditMode && !userFormData.password) {
+      errors.password = "Password is required";
+    } else if (!isEditMode && userFormData.password.length < 4) {
+      errors.password = "Password must be at least 4 characters long";
+    }
+    
+    if (!userFormData.role) {
+      errors.role = "Role is required";
+    }
+    
+    if (!userFormData.securityQuestion) {
+      errors.securityQuestion = "Security question is required";
+    }
+    
+    if (!userFormData.securityAnswer.trim()) {
+      errors.securityAnswer = "Security answer is required";
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle form input changes
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === "number") {
+      // Remove non-numeric characters
+      const numericValue = value.replace(/\D/g, '');
+      setUserFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else if (name === "firstName" || name === "lastName") {
+      // Only allow letters and spaces
+      const lettersOnly = value.replace(/[^A-Za-z\s]/g, '');
+      setUserFormData(prev => ({ ...prev, [name]: lettersOnly }));
+    } else {
+      setUserFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
+    // Clear error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // Handle form submit (add/edit user)
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    if (!validateForm()) {
+      setLoading(false);
+      showFeedback("error", "Please fix the errors in the form");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const url = isEditMode 
+        ? `${API_BASE_URL}/api/admin/user-management/${userFormData.user_id}`
+        : `${API_BASE_URL}/api/admin/user-management/register`;
+      
+      const method = isEditMode ? "PUT" : "POST";
+
+      const requestData = isEditMode 
+        ? {
+            firstName: userFormData.firstName,
+            lastName: userFormData.lastName,
+            middleInitial: userFormData.middleInitial,
+            number: userFormData.number,
+            role: userFormData.role,
+            securityQuestion: userFormData.securityQuestion,
+            securityAnswer: userFormData.securityAnswer
+          }
+        : {
+            firstName: userFormData.firstName,
+            lastName: userFormData.lastName,
+            middleInitial: userFormData.middleInitial,
+            number: userFormData.number,
+            password: userFormData.password,
+            role: userFormData.role,
+            securityQuestion: userFormData.securityQuestion,
+            securityAnswer: userFormData.securityAnswer
+          };
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to ${isEditMode ? 'update' : 'register'} user`);
+      }
+
+      showFeedback("success", result.message);
+      resetForm();
+      setShowUserModal(false);
+      fetchUsers();
+    } catch (error) {
+      console.error(`Error ${isEditMode ? 'updating' : 'registering'} user:`, error);
+      showFeedback("error", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle edit user
+  const handleEdit = async (user) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/api/admin/user-management/${user.user_id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch user data");
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        const userData = result.data;
+        setUserFormData({
+          user_id: userData.user_id,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          middleInitial: userData.middleInitial,
+          number: userData.number,
+          password: "", // Don't show password in edit
+          role: userData.role,
+          securityQuestion: userData.security_question,
+          securityAnswer: "" // Don't show security answer
+        });
+        setIsEditMode(true);
+        setShowUserModal(true);
+      } else {
+        showFeedback("error", "Error loading user data");
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      showFeedback("error", "Error loading user data");
+    }
+    setActiveMenu(null);
+  };
+
+  // Handle add new user
+  const handleAdd = () => {
+    resetForm();
+    setIsEditMode(false);
+    setShowUserModal(true);
+  };
+
   // Get unique values for filters
   const getUniqueValues = (key) => {
     const values = new Set();
     users.forEach(user => {
-      if (key === 'name' && user.name) {
-        values.add(user.name);
+      if (key === 'name' && user.fullName) {
+        values.add(user.fullName);
       } else if (key === 'role' && user.role) {
         values.add(user.role);
       } else if (key === 'status' && user.status) {
@@ -170,13 +407,13 @@ export default function UserManagement() {
 
     // Apply search filter
     filtered = filtered.filter((user) =>
-      [user.user_id, user.name, user.number, user.role, user.security_question]
+      [user.user_id, user.fullName, user.number, user.role, user.security_question]
         .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
     );
 
     // Apply advanced filters
     if (nameFilter) {
-      filtered = filtered.filter(user => user.name === nameFilter);
+      filtered = filtered.filter(user => user.fullName === nameFilter);
     }
     
     if (roleFilter) {
@@ -289,7 +526,7 @@ export default function UserManagement() {
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
 
-        {/* Header - UPDATED STRUCTURE */}
+        {/* Header - UPDATED WITH ADD BUTTON */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
@@ -309,10 +546,18 @@ export default function UserManagement() {
               }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-black"
             />
+            {/* Add Button - Plus Sign */}
+            <button
+              onClick={handleAdd}
+              className="bg-black text-white p-2 rounded-md hover:bg-yellow-400 hover:text-black transition-colors duration-200 flex items-center justify-center w-10 h-10"
+              title="Add New User"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
           </div>
         </div>
 
-        {/* Show Filters Button - MOVED BELOW HEADER LIKE FACULTY LOAD */}
+        {/* Show Filters Button */}
         <div className="mb-6">
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -537,7 +782,7 @@ export default function UserManagement() {
                 currentUsers.map((user) => (
                   <tr key={user.user_id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-mono text-xs">{user.user_id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{user.fullName}</td>
                     <td className="px-4 py-3 text-gray-700">{user.number}</td>
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
@@ -588,6 +833,13 @@ export default function UserManagement() {
                       {activeMenu === user.user_id && (
                         <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                           <button
+                            onClick={() => handleEdit(user)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
                             onClick={() => handleDelete(user)}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                           >
@@ -617,7 +869,7 @@ export default function UserManagement() {
               <div key={user.user_id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white relative">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h2 className="font-semibold text-gray-800">{user.name}</h2>
+                    <h2 className="font-semibold text-gray-800">{user.fullName}</h2>
                     <p className="text-sm text-gray-600 font-mono">{user.user_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -638,6 +890,13 @@ export default function UserManagement() {
                     
                     {activeMenu === user.user_id && (
                       <div className="absolute right-2 top-12 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleDelete(user)}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
@@ -735,6 +994,251 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Add/Edit User Modal */}
+      <Modal
+        isOpen={showUserModal}
+        onRequestClose={() => {
+          setShowUserModal(false);
+          resetForm();
+        }}
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">
+              {isEditMode ? "Edit User" : "Add New User"}
+            </h3>
+            <button
+              onClick={() => {
+                setShowUserModal(false);
+                resetForm();
+              }}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            {/* User ID (readonly in edit mode) */}
+            {isEditMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  User ID
+                </label>
+                <input
+                  type="text"
+                  name="user_id"
+                  value={userFormData.user_id}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            )}
+
+            {/* First Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                First Name *
+              </label>
+              <input
+                type="text"
+                name="firstName"
+                value={userFormData.firstName}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.firstName ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                placeholder="Enter first name"
+                required
+              />
+              {formErrors.firstName && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.firstName}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Letters only, no numbers or special characters
+              </p>
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={userFormData.lastName}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.lastName ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                placeholder="Enter last name"
+                required
+              />
+              {formErrors.lastName && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.lastName}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Letters only, no numbers or special characters
+              </p>
+            </div>
+
+            {/* Middle Initial */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Middle Initial *
+              </label>
+              <select
+                name="middleInitial"
+                value={userFormData.middleInitial}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.middleInitial ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                required
+              >
+                <option value="">Select middle initial</option>
+                {middleInitials.map(letter => (
+                  <option key={letter} value={letter}>{letter}</option>
+                ))}
+              </select>
+              {formErrors.middleInitial && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.middleInitial}</p>
+              )}
+            </div>
+
+            {/* Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {userFormData.role === 'admin' ? 'Admin' : 'Faculty'} Number *
+              </label>
+              <input
+                type="text"
+                name="number"
+                value={userFormData.number}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.number ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                placeholder="Enter number (minimum 2 digits)"
+                required
+              />
+              {formErrors.number && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.number}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Must be at least 2 digits (numbers only). Note: Numbers must be unique across all users.
+              </p>
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Role *
+              </label>
+              <select
+                name="role"
+                value={userFormData.role}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.role ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                required
+              >
+                <option value="">Select role</option>
+                <option value="admin">Admin</option>
+                <option value="faculty">Faculty</option>
+              </select>
+              {formErrors.role && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.role}</p>
+              )}
+            </div>
+
+            {/* Password (not required in edit mode) */}
+            {!isEditMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={userFormData.password}
+                  onChange={handleFormChange}
+                  className={`w-full border ${formErrors.password ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                  placeholder="Enter password (minimum 4 characters)"
+                  required={!isEditMode}
+                />
+                {formErrors.password && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.password}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Password must be at least 4 characters long
+                </p>
+              </div>
+            )}
+
+            {/* Security Question */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Security Question *
+              </label>
+              <select
+                name="securityQuestion"
+                value={userFormData.securityQuestion}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.securityQuestion ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                required
+              >
+                <option value="">Select a security question</option>
+                {securityQuestions.map((question, index) => (
+                  <option key={index} value={question}>
+                    {question}
+                  </option>
+                ))}
+              </select>
+              {formErrors.securityQuestion && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.securityQuestion}</p>
+              )}
+            </div>
+
+            {/* Security Answer */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Security Answer *
+              </label>
+              <input
+                type="text"
+                name="securityAnswer"
+                value={userFormData.securityAnswer}
+                onChange={handleFormChange}
+                className={`w-full border ${formErrors.securityAnswer ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
+                placeholder="Enter your security answer"
+                required
+              />
+              {formErrors.securityAnswer && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.securityAnswer}</p>
+              )}
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserModal(false);
+                  resetForm();
+                }}
+                className="flex-1 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update User" : "Add User")}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={isDeleteOpen}
@@ -746,7 +1250,7 @@ export default function UserManagement() {
           <XCircle className="text-red-500 w-12 h-12 mb-4" />
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
           <p className="text-gray-600 mb-6">
-            Are you sure you want to delete <strong>{deleteUser?.name}</strong> ({deleteUser?.role})? 
+            Are you sure you want to delete <strong>{deleteUser?.fullName}</strong> ({deleteUser?.role})? 
             This action cannot be undone.
           </p>
           <div className="flex gap-3 w-full">

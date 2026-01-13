@@ -11,7 +11,7 @@ const generateTokens = (faculty) => {
   const accessToken = jwt.sign(
     {
       facultyId: faculty.facultyId,
-      facultyName: faculty.facultyName,
+      fullName: faculty.fullName,
       role: faculty.role,
     },
     process.env.JWT_SECRET,
@@ -60,18 +60,15 @@ export const getSecurityQuestions = async (req, res) => {
 // Get faculty security question
 export const getFacultySecurityQuestion = async (req, res) => {
   try {
-    const { facultyNumber, facultyName } = req.query;
+    const { facultyNumber } = req.query;
 
-    if (!facultyNumber || !facultyName) {
+    if (!facultyNumber) {
       return res.status(400).json({ 
-        message: "Faculty number and name are required" 
+        message: "Faculty number is required" 
       });
     }
 
-    const faculty = await Faculty.findOne({ 
-      facultyNumber,
-      facultyName: { $regex: new RegExp(`^${facultyName}$`, 'i') }
-    });
+    const faculty = await Faculty.findOne({ facultyNumber });
 
     if (!faculty) {
       return res.status(404).json({ 
@@ -90,15 +87,38 @@ export const getFacultySecurityQuestion = async (req, res) => {
   }
 };
 
-// REGISTER FACULTY
+// REGISTER FACULTY (Now only from admin panel)
 export const registerFaculty = async (req, res) => {
   try {
-    const { facultyName, facultyNumber, password, securityQuestion, securityAnswer } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      middleInitial, 
+      facultyNumber, 
+      password, 
+      securityQuestion, 
+      securityAnswer 
+    } = req.body;
 
-    // Validate faculty name length - CHANGED FROM 8 TO 2
-    if (facultyName.length < 2) {
+    // Validate first name (letters only)
+    const nameRegex = /^[A-Za-z\s]+$/;
+    if (!nameRegex.test(firstName)) {
       return res.status(400).json({ 
-        message: "Faculty name must be at least 2 characters long" 
+        message: "First name must contain only letters" 
+      });
+    }
+
+    if (!nameRegex.test(lastName)) {
+      return res.status(400).json({ 
+        message: "Last name must contain only letters" 
+      });
+    }
+
+    // Validate middle initial (single uppercase letter)
+    const middleInitialRegex = /^[A-Z]$/;
+    if (!middleInitialRegex.test(middleInitial)) {
+      return res.status(400).json({ 
+        message: "Middle initial must be a single uppercase letter (A-Z)" 
       });
     }
 
@@ -124,9 +144,18 @@ export const registerFaculty = async (req, res) => {
       });
     }
 
+    // Check if number exists in any role
+    const Admin = mongoose.model("Admin");
+    const existingAdmin = await Admin.findOne({ adminNumber: facultyNumber });
+    if (existingAdmin) {
+      return res.status(400).json({ 
+        message: "This number is already registered as an admin" 
+      });
+    }
+
     const existingFaculty = await Faculty.findOne({ facultyNumber });
     if (existingFaculty) {
-      return res.status(400).json({ message: "Faculty already registered" });
+      return res.status(400).json({ message: "Faculty number already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -134,7 +163,9 @@ export const registerFaculty = async (req, res) => {
 
     const newFaculty = new Faculty({
       facultyId,
-      facultyName,
+      firstName,
+      lastName,
+      middleInitial,
       facultyNumber,
       password: hashedPassword,
       securityQuestion,
@@ -149,6 +180,7 @@ export const registerFaculty = async (req, res) => {
     res.status(201).json({
       message: "Faculty registered successfully",
       facultyId: newFaculty.facultyId,
+      fullName: newFaculty.fullName,
     });
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -156,6 +188,11 @@ export const registerFaculty = async (req, res) => {
       return res.status(400).json({ 
         message: "Validation Error", 
         errors: messages 
+      });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: "Faculty number already exists" 
       });
     }
     res.status(500).json({
@@ -218,7 +255,10 @@ export const loginFaculty = async (req, res) => {
       refreshToken,
       faculty: {
         facultyId: faculty.facultyId,
-        facultyName: faculty.facultyName,
+        fullName: faculty.fullName,
+        firstName: faculty.firstName,
+        lastName: faculty.lastName,
+        middleInitial: faculty.middleInitial,
         facultyNumber: faculty.facultyNumber,
         role: faculty.role,
         status: faculty.status,
@@ -278,14 +318,7 @@ export const refreshTokenFaculty = async (req, res) => {
 // Forgot Password Faculty
 export const forgotPasswordFaculty = async (req, res) => {
   try {
-    const { facultyNumber, facultyName, securityQuestion, securityAnswer, newPassword } = req.body;
-
-    // Validate faculty name length - CHANGED FROM 8 TO 2
-    if (facultyName.length < 2) {
-      return res.status(400).json({ 
-        message: "Faculty name must be at least 2 characters long" 
-      });
-    }
+    const { facultyNumber, securityQuestion, securityAnswer, newPassword } = req.body;
 
     // Validate faculty number format - minimum 2 digits, numbers only
     const facultyNumberRegex = /^\d{2,}$/;
@@ -309,14 +342,11 @@ export const forgotPasswordFaculty = async (req, res) => {
       });
     }
 
-    const faculty = await Faculty.findOne({ 
-      facultyNumber, 
-      facultyName: { $regex: new RegExp(`^${facultyName}$`, 'i') } 
-    });
+    const faculty = await Faculty.findOne({ facultyNumber });
 
     if (!faculty) {
       return res.status(404).json({ 
-        message: "Faculty not found. Please check your Faculty Number and Name." 
+        message: "Faculty not found. Please check your Faculty Number." 
       });
     }
 

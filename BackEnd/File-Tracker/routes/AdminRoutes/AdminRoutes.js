@@ -1,6 +1,5 @@
 import express from "express";
 import { 
-  registerAdmin, 
   loginAdmin, 
   forgotPasswordAdmin, 
   refreshTokenAdmin,
@@ -9,14 +8,21 @@ import {
 } from "../../controllers/AdminController/AdminController.js";
 import { logoutAdmin } from "../../controllers/AdminController/AdminControllerLogout.js";
 import { verifyToken } from "../../middleware/verifyToken.js";
-import { getAllUsers, deleteAdmin, deleteFaculty } from "../../controllers/AdminController/UserManagementController.js";
+import { 
+  getAllUsers, 
+  registerUser, 
+  getUserById, 
+  updateUser, 
+  deleteAdmin, 
+  deleteFaculty 
+} from "../../controllers/AdminController/UserManagementController.js";
 import { 
   getFiles, 
   getFileById, 
   deleteFile, 
   updateFileStatus, 
   bulkCompleteAllFiles,
-  downloadFile  // DAGDAG DITO
+  downloadFile
 } from "../../controllers/FacultyController/FileUploadController.js";
 import { getArchivedFiles, getArchiveStatistics } from "../../controllers/AdminController/AdminArchiveController.js";
 import { getAdminNotices, getAllFaculty, getAdminNoticeStats, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
@@ -45,7 +51,7 @@ const router = express.Router();
 router.get("/security-questions", getSecurityQuestions);
 router.get("/security-question", getAdminSecurityQuestion);
 
-router.post("/admin-register", registerAdmin);
+// Authentication Routes 
 router.post("/admin-login", loginAdmin);
 router.post("/admin-refresh-token", refreshTokenAdmin);
 router.put("/admin-forgot-password", forgotPasswordAdmin);
@@ -53,6 +59,9 @@ router.post("/admin-logout", verifyToken, logoutAdmin);
 
 // User Management Routes
 router.get("/user-management", getAllUsers);
+router.post("/user-management/register", registerUser);
+router.get("/user-management/:id", getUserById);
+router.put("/user-management/:id", updateUser);
 router.delete("/delete-admin/:adminId", deleteAdmin);
 router.delete("/delete-faculty/:facultyId", deleteFaculty);
 

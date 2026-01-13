@@ -1,6 +1,5 @@
 import express from "express";
 import { 
-  registerFaculty, 
   loginFaculty, 
   forgotPasswordFaculty, 
   refreshTokenFaculty,
@@ -22,7 +21,7 @@ import {
   uploadFile, 
   upload, 
   getFacultyFiles, 
-  downloadFile  // DAGDAG DITO
+  downloadFile
 } from "../../controllers/FacultyController/FileUploadController.js"; 
 import { getFacultyFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import { getTaskDeliverables, getTaskDeliverablesById, updateTaskDeliverables } from "../../controllers/FacultyController/TaskDeliverablesController.js";
@@ -34,7 +33,7 @@ const router = express.Router();
 router.get("/security-questions", getSecurityQuestions);
 router.get("/security-question", getFacultySecurityQuestion);
 
-router.post("/register", registerFaculty);
+// Authentication Routes 
 router.post("/login", loginFaculty);
 router.post("/refresh-token", refreshTokenFaculty);
 router.put("/forgot-password", forgotPasswordFaculty);

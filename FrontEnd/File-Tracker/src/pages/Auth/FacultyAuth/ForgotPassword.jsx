@@ -11,7 +11,6 @@ const FacultyForgotPassword = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     facultyNumber: "",
-    facultyName: "",
     securityQuestion: "",
     securityAnswer: "",
     newPassword: "",
@@ -46,11 +45,6 @@ const FacultyForgotPassword = () => {
 
   const validateStep1 = () => {
     const newErrors = {};
-    
-    // Validate faculty name length - CHANGED FROM 8 TO 2
-    if (formData.facultyName.length < 2) {
-      newErrors.facultyName = "Faculty name must be at least 2 characters long";
-    }
     
     // Validate faculty number format - minimum 2 digits, numbers only
     const facultyNumberRegex = /^\d{2,}$/;
@@ -117,7 +111,7 @@ const FacultyForgotPassword = () => {
     try {
       // Fetch security question for this user
       const response = await fetch(
-        `${API_BASE_URL}/api/faculty/security-question?facultyNumber=${formData.facultyNumber}&facultyName=${formData.facultyName}`
+        `${API_BASE_URL}/api/faculty/security-question?facultyNumber=${formData.facultyNumber}`
       );
 
       const data = await response.json();
@@ -157,7 +151,6 @@ const FacultyForgotPassword = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           facultyNumber: formData.facultyNumber,
-          facultyName: formData.facultyName,
           securityQuestion: formData.securityQuestion,
           securityAnswer: formData.securityAnswer.trim(),
           newPassword: formData.newPassword
@@ -205,36 +198,13 @@ const FacultyForgotPassword = () => {
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Reset Faculty Password</h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              {step === 1 ? "Enter your details to verify identity" : "Answer your security question"}
+              {step === 1 ? "Enter your faculty number to verify identity" : "Answer your security question"}
             </p>
           </div>
           
           {step === 1 ? (
             <form onSubmit={handleStep1Submit}>
-              {/* Faculty Name - First Field */}
-              <div className="mb-4 sm:mb-6">
-                <label htmlFor="facultyName" className="block text-gray-700 text-sm font-medium mb-2">
-                  Faculty Name:
-                </label>
-                <input
-                  type="text"
-                  id="facultyName"
-                  name="facultyName"
-                  value={formData.facultyName}
-                  onChange={handleChange}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                    errors.facultyName ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your faculty name"
-                  title="Faculty name must be at least 2 characters long" // CHANGED FROM 8 TO 2
-                  required
-                />
-                {errors.facultyName && (
-                  <p className="text-red-500 text-xs mt-1">{errors.facultyName}</p>
-                )}
-              </div>
-
-              {/* Faculty Number - Second Field */}
+              {/* Faculty Number */}
               <div className="mb-4 sm:mb-6">
                 <label htmlFor="facultyNumber" className="block text-gray-700 text-sm font-medium mb-2">
                   Faculty Number:
@@ -360,13 +330,13 @@ const FacultyForgotPassword = () => {
           {/* Login Section */}
           <div className="mt-4 sm:mt-6 text-center">
             <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">
-              You have an existing account?
+              Remember your password?
             </p>
             <button
               onClick={handleLogin}
               className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
             >
-              Login
+              Back to Login
             </button>
           </div>
         </div>

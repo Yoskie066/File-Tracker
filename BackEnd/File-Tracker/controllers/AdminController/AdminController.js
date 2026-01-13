@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import Admin from "../../models/AdminModel/AdminModel.js";
+import mongoose from "mongoose";
 
 const generateAdminId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
@@ -11,7 +12,7 @@ const generateAdminTokens = (admin) => {
   const accessToken = jwt.sign(
     {
       adminId: admin.adminId,
-      adminName: admin.adminName,
+      fullName: admin.fullName,
       role: admin.role,
     },
     process.env.JWT_SECRET,
@@ -60,18 +61,15 @@ export const getSecurityQuestions = async (req, res) => {
 // Get admin security question
 export const getAdminSecurityQuestion = async (req, res) => {
   try {
-    const { adminNumber, adminName } = req.query;
+    const { adminNumber } = req.query;
 
-    if (!adminNumber || !adminName) {
+    if (!adminNumber) {
       return res.status(400).json({ 
-        message: "Admin number and name are required" 
+        message: "Admin number is required" 
       });
     }
 
-    const admin = await Admin.findOne({ 
-      adminNumber,
-      adminName: { $regex: new RegExp(`^${adminName}$`, 'i') }
-    });
+    const admin = await Admin.findOne({ adminNumber });
 
     if (!admin) {
       return res.status(404).json({ 
@@ -90,15 +88,38 @@ export const getAdminSecurityQuestion = async (req, res) => {
   }
 };
 
-// REGISTER ADMIN
+// REGISTER ADMIN (Now only from admin panel)
 export const registerAdmin = async (req, res) => {
   try {
-    const { adminName, adminNumber, password, securityQuestion, securityAnswer } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      middleInitial, 
+      adminNumber, 
+      password, 
+      securityQuestion, 
+      securityAnswer 
+    } = req.body;
 
-    // Validate admin name length - CHANGED FROM 8 TO 2
-    if (adminName.length < 2) {
+    // Validate first name (letters only)
+    const nameRegex = /^[A-Za-z\s]+$/;
+    if (!nameRegex.test(firstName)) {
       return res.status(400).json({ 
-        message: "Admin name must be at least 2 characters long" 
+        message: "First name must contain only letters" 
+      });
+    }
+
+    if (!nameRegex.test(lastName)) {
+      return res.status(400).json({ 
+        message: "Last name must contain only letters" 
+      });
+    }
+
+    // Validate middle initial (single uppercase letter)
+    const middleInitialRegex = /^[A-Z]$/;
+    if (!middleInitialRegex.test(middleInitial)) {
+      return res.status(400).json({ 
+        message: "Middle initial must be a single uppercase letter (A-Z)" 
       });
     }
 
@@ -124,9 +145,18 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
+    // Check if number exists in any role
+    const Faculty = mongoose.model("Faculty");
+    const existingFaculty = await Faculty.findOne({ facultyNumber: adminNumber });
+    if (existingFaculty) {
+      return res.status(400).json({ 
+        message: "This number is already registered as a faculty" 
+      });
+    }
+
     const existingAdmin = await Admin.findOne({ adminNumber });
     if (existingAdmin) {
-      return res.status(400).json({ message: "Admin already registered" });
+      return res.status(400).json({ message: "Admin number already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -134,7 +164,9 @@ export const registerAdmin = async (req, res) => {
 
     const newAdmin = new Admin({
       adminId,
-      adminName,
+      firstName,
+      lastName,
+      middleInitial,
       adminNumber,
       password: hashedPassword,
       securityQuestion,
@@ -149,6 +181,7 @@ export const registerAdmin = async (req, res) => {
     res.status(201).json({
       message: "Admin registered successfully",
       adminId: newAdmin.adminId,
+      fullName: newAdmin.fullName,
     });
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -156,6 +189,11 @@ export const registerAdmin = async (req, res) => {
       return res.status(400).json({ 
         message: "Validation Error", 
         errors: messages 
+      });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: "Admin number already exists" 
       });
     }
     res.status(500).json({
@@ -216,7 +254,10 @@ export const loginAdmin = async (req, res) => {
       refreshToken,
       admin: {
         adminId: admin.adminId,
-        adminName: admin.adminName,
+        fullName: admin.fullName,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        middleInitial: admin.middleInitial,
         adminNumber: admin.adminNumber,
         role: admin.role,
         status: admin.status,
@@ -276,14 +317,7 @@ export const refreshTokenAdmin = async (req, res) => {
 // Forgot Password ADMIN
 export const forgotPasswordAdmin = async (req, res) => {
   try {
-    const { adminNumber, adminName, securityQuestion, securityAnswer, newPassword } = req.body;
-
-    // Validate admin name length - CHANGED FROM 8 TO 2
-    if (adminName.length < 2) {
-      return res.status(400).json({ 
-        message: "Admin name must be at least 2 characters long" 
-      });
-    }
+    const { adminNumber, securityQuestion, securityAnswer, newPassword } = req.body;
 
     // Validate admin number format - minimum 2 digits, numbers only
     const adminNumberRegex = /^\d{2,}$/;
@@ -307,14 +341,11 @@ export const forgotPasswordAdmin = async (req, res) => {
       });
     }
 
-    const admin = await Admin.findOne({ 
-      adminNumber, 
-      adminName: { $regex: new RegExp(`^${adminName}$`, 'i') } 
-    });
+    const admin = await Admin.findOne({ adminNumber });
 
     if (!admin) {
       return res.status(404).json({ 
-        message: "Admin not found. Please check your Admin Number and Name." 
+        message: "Admin not found. Please check your Admin Number." 
       });
     }
 
