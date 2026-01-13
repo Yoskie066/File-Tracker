@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function useNotifications(currentUser) {
+export default function useNotification(currentUser) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -36,31 +36,8 @@ export default function useNotifications(currentUser) {
         setUnreadCount(list.filter((n) => !n.is_read).length);
       } catch (err) {
         console.error("Error fetching notifications:", err);
-        // Fallback to old endpoint if new one fails
-        await fetchNotificationsFallback();
       } finally {
         setLoading(false);
-      }
-    };
-
-    // Fallback method using old endpoint
-    const fetchNotificationsFallback = async () => {
-      try {
-        console.log("Trying fallback notification fetch...");
-        const res = await fetch(
-          `${API_BASE_URL}/api/faculty/notifications/${currentUser.facultyId}`
-        );
-        
-        if (res.ok) {
-          const data = await res.json();
-          const list = data?.data || [];
-          console.log(`Fallback found ${list.length} notifications`);
-          
-          setNotifications(list);
-          setUnreadCount(list.filter((n) => !n.is_read).length);
-        }
-      } catch (fallbackError) {
-        console.error("Fallback notification fetch also failed:", fallbackError);
       }
     };
 
@@ -69,7 +46,7 @@ export default function useNotifications(currentUser) {
     // Refresh every 15 seconds
     const interval = setInterval(fetchNotifications, 15000); 
     return () => clearInterval(interval);
-  }, [currentUser?.facultyId]); 
+  }, [currentUser?.facultyId]);
 
   // Mark as read 
   const markAsRead = async (id) => {

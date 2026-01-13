@@ -369,7 +369,6 @@ export default function UserManagement() {
     let offlineCount = 0;
     let adminCount = 0;
     let facultyCount = 0;
-    let withSecurityQuestion = 0;
   
     usersList.forEach(user => {
       const status = user.status?.toLowerCase().trim();
@@ -385,10 +384,6 @@ export default function UserManagement() {
       } else if (user.role === 'faculty') {
         facultyCount++;
       }
-
-      if (user.security_question && user.security_question !== 'Not set') {
-        withSecurityQuestion++;
-      }
     });
   
     return {
@@ -397,7 +392,6 @@ export default function UserManagement() {
       offline: offlineCount,
       admin: adminCount,
       faculty: facultyCount,
-      withSecurityQuestion
     };
   };
 
@@ -732,8 +726,8 @@ export default function UserManagement() {
           )}
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        {/* Statistics Cards - REMOVED Security Enabled card */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Users</div>
             <div className="text-2xl font-bold text-blue-800">{userStats.total}</div>
@@ -752,21 +746,13 @@ export default function UserManagement() {
               {userStats.total > 0 ? Math.round((userStats.online / userStats.total) * 100) : 0}%
             </div>
           </div>
-          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Security Enabled
-            </div>
-            <div className="text-2xl font-bold text-yellow-800">{userStats.withSecurityQuestion}</div>
-          </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - REMOVED User ID column */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">User ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Number</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Password</th>
@@ -781,7 +767,6 @@ export default function UserManagement() {
               {currentUsers.length > 0 ? (
                 currentUsers.map((user) => (
                   <tr key={user.user_id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs">{user.user_id}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{user.fullName}</td>
                     <td className="px-4 py-3 text-gray-700">{user.number}</td>
                     <td className="px-4 py-3">
@@ -837,7 +822,7 @@ export default function UserManagement() {
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
                           >
                             <Edit className="w-4 h-4" />
-                            Edit
+                            Update
                           </button>
                           <button
                             onClick={() => handleDelete(user)}
@@ -853,7 +838,7 @@ export default function UserManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
                     No users found.
                   </td>
                 </tr>
@@ -862,7 +847,7 @@ export default function UserManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - REMOVED User ID display */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentUsers.length > 0 ? (
             currentUsers.map((user) => (
@@ -870,7 +855,6 @@ export default function UserManagement() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h2 className="font-semibold text-gray-800">{user.fullName}</h2>
-                    <p className="text-sm text-gray-600 font-mono">{user.user_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -895,7 +879,7 @@ export default function UserManagement() {
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
                         >
                           <Edit className="w-4 h-4" />
-                          Edit
+                          Update
                         </button>
                         <button
                           onClick={() => handleDelete(user)}

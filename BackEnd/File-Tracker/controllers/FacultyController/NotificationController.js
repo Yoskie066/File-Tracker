@@ -103,7 +103,7 @@ export const markAllAsRead = async (req, res) => {
   }
 };
 
-// Get notifications for faculty (including ALL notifications)
+// Get notifications for faculty (including ALL notifications) - UPDATED
 export const getFacultyNotifications = async (req, res) => {
   try {
     const { facultyId } = req.params;
@@ -114,7 +114,7 @@ export const getFacultyNotifications = async (req, res) => {
     const notifications = await Notification.find({
       $or: [
         { recipient_id: facultyId }, 
-        { recipient_name: "ALL" }   
+        { recipient_id: "ALL" }
       ]
     }).sort({ created_at: -1 });
     
@@ -123,7 +123,7 @@ export const getFacultyNotifications = async (req, res) => {
     // Debug: Log what we found
     if (notifications.length > 0) {
       notifications.forEach(notification => {
-        console.log(`   - Title: ${notification.title}, Recipient: ${notification.recipient_id}, Name: ${notification.recipient_name}, Type: ${notification.recipient_name === "ALL" ? "ALL_FACULTY" : "SPECIFIC"}`);
+        console.log(`   - Title: ${notification.title}, Recipient: ${notification.recipient_id}, Name: ${notification.recipient_name}, Read: ${notification.is_read}`);
       });
     }
     
@@ -143,7 +143,7 @@ export const getFacultyNotifications = async (req, res) => {
   }
 };
 
-// Get unread count for faculty
+// Get unread count for faculty - UPDATED
 export const getFacultyUnreadCount = async (req, res) => {
   try {
     const { facultyId } = req.params;
@@ -151,10 +151,12 @@ export const getFacultyUnreadCount = async (req, res) => {
     const count = await Notification.countDocuments({
       $or: [
         { recipient_id: facultyId },
-        { recipient_name: "ALL" }
+        { recipient_id: "ALL" }
       ],
       is_read: false
     });
+    
+    console.log(`Unread count for ${facultyId}: ${count}`);
     
     res.status(200).json({ 
       success: true, 

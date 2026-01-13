@@ -19,11 +19,16 @@ export default function Sidebar({ isOpen, onClose }) {
 
   // Get current user
   const storedFaculty = JSON.parse(localStorage.getItem("faculty"));
-  const currentUser = storedFaculty;
-  const userInitial = storedFaculty?.facultyName?.charAt(0).toUpperCase() || "F";
-  const userEmail = storedFaculty?.facultyName || "Faculty";
+  const firstName = storedFaculty?.firstName || "";
+  const middleInitial = storedFaculty?.middleInitial || "";
+  const lastName = storedFaculty?.lastName || "";
+  const fullName = `${firstName} ${middleInitial}. ${lastName}`;
+  const userInitial = firstName?.charAt(0).toUpperCase() || "F";
 
-  // Custom hook for unread notifications
+  // Define currentUser for the notification hook
+  const currentUser = storedFaculty; // This is what was missing
+
+  // Custom hook for unread notifications - NOW WITH PROPER currentUser
   const { unreadCount } = useNotification(currentUser);
 
   const handleLogout = async () => {
@@ -75,7 +80,7 @@ export default function Sidebar({ isOpen, onClose }) {
               {userInitial}
             </div>
             <div>
-              <p className="font-semibold">{userEmail}</p>
+              <p className="font-semibold">{fullName}</p>
               <p className="text-sm text-gray-400">Faculty Member</p>
             </div>
           </div>

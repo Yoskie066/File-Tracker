@@ -99,7 +99,7 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Fetch faculty list from backend
+  // Fetch faculty list from backend - UPDATED to get full names
   const fetchFacultyList = async () => {
     try {
       setLoadingFaculty(true);
@@ -198,7 +198,7 @@ export default function AdminNoticeManagement() {
     setCurrentPage(1);
   };
 
-  // Handle form input changes
+  // Handle form input changes - UPDATED for full name handling
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
@@ -344,7 +344,7 @@ export default function AdminNoticeManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Handle form submission
+  // Handle form submission - UPDATED for full name handling
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -810,12 +810,11 @@ export default function AdminNoticeManagement() {
           </div>
         </div>
 
-        {/* Desktop Table */}
+        {/* Desktop Table - WITHOUT NOTICE ID COLUMN */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Notice ID</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Faculty Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Document Type</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">TOS Type</th>
@@ -829,7 +828,6 @@ export default function AdminNoticeManagement() {
               {currentAdminNotices.length > 0 ? (
                 currentAdminNotices.map((adminNotice) => (
                   <tr key={adminNotice._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{adminNotice.notice_id}</td>
                     <td className="px-4 py-3 text-gray-700">
                       <div className="flex flex-col">
                         <span>{adminNotice.prof_name}</span>
@@ -911,7 +909,7 @@ export default function AdminNoticeManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No admin notices found.
                   </td>
                 </tr>
@@ -920,7 +918,7 @@ export default function AdminNoticeManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - WITHOUT NOTICE ID */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentAdminNotices.length > 0 ? (
             currentAdminNotices.map((adminNotice) => (
@@ -928,7 +926,6 @@ export default function AdminNoticeManagement() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h2 className="font-semibold text-gray-800">Admin Notice</h2>
-                    <p className="text-sm text-gray-600 font-mono">ID: {adminNotice.notice_id}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDocumentTypeBadgeColor(adminNotice.document_type)}`}>
@@ -1112,7 +1109,7 @@ export default function AdminNoticeManagement() {
                     <option>Loading faculty...</option>
                   ) : (
                     facultyList.map((faculty) => (
-                      <option key={faculty._id} value={faculty.facultyName}>
+                      <option key={faculty.facultyId} value={faculty.facultyName}>
                         {faculty.facultyName} (ID: {faculty.facultyId})
                       </option>
                     ))

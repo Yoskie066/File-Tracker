@@ -74,11 +74,12 @@ export const createAdminNotice = async (req, res) => {
         
         // Create notifications for each faculty member
         const notificationPromises = allFaculty.map(faculty => {
+          const fullName = `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`;
           const notification = new Notification({
             notification_id: generateNotificationId(),
             recipient_id: faculty.facultyId,
             recipient_type: "Faculty",
-            recipient_name: faculty.facultyName,
+            recipient_name: fullName,
             title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
@@ -98,22 +99,19 @@ export const createAdminNotice = async (req, res) => {
         // Send notification to specific faculty member only
         console.log("Looking for specific faculty with ID:", faculty_id);
         
-        // Find faculty by ID or name
-        const faculty = await Faculty.findOne({ 
-          $or: [
-            { facultyId: faculty_id },
-            { facultyName: new RegExp(`^${prof_name}$`, "i") }
-          ]
-        });
-        console.log("Found faculty:", faculty);
+        // Find faculty by ID
+        const faculty = await Faculty.findOne({ facultyId: faculty_id });
         
         if (faculty) {
+          const fullName = `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`;
+          console.log("Found faculty with full name:", fullName);
+          
           // Create notification linked to that faculty
           const notification = new Notification({
             notification_id: generateNotificationId(),
             recipient_id: faculty.facultyId,
             recipient_type: "Faculty",
-            recipient_name: faculty.facultyName,
+            recipient_name: fullName,
             title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
@@ -127,12 +125,12 @@ export const createAdminNotice = async (req, res) => {
           const savedNotification = await notification.save();
           console.log("Notification saved successfully:", savedNotification);
         } else {
-          console.warn("Faculty not found for notification:", prof_name);
+          console.warn("Faculty not found for notification:", faculty_id);
           
           // Fallback notification
           const fallbackNotification = new Notification({
             notification_id: generateNotificationId(),
-            recipient_id: "unknown",
+            recipient_id: faculty_id || "unknown",
             recipient_type: "Faculty",
             recipient_name: prof_name,
             title: "New Admin Notice",
@@ -214,15 +212,27 @@ export const getAdminNoticeById = async (req, res) => {
   }
 };
 
-// Get all faculty for dropdown
+// Get all faculty for dropdown - UPDATED to return full name
 export const getAllFaculty = async (req, res) => {
   try {
-    const faculty = await Faculty.find({}, 'facultyId facultyName')
-      .sort({ facultyName: 1 });
+    const faculty = await Faculty.find({}, 'facultyId firstName middleInitial lastName')
+      .sort({ firstName: 1 });
+    
+    // Format faculty with full name
+    const formattedFaculty = faculty.map(f => {
+      const fullName = `${f.firstName} ${f.middleInitial}. ${f.lastName}`;
+      return {
+        facultyId: f.facultyId,
+        facultyName: fullName,  // This will be used in dropdown
+        firstName: f.firstName,
+        middleInitial: f.middleInitial,
+        lastName: f.lastName
+      };
+    });
     
     res.status(200).json({ 
       success: true, 
-      data: faculty 
+      data: formattedFaculty 
     });
   } catch (error) {
     console.error("Error fetching faculty:", error);
