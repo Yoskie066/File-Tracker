@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import Admin from "../../models/AdminModel/AdminModel.js";
-import mongoose from "mongoose";
 
 const generateAdminId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();

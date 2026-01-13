@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import Admin from "./AdminModel/AdminModel.js";
-import Faculty from "./FacultyModel/FacultyModel.js";
+import Admin from "../AdminModel/AdminModel.js";
+import Faculty from "../FacultyModel/FacultyModel.js";
 
 const userSchema = new mongoose.Schema({
   user_id: {

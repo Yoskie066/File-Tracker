@@ -336,7 +336,7 @@ const AdminForgotPassword = () => {
               onClick={handleLogin}
               className="w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base"
             >
-              Back to Login
+              Login
             </button>
           </div>
         </div>
