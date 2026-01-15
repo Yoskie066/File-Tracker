@@ -29,8 +29,10 @@ export const verifyToken = async (req, res, next) => {
 
     // Attach user data to request based on token type
     if (decoded.adminId) {
-      // Format: "First Name Middle Initial. Last Name"
-      const adminName = `${decoded.firstName} ${decoded.middleInitial || ''} ${decoded.lastName}`;
+      // Format: "First Name Middle Initial. Last Name" (with proper spacing)
+      const adminName = decoded.middleInitial 
+        ? `${decoded.firstName} ${decoded.middleInitial}. ${decoded.lastName}`
+        : `${decoded.firstName} ${decoded.lastName}`;
       
       req.admin = {
         adminId: decoded.adminId,
@@ -42,8 +44,10 @@ export const verifyToken = async (req, res, next) => {
       };
       console.log('Admin authenticated:', req.admin.adminId, 'Name:', req.admin.adminName);
     } else if (decoded.facultyId) {
-      // Format: "First Name Middle Initial. Last Name"
-      const facultyName = `${decoded.firstName} ${decoded.middleInitial || ''} ${decoded.lastName}`;
+      // Format: "First Name Middle Initial. Last Name" (with proper spacing)
+      const facultyName = decoded.middleInitial 
+        ? `${decoded.firstName} ${decoded.middleInitial}. ${decoded.lastName}`
+        : `${decoded.firstName} ${decoded.lastName}`;
       
       req.faculty = {
         facultyId: decoded.facultyId,

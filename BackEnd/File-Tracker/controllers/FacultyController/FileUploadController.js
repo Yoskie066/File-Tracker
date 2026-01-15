@@ -230,7 +230,7 @@ export const uploadFile = async (req, res) => {
       const newFile = new FileManagement({
         file_id: fileId,
         faculty_id: req.faculty.facultyId,
-        faculty_name: req.faculty.facultyName,
+        faculty_name: req.faculty.facultyName, // This now uses the properly formatted name
         file_name: file_name || file.originalname,
         document_type: finalDocumentType,
         tos_type: document_type === 'tos' ? tos_type : null,

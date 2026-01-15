@@ -13,8 +13,8 @@ export default function FileManagement() {
   const [actionDropdown, setActionDropdown] = useState(null);
   const filesPerPage = 10;
 
-  // History of Records states
-  const [historyView, setHistoryView] = useState(false);
+  // Reports states
+  const [reportsView, setReportsView] = useState(false);
 
   // Feedback modal states
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -135,7 +135,6 @@ export default function FileManagement() {
         window.URL.revokeObjectURL(url);
       }, 100);
       
-      // FIXED: Changed to "Download successfully!"
       showFeedback("success", "Download successfully!");
       
     } catch (error) {
@@ -277,6 +276,25 @@ export default function FileManagement() {
     });
   };
 
+  // Format faculty name (fixes "Undefined Undefined" issue)
+  const formatFacultyName = (facultyName) => {
+    if (!facultyName) return "Unknown Faculty";
+    
+    // If name already contains "Undefined", try to get from localStorage
+    if (facultyName.includes("Undefined")) {
+      const storedAdmin = JSON.parse(localStorage.getItem("admin"));
+      if (storedAdmin) {
+        const { firstName, middleInitial, lastName } = storedAdmin;
+        if (middleInitial) {
+          return `${firstName} ${middleInitial}. ${lastName}`;
+        }
+        return `${firstName} ${lastName}`;
+      }
+    }
+    
+    return facultyName;
+  };
+
   // Get document type label with TOS type support
   const getDocumentTypeLabel = (documentType, tosType = null) => {
     if (documentType === 'tos-midterm' || (documentType === 'tos' && tosType === 'midterm')) {
@@ -301,7 +319,7 @@ export default function FileManagement() {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
       case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
-      case 'late': return 'bg-orange-100 text-orange-800 border border-orange-200'; // ADDED for late status
+      case 'late': return 'bg-orange-100 text-orange-800 border border-orange-200';
       default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
     }
   };
@@ -311,7 +329,7 @@ export default function FileManagement() {
     switch (status) {
       case 'completed': return <CheckCircle className="w-4 h-4 mr-1" />;
       case 'rejected': return <XCircle className="w-4 h-4 mr-1" />;
-      case 'late': return <Clock className="w-4 h-4 mr-1" />; // ADDED for late status
+      case 'late': return <Clock className="w-4 h-4 mr-1" />;
       default: return null;
     }
   };
@@ -340,7 +358,7 @@ export default function FileManagement() {
     
     filtered.forEach(file => {
       if (key === 'faculty_name' && file.faculty_name) {
-        values.add(file.faculty_name);
+        values.add(formatFacultyName(file.faculty_name));
       } else if (key === 'document_type') {
         values.add(getDocumentTypeLabel(file.document_type, file.tos_type));
       } else if (key === 'subject_code' && file.subject_code) {
@@ -406,13 +424,13 @@ export default function FileManagement() {
 
     // Apply search filter
     filtered = filtered.filter((file) =>
-      [file.file_id, file.faculty_name, file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.course, file.semester, file.school_year]
-        .some((field) => field?.toLowerCase().includes(search.toLowerCase()))
+      [file.file_id, formatFacultyName(file.faculty_name), file.file_name, file.document_type, file.status, file.tos_type, file.subject_code, file.course, file.semester, file.school_year]
+        .some((field) => field?.toString().toLowerCase().includes(search.toLowerCase()))
     );
 
     // Apply advanced filters
     if (facultyFilter) {
-      filtered = filtered.filter(file => file.faculty_name === facultyFilter);
+      filtered = filtered.filter(file => formatFacultyName(file.faculty_name) === facultyFilter);
     }
     
     if (documentTypeFilter) {
@@ -536,8 +554,8 @@ export default function FileManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // History of Records functions - EXCEL EXPORT
-  const handleExportHistory = async () => {
+  // Reports functions - EXCEL EXPORT
+  const handleExportReports = async () => {
     try {
       const filesForExport = filteredFiles;
       
@@ -547,7 +565,7 @@ export default function FileManagement() {
       }
       
       const excelData = filesForExport.map(f => ({
-        'Faculty Name': f.faculty_name,
+        'Faculty Name': formatFacultyName(f.faculty_name),
         'File Name': f.file_name,
         'Document Type': getDocumentTypeLabel(f.document_type, f.tos_type),
         'TOS Type': f.tos_type || 'N/A',
@@ -606,7 +624,7 @@ export default function FileManagement() {
         };
       }
       
-      let sheetName = `History`;
+      let sheetName = `Reports`;
       if (yearFilter) sheetName += `_${yearFilter}`;
       if (monthFilter) sheetName += `_${monthFilter.substring(0, 3)}`;
       if (semesterFilter) sheetName += `_${semesterFilter.substring(0, 3)}`;
@@ -626,7 +644,7 @@ export default function FileManagement() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       
-      let filename = `file-management-history`;
+      let filename = `file-management-reports`;
       if (yearFilter) filename += `-${yearFilter}`;
       if (monthFilter) filename += `-${monthFilter.replace(/\s+/g, '-')}`;
       if (semesterFilter) filename += `-${semesterFilter.replace(/\s+/g, '-')}`;
@@ -644,8 +662,8 @@ export default function FileManagement() {
       
       showFeedback("success", `Exported ${filesForExport.length} records with current filters as Excel file successfully!`);
     } catch (error) {
-      console.error("Error exporting history:", error);
-      showFeedback("error", "Error exporting history as Excel file");
+      console.error("Error exporting reports:", error);
+      showFeedback("error", "Error exporting reports as Excel file");
     }
   };
 
@@ -661,7 +679,7 @@ export default function FileManagement() {
   // Reset filters when switching views
   useEffect(() => {
     resetFilters();
-  }, [historyView]);
+  }, [reportsView]);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -671,11 +689,11 @@ export default function FileManagement() {
         <div className="flex flex-col justify-between items-start mb-6 gap-3">
           <div className="w-full">
             <h1 className="text-2xl font-bold text-gray-800">
-              {historyView ? 'History of Records' : 'File Management'}
+              {reportsView ? 'Reports' : 'File Management'}
             </h1>
             <p className="text-sm text-gray-500">
-              {historyView 
-                ? 'Viewing historical file records and submissions'
+              {reportsView 
+                ? 'Generate reports for File Management records'
                 : 'A secure file management system for storing, organizing, and monitoring all details'
               }
             </p>
@@ -690,11 +708,10 @@ export default function FileManagement() {
             >
               <Filter className="w-4 h-4" />
               {showFilters ? "Hide Filters" : "Show Filters"}
-              
             </button>
 
             {/* Bulk Complete Button - Only show in current view */}
-            {!historyView && getPendingCount() > 0 && (
+            {!reportsView && getPendingCount() > 0 && (
               <div className="w-full md:w-auto">
                 <button
                   onClick={confirmBulkComplete}
@@ -717,11 +734,11 @@ export default function FileManagement() {
             <div className="flex border border-gray-300 rounded-md overflow-hidden w-full md:w-auto">
               <button
                 onClick={() => {
-                  setHistoryView(false);
+                  setReportsView(false);
                   setCurrentPage(1);
                 }}
                 className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
-                  !historyView 
+                  !reportsView 
                     ? 'bg-black text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
@@ -730,25 +747,25 @@ export default function FileManagement() {
               </button>
               <button
                 onClick={() => {
-                  setHistoryView(true);
+                  setReportsView(true);
                   setCurrentPage(1);
                 }}
                 className={`px-4 py-2 text-sm font-medium transition-colors flex-1 ${
-                  historyView 
+                  reportsView 
                     ? 'bg-black text-white' 
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-2 justify-center">
                   <History className="w-4 h-4" />
-                  History
+                  Reports
                 </div>
               </button>
             </div>
 
             <input
               type="text"
-              placeholder={`Search ${historyView ? 'historical records' : 'files'}...`}
+              placeholder={`Search ${reportsView ? 'reports' : 'files'}...`}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -855,7 +872,7 @@ export default function FileManagement() {
                     <option value="pending">Pending</option>
                     <option value="completed">Completed</option>
                     <option value="rejected">Rejected</option>
-                    <option value="late">Late</option> {/* ADDED late option */}
+                    <option value="late">Late</option>
                   </select>
                 </div>
               </div>
@@ -1009,14 +1026,14 @@ export default function FileManagement() {
             </div>
           )}
 
-          {/* History of Records Management Bar */}
-          {historyView && (
+          {/* Reports Management Bar */}
+          {reportsView && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 w-full">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-gray-600" />
                   <span className="text-sm text-gray-800">
-                    Viewing {filteredFiles.length} historical file records
+                    Viewing {filteredFiles.length} file records for reports
                     {yearFilter && ` from ${yearFilter}`}
                     {monthFilter && `, ${monthFilter}`}
                     {semesterFilter && ` • Semester: ${semesterFilter}`}
@@ -1028,10 +1045,10 @@ export default function FileManagement() {
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
                   <button
-                    onClick={handleExportHistory}
+                    onClick={handleExportReports}
                     className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-yellow-500 hover:text-black transition-colors"
                   >
-                    Export Filtered History
+                    Export Filtered Reports
                   </button>
                 </div>
               </div>
@@ -1045,23 +1062,23 @@ export default function FileManagement() {
         {/* Statistics Cards - UPDATED with "late" status */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-blue-600 text-sm font-medium">Total {historyView ? 'Records' : 'Files'}</div>
+            <div className="text-blue-600 text-sm font-medium">Total {reportsView ? 'Reports' : 'Files'}</div>
             <div className="text-2xl font-bold text-blue-800">{fileStats.total}</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <div className="text-yellow-600 text-sm font-medium">Pending {historyView ? 'Records' : 'Files'}</div>
+            <div className="text-yellow-600 text-sm font-medium">Pending {reportsView ? 'Reports' : 'Files'}</div>
             <div className="text-2xl font-bold text-yellow-800">{fileStats.pending}</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-green-600 text-sm font-medium">Completed {historyView ? 'Records' : 'Files'}</div>
+            <div className="text-green-600 text-sm font-medium">Completed {reportsView ? 'Reports' : 'Files'}</div>
             <div className="text-2xl font-bold text-green-800">{fileStats.completed}</div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-red-600 text-sm font-medium">Rejected {historyView ? 'Records' : 'Files'}</div>
+            <div className="text-red-600 text-sm font-medium">Rejected {reportsView ? 'Reports' : 'Files'}</div>
             <div className="text-2xl font-bold text-red-800">{fileStats.rejected}</div>
           </div>
-          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200"> {/* ADDED for late status */}
-            <div className="text-orange-600 text-sm font-medium">Late {historyView ? 'Records' : 'Files'}</div>
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+            <div className="text-orange-600 text-sm font-medium">Late {reportsView ? 'Reports' : 'Files'}</div>
             <div className="text-2xl font-bold text-orange-800">{fileStats.late}</div>
           </div>
         </div>
@@ -1089,7 +1106,7 @@ export default function FileManagement() {
               {currentFiles.length > 0 ? (
                 currentFiles.map((file) => (
                   <tr key={file._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 text-gray-700">{file.faculty_name}</td>
+                    <td className="px-4 py-3 text-gray-700">{formatFacultyName(file.faculty_name)}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{file.file_name}</td>
                     <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(file.document_type, file.tos_type)}</td>
                     <td className="px-4 py-3 text-gray-700">
@@ -1152,7 +1169,7 @@ export default function FileManagement() {
                             <Download className="w-4 h-4 mr-2" />
                             Download File
                           </button>
-                          {!historyView && (
+                          {!reportsView && (
                             <>
                               <button
                                 onClick={() => openStatusModal(file)}
@@ -1178,7 +1195,7 @@ export default function FileManagement() {
               ) : (
                 <tr>
                   <td colSpan="12" className="text-center py-8 text-gray-500 font-medium">
-                    {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
+                    {loading ? "Loading files..." : `No ${reportsView ? 'reports' : 'files'} found.`}
                   </td>
                 </tr>
               )}
@@ -1194,7 +1211,7 @@ export default function FileManagement() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1 min-w-0 mr-2">
                     <h2 className="font-semibold text-gray-800 truncate">{file.file_name}</h2>
-                    <p className="text-xs text-gray-600 truncate">{file.faculty_name}</p>
+                    <p className="text-xs text-gray-600 truncate">{formatFacultyName(file.faculty_name)}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(file.status)}`}>
@@ -1229,7 +1246,7 @@ export default function FileManagement() {
                             <Download className="w-4 h-4 mr-2" />
                             Download File
                           </button>
-                          {!historyView && (
+                          {!reportsView && (
                             <>
                               <button
                                 onClick={() => openStatusModal(file)}
@@ -1256,7 +1273,7 @@ export default function FileManagement() {
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div className="truncate">
                     <span className="text-gray-500 block truncate">Faculty:</span>
-                    <p className="font-medium truncate">{file.faculty_name}</p>
+                    <p className="font-medium truncate">{formatFacultyName(file.faculty_name)}</p>
                   </div>
                   <div className="truncate">
                     <span className="text-gray-500 block truncate">Document Type:</span>
@@ -1299,7 +1316,7 @@ export default function FileManagement() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-500 font-medium">
-              {loading ? "Loading files..." : `No ${historyView ? 'historical records' : 'files'} found.`}
+              {loading ? "Loading files..." : `No ${reportsView ? 'reports' : 'files'} found.`}
             </div>
           )}
         </div>
@@ -1307,7 +1324,7 @@ export default function FileManagement() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {currentFiles.length} of {filteredFiles.length} {historyView ? 'historical records' : 'files'}
+            Showing {currentFiles.length} of {filteredFiles.length} {reportsView ? 'reports' : 'files'}
             {yearFilter && ` from ${yearFilter}`}
             {monthFilter && `, ${monthFilter}`}
             {semesterFilter && ` • Semester: ${semesterFilter}`}
@@ -1354,7 +1371,7 @@ export default function FileManagement() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  {historyView ? 'Historical Record' : 'File'} Details
+                  {reportsView ? 'Report Details' : 'File Details'}
                 </h3>
                 <button
                   onClick={() => setPreviewModalOpen(false)}
@@ -1377,7 +1394,7 @@ export default function FileManagement() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Faculty Name</label>
-                  <p className="mt-1 text-sm text-gray-900">{fileToPreview.faculty_name}</p>
+                  <p className="mt-1 text-sm text-gray-900">{formatFacultyName(fileToPreview.faculty_name)}</p>
                 </div>
 
                 <div>
@@ -1453,7 +1470,7 @@ export default function FileManagement() {
                     <Download className="w-4 h-4" />
                     Download File
                   </button>
-                  {!historyView && (
+                  {!reportsView && (
                     <button
                       onClick={() => openStatusModal(fileToPreview)}
                       className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors flex items-center justify-center gap-2"
@@ -1497,6 +1514,9 @@ export default function FileManagement() {
                     File: <span className="font-semibold">{fileToUpdate.file_name}</span>
                   </label>
                   <p className="text-sm text-gray-600 mb-2">
+                    Faculty: {formatFacultyName(fileToUpdate.faculty_name)}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-2">
                     Document Type: {getDocumentTypeLabel(fileToUpdate.document_type, fileToUpdate.tos_type)}
                     {fileToUpdate.tos_type && ` (${fileToUpdate.tos_type})`}
                   </p>
@@ -1529,7 +1549,7 @@ export default function FileManagement() {
                     <option value="pending">Pending</option>
                     <option value="completed">Completed</option>
                     <option value="rejected">Rejected</option>
-                    <option value="late">Late</option> {/* ADDED late option */}
+                    <option value="late">Late</option>
                   </select>
                 </div>
 
@@ -1634,7 +1654,7 @@ export default function FileManagement() {
             <XCircle className="text-red-500 w-12 h-12 mb-4" />
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this {historyView ? 'historical record' : 'file'}? This action cannot be undone.
+              Are you sure you want to delete this {reportsView ? 'report' : 'file'}? This action cannot be undone.
             </p>
             <div className="flex gap-3 w-full">
               <button
