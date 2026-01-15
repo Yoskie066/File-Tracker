@@ -29,19 +29,31 @@ export const verifyToken = async (req, res, next) => {
 
     // Attach user data to request based on token type
     if (decoded.adminId) {
+      // Format: "First Name Middle Initial. Last Name"
+      const adminName = `${decoded.firstName} ${decoded.middleInitial || ''} ${decoded.lastName}`;
+      
       req.admin = {
         adminId: decoded.adminId,
-        adminName: decoded.adminName || decoded.firstName + ' ' + decoded.lastName,
-        email: decoded.email
+        adminName: adminName.trim(),
+        email: decoded.email,
+        firstName: decoded.firstName,
+        middleInitial: decoded.middleInitial,
+        lastName: decoded.lastName
       };
-      console.log('Admin authenticated:', req.admin.adminId);
+      console.log('Admin authenticated:', req.admin.adminId, 'Name:', req.admin.adminName);
     } else if (decoded.facultyId) {
+      // Format: "First Name Middle Initial. Last Name"
+      const facultyName = `${decoded.firstName} ${decoded.middleInitial || ''} ${decoded.lastName}`;
+      
       req.faculty = {
         facultyId: decoded.facultyId,
-        facultyName: decoded.facultyName || decoded.firstName + ' ' + decoded.lastName,
-        email: decoded.email
+        facultyName: facultyName.trim(),
+        email: decoded.email,
+        firstName: decoded.firstName,
+        middleInitial: decoded.middleInitial,
+        lastName: decoded.lastName
       };
-      console.log('Faculty authenticated:', req.faculty.facultyId);
+      console.log('Faculty authenticated:', req.faculty.facultyId, 'Name:', req.faculty.facultyName);
     } else {
       return res.status(401).json({
         success: false,

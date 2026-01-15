@@ -99,7 +99,7 @@ export default function FileManagement() {
     setFeedbackModalOpen(true);
   };
 
-  // Handle download file - UPDATED to use direct file streaming
+  // Handle download file - UPDATED with fixed message
   const handleDownload = async (file) => {
     try {
       console.log("Downloading file:", file);
@@ -135,7 +135,8 @@ export default function FileManagement() {
         window.URL.revokeObjectURL(url);
       }, 100);
       
-      showFeedback("success", `File "${file.original_name}" is being downloaded!`);
+      // FIXED: Changed to "Download successfully!"
+      showFeedback("success", "Download successfully!");
       
     } catch (error) {
       console.error("Error downloading file:", error);
