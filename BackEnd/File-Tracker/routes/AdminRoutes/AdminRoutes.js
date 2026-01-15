@@ -24,7 +24,7 @@ import {
   bulkCompleteAllFiles,
   downloadFile
 } from "../../controllers/FacultyController/FileUploadController.js";
-import { getArchivedFiles, getArchiveStatistics } from "../../controllers/AdminController/AdminArchiveController.js";
+import { getHistoryRecords, getHistoryStatistics } from "../../controllers/AdminController/HistoryRecordController.js";
 import { getAdminNotices, getAllFaculty, getAdminNoticeStats, createAdminNotice, getAdminNoticeById, updateAdminNotice, deleteAdminNotice } from "../../controllers/AdminController/AdminNoticeController.js";
 import { getAnalyticsData, getFacultyPerformance, getAvailableYears } from "../../controllers/AdminController/AnalyticsController.js";
 import {
@@ -73,9 +73,9 @@ router.put("/file-management/:id/status", updateFileStatus);
 router.put("/file-management/bulk-complete", bulkCompleteAllFiles);
 router.get("/file-management/download/:id", downloadFile);
 
-// Archive Management Routes
-router.get("/archive", getArchivedFiles);
-router.get("/archive/statistics", getArchiveStatistics);
+// History of Records Routes
+router.get("/history-records", getHistoryRecords);
+router.get("/history-records/statistics", getHistoryStatistics);
 
 // Admin Notice Routes
 router.get("/admin-notice", getAdminNotices);

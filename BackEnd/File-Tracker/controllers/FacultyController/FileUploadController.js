@@ -5,7 +5,7 @@ import multer from "multer";
 import { createFileHistory } from "../../controllers/FacultyController/FileHistoryController.js";
 import path from "path";
 import fs from "fs";
-import { autoSyncToArchive } from "../../controllers/AdminController/AdminArchiveController.js";
+import { autoSyncToHistory } from "../../controllers/AdminController/HistoryRecordController.js";
 import { createAdminNotification } from "../../controllers/AdminController/AdminNotificationController.js";
 
 // Multer Disk Storage Configuration - UPDATED 25MB limit
@@ -579,7 +579,7 @@ export const updateFileStatus = async (req, res) => {
 
     // Auto-sync to archive if status is "completed"
     if (status === "completed") {
-      await autoSyncToArchive(updatedFile);
+      await autoSyncToHistory(updatedFile);
     }
 
     console.log(`File status updated and synced to Task Deliverables for course: ${updatedFile.course}`);
@@ -641,7 +641,7 @@ export const bulkCompleteAllFiles = async (req, res) => {
           });
 
           // Auto-sync to archive
-          await autoSyncToArchive(updatedFile);
+          await autoSyncToHistory(updatedFile);
 
           updatedFiles.push(updatedFile);
           console.log(`Updated and archived file: ${updatedFile.file_id} - ${updatedFile.file_name}`);

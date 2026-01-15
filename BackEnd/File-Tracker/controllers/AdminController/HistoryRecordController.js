@@ -1,21 +1,21 @@
-import Archive from "../../models/AdminModel/AdminArchiveModel.js";
+import HistoryRecord from "../../models/AdminModel/HistoryRecordModel.js";
 
-// Automatic sync: Archive files when status changes to "completed"
-export const autoSyncToArchive = async (fileData) => {
+// Automatic sync: Create history record when status changes
+export const autoSyncToHistory = async (fileData) => {
   try {
-    // Only archive if status is "completed"
+    // Only create history record for completed files
     if (fileData.status !== "completed") {
       return;
     }
 
-    // Check if already archived
-    const existingArchive = await Archive.findOne({ file_id: fileData.file_id });
-    if (existingArchive) {
+    // Check if already in history
+    const existingRecord = await HistoryRecord.findOne({ file_id: fileData.file_id });
+    if (existingRecord) {
       return;
     }
 
-    // Create archive record
-    const archiveRecord = new Archive({
+    // Create history record
+    const historyRecord = new HistoryRecord({
       file_id: fileData.file_id,
       faculty_id: fileData.faculty_id,
       faculty_name: fileData.faculty_name,
@@ -25,7 +25,7 @@ export const autoSyncToArchive = async (fileData) => {
       status: fileData.status,
       subject_code: fileData.subject_code,
       subject_title: fileData.subject_title,
-      course: fileData.course, // Changed from course_sections to course
+      course: fileData.course,
       semester: fileData.semester,
       school_year: fileData.school_year,
       file_path: fileData.file_path,
@@ -35,22 +35,22 @@ export const autoSyncToArchive = async (fileData) => {
       archived_at: new Date()
     });
 
-    await archiveRecord.save();
-    console.log(`Auto-archived file: ${fileData.file_id}`);
+    await historyRecord.save();
+    console.log(`Created history record: ${fileData.file_id}`);
     
   } catch (error) {
-    console.error("Error auto-archiving file:", error);
+    console.error("Error creating history record:", error);
   }
 };
 
-// Get all archived files with filtering
-export const getArchivedFiles = async (req, res) => {
+// Get all history records with filtering
+export const getHistoryRecords = async (req, res) => {
   try {
     const { 
       faculty_name, 
       document_type, 
       subject_code, 
-      course, // Changed from course_section to course
+      course,
       status, 
       semester, 
       school_year,
@@ -70,7 +70,7 @@ export const getArchivedFiles = async (req, res) => {
         { subject_code: { $regex: search, $options: 'i' } },
         { subject_title: { $regex: search, $options: 'i' } },
         { file_id: { $regex: search, $options: 'i' } },
-        { course: { $regex: search, $options: 'i' } } // Added course to search
+        { course: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -78,7 +78,7 @@ export const getArchivedFiles = async (req, res) => {
     if (faculty_name) filter.faculty_name = faculty_name;
     if (document_type) filter.document_type = document_type;
     if (subject_code) filter.subject_code = subject_code;
-    if (course) filter.course = course; // Changed from course_sections to course
+    if (course) filter.course = course;
     if (status) filter.status = status;
     if (semester) filter.semester = semester;
     if (school_year) filter.school_year = school_year;
@@ -87,21 +87,21 @@ export const getArchivedFiles = async (req, res) => {
     const sort = {};
     sort[sort_by] = sort_order === 'asc' ? 1 : -1;
 
-    // Get archived files
-    const archivedFiles = await Archive.find(filter)
+    // Get history records
+    const historyRecords = await HistoryRecord.find(filter)
       .sort(sort)
       .lean();
 
     // Get unique values for filters
-    const uniqueFaculties = await Archive.distinct('faculty_name');
-    const uniqueDocumentTypes = await Archive.distinct('document_type');
-    const uniqueSubjects = await Archive.distinct('subject_code');
-    const uniqueSemesters = await Archive.distinct('semester');
-    const uniqueSchoolYears = await Archive.distinct('school_year');
-    const uniqueCourses = await Archive.distinct('course'); // Changed from course_sections to course
+    const uniqueFaculties = await HistoryRecord.distinct('faculty_name');
+    const uniqueDocumentTypes = await HistoryRecord.distinct('document_type');
+    const uniqueSubjects = await HistoryRecord.distinct('subject_code');
+    const uniqueSemesters = await HistoryRecord.distinct('semester');
+    const uniqueSchoolYears = await HistoryRecord.distinct('school_year');
+    const uniqueCourses = await HistoryRecord.distinct('course');
 
     // Get status counts
-    const statusCounts = await Archive.aggregate([
+    const statusCounts = await HistoryRecord.aggregate([
       {
         $group: {
           _id: "$status",
@@ -111,7 +111,7 @@ export const getArchivedFiles = async (req, res) => {
     ]);
 
     // Get year range from uploaded_at
-    const yearStats = await Archive.aggregate([
+    const yearStats = await HistoryRecord.aggregate([
       {
         $group: {
           _id: { $year: "$uploaded_at" },
@@ -126,18 +126,18 @@ export const getArchivedFiles = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        files: archivedFiles,
+        records: historyRecords,
         filters: {
           faculty_names: uniqueFaculties,
           document_types: uniqueDocumentTypes,
           subject_codes: uniqueSubjects,
-          courses: uniqueCourses, // Changed from course_sections to courses
+          courses: uniqueCourses,
           semesters: uniqueSemesters,
           school_years: uniqueSchoolYears,
           active_years: activeYears
         },
         stats: {
-          total: archivedFiles.length,
+          total: historyRecords.length,
           status_counts: statusCounts.reduce((acc, curr) => {
             acc[curr._id] = curr.count;
             return acc;
@@ -148,7 +148,7 @@ export const getArchivedFiles = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error fetching archived files:", error);
+    console.error("Error fetching history records:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -157,14 +157,14 @@ export const getArchivedFiles = async (req, res) => {
   }
 };
 
-// Get archive statistics
-export const getArchiveStatistics = async (req, res) => {
+// Get history statistics
+export const getHistoryStatistics = async (req, res) => {
   try {
-    // Total archives count
-    const totalArchives = await Archive.countDocuments();
+    // Total history records count
+    const totalRecords = await HistoryRecord.countDocuments();
 
-    // Archives by uploaded year (not archived_at)
-    const archivesByYear = await Archive.aggregate([
+    // Records by uploaded year
+    const recordsByYear = await HistoryRecord.aggregate([
       {
         $group: {
           _id: { $year: "$uploaded_at" },
@@ -174,9 +174,9 @@ export const getArchiveStatistics = async (req, res) => {
       { $sort: { "_id": -1 } }
     ]);
 
-    // Archives by semester for current school year
+    // Records by semester for current school year
     const currentYear = new Date().getFullYear();
-    const archivesBySemester = await Archive.aggregate([
+    const recordsBySemester = await HistoryRecord.aggregate([
       {
         $match: {
           uploaded_at: {
@@ -193,8 +193,8 @@ export const getArchiveStatistics = async (req, res) => {
       }
     ]);
 
-    // Archives by document type
-    const archivesByType = await Archive.aggregate([
+    // Records by document type
+    const recordsByType = await HistoryRecord.aggregate([
       {
         $group: {
           _id: "$document_type",
@@ -203,8 +203,8 @@ export const getArchiveStatistics = async (req, res) => {
       }
     ]);
 
-    // Top faculties with most archives
-    const topFaculties = await Archive.aggregate([
+    // Top faculties with most records
+    const topFaculties = await HistoryRecord.aggregate([
       {
         $group: {
           _id: "$faculty_name",
@@ -215,19 +215,31 @@ export const getArchiveStatistics = async (req, res) => {
       { $limit: 5 }
     ]);
 
+    // Records by course
+    const recordsByCourse = await HistoryRecord.aggregate([
+      {
+        $group: {
+          _id: "$course",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
-        total_archives: totalArchives,
-        by_upload_year: archivesByYear,
-        by_semester_current_year: archivesBySemester,
-        by_document_type: archivesByType,
+        total_records: totalRecords,
+        by_upload_year: recordsByYear,
+        by_semester_current_year: recordsBySemester,
+        by_document_type: recordsByType,
+        by_course: recordsByCourse,
         top_faculties: topFaculties
       }
     });
 
   } catch (error) {
-    console.error("Error fetching archive statistics:", error);
+    console.error("Error fetching history statistics:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

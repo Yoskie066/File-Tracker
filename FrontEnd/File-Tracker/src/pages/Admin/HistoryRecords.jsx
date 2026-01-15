@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { Filter, Calendar, BarChart, Eye, MoreVertical } from "lucide-react";
+import { Filter, Calendar, BarChart, Eye, MoreVertical, History } from "lucide-react";
 import Modal from "react-modal";
 
 Modal.setAppElement("#root");
 
-export default function AdminArchive() {
-  const [archives, setArchives] = useState([]);
+export default function HistoryRecords() {
+  const [historyRecords, setHistoryRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const archivesPerPage = 10;
+  const recordsPerPage = 10;
   
   // Filters
   const [search, setSearch] = useState("");
@@ -23,14 +23,14 @@ export default function AdminArchive() {
   const [showFilters, setShowFilters] = useState(false);
   
   // Statistics
-  const [archiveStats, setArchiveStats] = useState(null);
+  const [historyStats, setHistoryStats] = useState(null);
   const [filterOptions, setFilterOptions] = useState({
     faculty_names: [],
     document_types: [],
     subject_codes: [],
     semesters: [],
     school_years: [],
-    courses: [], // Changed from course_sections to courses
+    courses: [],
     active_years: []
   });
 
@@ -39,12 +39,12 @@ export default function AdminArchive() {
 
   // Modals
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [archiveToPreview, setArchiveToPreview] = useState(null);
+  const [recordToPreview, setRecordToPreview] = useState(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Fetch archived files
-  const fetchArchivedFiles = async () => {
+  // Fetch history records
+  const fetchHistoryRecords = async () => {
     try {
       setLoading(true);
       
@@ -61,7 +61,7 @@ export default function AdminArchive() {
       params.append('sort_by', sortOption === 'most_recent' ? 'archived_at' : 'uploaded_at');
       params.append('sort_order', sortOption === 'most_recent' ? 'desc' : 'asc');
       
-      const res = await fetch(`${API_BASE_URL}/api/admin/archive?${params.toString()}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/history-records?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_access_token')}`
         }
@@ -71,23 +71,23 @@ export default function AdminArchive() {
       const result = await res.json();
       
       if (result.success && result.data) {
-        setArchives(result.data.files || []);
+        setHistoryRecords(result.data.records || []);
         setFilterOptions(result.data.filters || {});
       } else {
-        setArchives([]);
+        setHistoryRecords([]);
       }
     } catch (err) {
-      console.error("Error fetching archived files:", err);
-      setArchives([]);
+      console.error("Error fetching history records:", err);
+      setHistoryRecords([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch archive statistics
-  const fetchArchiveStatistics = async () => {
+  // Fetch history statistics
+  const fetchHistoryStatistics = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/archive/statistics`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/history-records/statistics`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_access_token')}`
         }
@@ -97,16 +97,16 @@ export default function AdminArchive() {
       const result = await res.json();
       
       if (result.success) {
-        setArchiveStats(result.data);
+        setHistoryStats(result.data);
       }
     } catch (err) {
-      console.error("Error fetching archive statistics:", err);
+      console.error("Error fetching history statistics:", err);
     }
   };
 
   // Handle preview
-  const handlePreview = (archive) => {
-    setArchiveToPreview(archive);
+  const handlePreview = (record) => {
+    setRecordToPreview(record);
     setPreviewModalOpen(true);
     setActionDropdown(null);
   };
@@ -124,53 +124,53 @@ export default function AdminArchive() {
   }, [actionDropdown]);
 
   useEffect(() => {
-    fetchArchivedFiles();
-    fetchArchiveStatistics();
+    fetchHistoryRecords();
+    fetchHistoryStatistics();
   }, []);
 
   // Apply filters
-  const filteredArchives = archives.filter(archive => {
+  const filteredRecords = historyRecords.filter(record => {
     // Search filter
     if (search && ![
-      archive.file_id,
-      archive.faculty_name,
-      archive.file_name,
-      archive.document_type,
-      archive.subject_code,
-      archive.subject_title,
-      archive.course // Added course to search
+      record.file_id,
+      record.faculty_name,
+      record.file_name,
+      record.document_type,
+      record.subject_code,
+      record.subject_title,
+      record.course
     ].some(field => field?.toLowerCase().includes(search.toLowerCase()))) {
       return false;
     }
 
     // Other filters
-    if (facultyFilter && archive.faculty_name !== facultyFilter) return false;
-    if (documentTypeFilter && archive.document_type !== documentTypeFilter) return false;
-    if (subjectCodeFilter && archive.subject_code !== subjectCodeFilter) return false;
-    if (courseFilter && archive.course !== courseFilter) return false; 
-    if (semesterFilter && archive.semester !== semesterFilter) return false;
-    if (schoolYearFilter && archive.school_year !== schoolYearFilter) return false;
+    if (facultyFilter && record.faculty_name !== facultyFilter) return false;
+    if (documentTypeFilter && record.document_type !== documentTypeFilter) return false;
+    if (subjectCodeFilter && record.subject_code !== subjectCodeFilter) return false;
+    if (courseFilter && record.course !== courseFilter) return false; 
+    if (semesterFilter && record.semester !== semesterFilter) return false;
+    if (schoolYearFilter && record.school_year !== schoolYearFilter) return false;
     
     // Year filter (from uploaded_at)
-    if (yearFilter && archive.uploaded_at) {
-      const archiveYear = new Date(archive.uploaded_at).getFullYear();
-      if (archiveYear.toString() !== yearFilter) return false;
+    if (yearFilter && record.uploaded_at) {
+      const recordYear = new Date(record.uploaded_at).getFullYear();
+      if (recordYear.toString() !== yearFilter) return false;
     }
 
     return true;
   });
 
-  // Sort archives
-  const sortedArchives = [...filteredArchives].sort((a, b) => {
+  // Sort records
+  const sortedRecords = [...filteredRecords].sort((a, b) => {
     const dateA = new Date(sortOption === 'most_recent' ? a.archived_at : a.uploaded_at);
     const dateB = new Date(sortOption === 'most_recent' ? b.archived_at : b.uploaded_at);
     return sortOption === 'most_recent' ? dateB - dateA : dateA - dateB;
   });
 
   // Pagination
-  const totalPages = Math.ceil(sortedArchives.length / archivesPerPage);
-  const startIndex = (currentPage - 1) * archivesPerPage;
-  const currentArchives = sortedArchives.slice(startIndex, startIndex + archivesPerPage);
+  const totalPages = Math.ceil(sortedRecords.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const currentRecords = sortedRecords.slice(startIndex, startIndex + recordsPerPage);
 
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
@@ -223,27 +223,13 @@ export default function AdminArchive() {
     return typeMap[documentType] || documentType;
   };
 
-  // Get document type order for sorting
-  const getDocumentTypeOrder = (documentType, tosType = null) => {
-    const label = getDocumentTypeLabel(documentType, tosType);
-    const order = {
-      'Syllabus': 1,
-      'TOS (Midterm)': 2,
-      'TOS (Final)': 3,
-      'Midterm Exam': 4,
-      'Final Exam': 5,
-      'Instructional Materials': 6,
-      'TOS': 7 // fallback
-    };
-    return order[label] || 99;
-  };
-
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-green-100 text-green-800 border border-green-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
+      case 'late': return 'bg-orange-100 text-orange-800 border border-orange-200';
+      default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
     }
   };
 
@@ -276,15 +262,6 @@ export default function AdminArchive() {
     setCurrentPage(1);
   };
 
-  // Sort document types for statistics display
-  const getSortedDocumentTypes = () => {
-    if (!archiveStats || !archiveStats.by_document_type) return [];
-    
-    return [...archiveStats.by_document_type].sort((a, b) => {
-      return getDocumentTypeOrder(a._id) - getDocumentTypeOrder(b._id);
-    }).slice(0, 5);
-  };
-
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-7xl mx-auto bg-white shadow-md rounded-xl p-6">
@@ -292,38 +269,48 @@ export default function AdminArchive() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-3">
           <div className="w-full">
-            <h1 className="text-2xl font-bold text-gray-800">Submitted Documents </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-2xl font-bold text-gray-800">History of Records</h1>
+            </div>
             <p className="text-sm text-gray-500">
-              Automatically synchronizes completed files from File Management while preserving original file status
+              Complete audit trail of all completed file submissions and their status history
             </p>
           </div>
         </div>
 
-        {/* Statistics Panel - Always Visible */}
-        {archiveStats && (
+        {/* Statistics Panel */}
+        {historyStats && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <BarChart className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-800">Submitted Document Stats</h3>
+              <h3 className="text-lg font-semibold text-gray-800">Records Overview</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="text-blue-600 text-sm font-medium">Total Submitted Documents</div>
-                <div className="text-2xl font-bold text-blue-800">{archiveStats.total_archives}</div>
+                <div className="text-blue-600 text-sm font-medium">Total Records</div>
+                <div className="text-2xl font-bold text-blue-800">{historyStats.total_records}</div>
               </div>
               
-              {archiveStats.by_document_type && archiveStats.by_document_type.length > 0 && (
-                <div className="col-span-1 md:col-span-3">
-                  <div className="text-sm font-medium text-gray-700 mb-2">By Document Type</div>
-                  <div className="space-y-2">
-                    {getSortedDocumentTypes().map((type, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{getDocumentTypeLabel(type._id)}</span>
-                        <span className="text-sm font-medium">{type.count} files</span>
-                      </div>
-                    ))}
+              {historyStats.by_course && historyStats.by_course.length > 0 && (
+                historyStats.by_course.slice(0, 4).map((course, index) => (
+                  <div key={index} className="p-4 rounded-lg border" style={{
+                    backgroundColor: course._id === 'BSCS' ? '#f3e8ff' : 
+                                    course._id === 'BSIT' ? '#f0fdf4' : 
+                                    course._id === 'BSIS' ? '#eff6ff' : '#f9fafb',
+                    borderColor: course._id === 'BSCS' ? '#d8b4fe' : 
+                                 course._id === 'BSIT' ? '#bbf7d0' : 
+                                 course._id === 'BSIS' ? '#93c5fd' : '#e5e7eb'
+                  }}>
+                    <div className="text-sm font-medium" style={{
+                      color: course._id === 'BSCS' ? '#7e22ce' : 
+                             course._id === 'BSIT' ? '#166534' : 
+                             course._id === 'BSIS' ? '#1e40af' : '#374151'
+                    }}>
+                      {course._id}
+                    </div>
+                    <div className="text-2xl font-bold">{course.count}</div>
                   </div>
-                </div>
+                ))
               )}
             </div>
           </div>
@@ -338,12 +325,11 @@ export default function AdminArchive() {
             >
               <Filter className="w-4 h-4" />
               {showFilters ? "Hide Filters" : "Show Filters"}
-              
             </button>
             
             <input
               type="text"
-              placeholder="Search archives..."
+              placeholder="Search history records..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -503,13 +489,30 @@ export default function AdminArchive() {
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
-                    <option value="most_recent">Most Recent </option>
-                    <option value="oldest">Oldest </option>
+                    <option value="most_recent">Most Recent</option>
+                    <option value="oldest">Oldest</option>
                   </select>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-between items-center pt-2">
+                <div className="text-xs text-gray-500">
+                  {sortedRecords.length} of {historyRecords.length} records
+                  {facultyFilter || documentTypeFilter || subjectCodeFilter || courseFilter || 
+                   semesterFilter || schoolYearFilter || yearFilter ? (
+                    <span className="ml-2 text-blue-600">
+                      ({[
+                        facultyFilter && "Faculty",
+                        documentTypeFilter && "Type",
+                        subjectCodeFilter && "Subject",
+                        courseFilter && "Course",
+                        semesterFilter && "Semester",
+                        schoolYearFilter && "Year",
+                        yearFilter && yearFilter
+                      ].filter(Boolean).join(", ")})
+                    </span>
+                  ) : null}
+                </div>
                 <button
                   onClick={resetFilters}
                   className="px-4 py-2 text-xs border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -521,7 +524,7 @@ export default function AdminArchive() {
           )}
         </div>
 
-        {/* Desktop Table - UPDATED with Course instead of Course/Section and WITHOUT FILE ID COLUMN */}
+        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
@@ -530,12 +533,12 @@ export default function AdminArchive() {
                 <th className="px-4 py-3 text-left">File Name</th>
                 <th className="px-4 py-3 text-left">Document Type</th>
                 <th className="px-4 py-3 text-left">Subject Code</th>
-                <th className="px-4 py-3 text-left">Course</th> {/* Changed from Course/Section to Course */}
+                <th className="px-4 py-3 text-left">Course</th>
                 <th className="px-4 py-3 text-left">Semester</th>
                 <th className="px-4 py-3 text-left">Academic Year</th>
                 <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Uploaded At</th>
-                <th className="px-4 py-3 text-left">Completed At</th>
+                <th className="px-4 py-3 text-left">Uploaded</th>
+                <th className="px-4 py-3 text-left">Completed</th>
                 <th className="px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>
@@ -548,54 +551,54 @@ export default function AdminArchive() {
                     </div>
                   </td>
                 </tr>
-              ) : currentArchives.length > 0 ? (
-                currentArchives.map((archive) => (
-                  <tr key={archive._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
-                    <td className="px-4 py-3 text-gray-700">{archive.faculty_name}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{archive.file_name}</td>
-                    <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(archive.document_type, archive.tos_type)}</td>
-                    <td className="px-4 py-3 text-gray-700">{archive.subject_code}</td>
+              ) : currentRecords.length > 0 ? (
+                currentRecords.map((record) => (
+                  <tr key={record._id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
+                    <td className="px-4 py-3 text-gray-700">{record.faculty_name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 truncate max-w-xs">{record.file_name}</td>
+                    <td className="px-4 py-3 text-gray-700">{getDocumentTypeLabel(record.document_type, record.tos_type)}</td>
+                    <td className="px-4 py-3 text-gray-700">{record.subject_code}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(archive.course)}`}>
-                        {archive.course}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(record.course)}`}>
+                        {record.course}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(archive.semester)}`}>
-                        {archive.semester}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(record.semester)}`}>
+                        {record.semester}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{archive.school_year}</td>
+                    <td className="px-4 py-3 text-gray-700">{record.school_year}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(archive.status)}`}>
-                        {archive.status}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
+                        {record.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
-                      {formatDate(archive.uploaded_at)}
+                      {formatDate(record.uploaded_at)}
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-xs">
-                      {formatDate(archive.archived_at)}
+                      {formatDate(record.archived_at)}
                     </td>
                     <td className="px-4 py-3 relative action-dropdown-container">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionDropdown(actionDropdown === archive.file_id ? null : archive.file_id);
+                          setActionDropdown(actionDropdown === record.file_id ? null : record.file_id);
                         }}
                         className="p-1 rounded hover:bg-gray-200 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       
-                      {actionDropdown === archive.file_id && (
+                      {actionDropdown === record.file_id && (
                         <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                           <button
-                            onClick={() => handlePreview(archive)}
+                            onClick={() => handlePreview(record)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <Eye className="w-4 h-4 mr-2" />
-                            Preview Details
+                            View Details
                           </button>
                         </div>
                       )}
@@ -605,7 +608,7 @@ export default function AdminArchive() {
               ) : (
                 <tr>
                   <td colSpan="11" className="text-center py-8 text-gray-500">
-                    No archived files found
+                    No history records found
                   </td>
                 </tr>
               )}
@@ -613,43 +616,44 @@ export default function AdminArchive() {
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED with course instead of sections and WITHOUT FILE ID */}
+        {/* Mobile Cards */}
         <div className="md:hidden space-y-4">
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
             </div>
-          ) : currentArchives.length > 0 ? (
-            currentArchives.map((archive) => (
-              <div key={archive._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
+          ) : currentRecords.length > 0 ? (
+            currentRecords.map((record) => (
+              <div key={record._id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1 min-w-0 mr-2">
-                    <h2 className="font-semibold text-gray-800 truncate">{archive.file_name}</h2>
+                    <h2 className="font-semibold text-gray-800 truncate">{record.file_name}</h2>
+                    <p className="text-sm text-gray-600 truncate">{record.faculty_name}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(archive.status)}`}>
-                      {archive.status}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
+                      {record.status}
                     </span>
                     
                     <div className="relative action-dropdown-container">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionDropdown(actionDropdown === archive.file_id ? null : archive.file_id);
+                          setActionDropdown(actionDropdown === record.file_id ? null : record.file_id);
                         }}
                         className="p-1 rounded hover:bg-gray-200 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       
-                      {actionDropdown === archive.file_id && (
+                      {actionDropdown === record.file_id && (
                         <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                           <button
-                            onClick={() => handlePreview(archive)}
+                            onClick={() => handlePreview(record)}
                             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             <Eye className="w-4 h-4 mr-2" />
-                            Preview Details
+                            View Details
                           </button>
                         </div>
                       )}
@@ -659,46 +663,46 @@ export default function AdminArchive() {
                 
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div>
-                    <span className="text-gray-500">Faculty:</span>
-                    <p className="font-medium truncate">{archive.faculty_name}</p>
+                    <span className="text-gray-500">Document Type:</span>
+                    <p className="font-medium truncate">{getDocumentTypeLabel(record.document_type, record.tos_type)}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Subject:</span>
-                    <p className="font-medium truncate">{archive.subject_code}</p>
+                    <p className="font-medium truncate">{record.subject_code}</p>
                   </div>
                   <div>
                     <span className="text-gray-500">Course:</span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(archive.course)}`}>
-                      {archive.course}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(record.course)}`}>
+                      {record.course}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Document Type:</span>
-                    <p className="font-medium truncate">{getDocumentTypeLabel(archive.document_type, archive.tos_type)}</p>
-                  </div>
-                  <div>
                     <span className="text-gray-500">Academic Year:</span>
-                    <p className="font-medium">{archive.school_year}</p>
+                    <p className="font-medium">{record.school_year}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Archived:</span>
-                    <p className="font-medium text-xs">{formatDate(archive.archived_at)}</p>
+                    <span className="text-gray-500">Uploaded:</span>
+                    <p className="font-medium text-xs">{formatDate(record.uploaded_at)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Completed:</span>
+                    <p className="font-medium text-xs">{formatDate(record.archived_at)}</p>
                   </div>
                 </div>
               </div>
             ))
           ) : (
             <div className="text-center py-8 text-gray-500">
-              No archived files found
+              No history records found
             </div>
           )}
         </div>
 
         {/* Pagination */}
-        {sortedArchives.length > 0 && (
+        {sortedRecords.length > 0 && (
           <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
             <div className="text-sm text-gray-600">
-              Showing {currentArchives.length} of {sortedArchives.length} archived files
+              Showing {currentRecords.length} of {sortedRecords.length} history records
             </div>
             
             <div className="flex items-center gap-3">
@@ -739,12 +743,15 @@ export default function AdminArchive() {
         className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto my-8"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
       >
-        {archiveToPreview && (
+        {recordToPreview && (
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Archive Details
-              </h3>
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-black" />
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Record Details
+                </h3>
+              </div>
               <button
                 onClick={() => setPreviewModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -758,66 +765,66 @@ export default function AdminArchive() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">File ID</label>
-                  <p className="mt-1 text-sm text-gray-900 font-mono">{archiveToPreview.file_id}</p>
+                  <label className="block text-sm font-medium text-gray-700">Record ID</label>
+                  <p className="mt-1 text-sm text-gray-900 font-mono">{recordToPreview.file_id}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(archiveToPreview.status)}`}>
-                    {archiveToPreview.status}
+                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(recordToPreview.status)}`}>
+                    {recordToPreview.status}
                   </span>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Faculty Name</label>
-                <p className="mt-1 text-sm text-gray-900">{archiveToPreview.faculty_name}</p>
+                <p className="mt-1 text-sm text-gray-900">{recordToPreview.faculty_name}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">File Name</label>
-                <p className="mt-1 text-sm text-gray-900">{archiveToPreview.file_name}</p>
+                <p className="mt-1 text-sm text-gray-900">{recordToPreview.file_name}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Original File Name</label>
-                <p className="mt-1 text-sm text-gray-900">{archiveToPreview.original_name}</p>
+                <p className="mt-1 text-sm text-gray-900">{recordToPreview.original_name}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Document Type</label>
-                  <p className="mt-1 text-sm text-gray-900">{getDocumentTypeLabel(archiveToPreview.document_type, archiveToPreview.tos_type)}</p>
+                  <p className="mt-1 text-sm text-gray-900">{getDocumentTypeLabel(recordToPreview.document_type, recordToPreview.tos_type)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">File Size</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatFileSize(archiveToPreview.file_size)}</p>
+                  <p className="mt-1 text-sm text-gray-900">{formatFileSize(recordToPreview.file_size)}</p>
                 </div>
               </div>
 
-              {archiveToPreview.tos_type && (
+              {recordToPreview.tos_type && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">TOS Type</label>
-                  <p className="mt-1 text-sm text-gray-900 capitalize">{archiveToPreview.tos_type}</p>
+                  <p className="mt-1 text-sm text-gray-900 capitalize">{recordToPreview.tos_type}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Subject Code</label>
-                  <p className="mt-1 text-sm text-gray-900">{archiveToPreview.subject_code}</p>
+                  <p className="mt-1 text-sm text-gray-900">{recordToPreview.subject_code}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Subject Title</label>
-                  <p className="mt-1 text-sm text-gray-900">{archiveToPreview.subject_title}</p>
+                  <p className="mt-1 text-sm text-gray-900">{recordToPreview.subject_title}</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Course</label>
                 <div className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(archiveToPreview.course)}`}>
-                    {archiveToPreview.course}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseColor(recordToPreview.course)}`}>
+                    {recordToPreview.course}
                   </span>
                 </div>
               </div>
@@ -825,29 +832,24 @@ export default function AdminArchive() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Semester</label>
-                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(archiveToPreview.semester)}`}>
-                    {archiveToPreview.semester}
+                  <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSemesterColor(recordToPreview.semester)}`}>
+                    {recordToPreview.semester}
                   </span>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Academic Year</label>
-                  <p className="mt-1 text-sm text-gray-900">{archiveToPreview.school_year}</p>
+                  <p className="mt-1 text-sm text-gray-900">{recordToPreview.school_year}</p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">File Path</label>
-                <p className="mt-1 text-sm text-gray-900 break-all">{archiveToPreview.file_path}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Uploaded At</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDateTime(archiveToPreview.uploaded_at)}</p>
+                  <p className="mt-1 text-sm text-gray-900">{formatDateTime(recordToPreview.uploaded_at)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Archived At</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDateTime(archiveToPreview.archived_at)}</p>
+                  <label className="block text-sm font-medium text-gray-700">Completed At</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatDateTime(recordToPreview.archived_at)}</p>
                 </div>
               </div>
             </div>

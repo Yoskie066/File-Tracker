@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const archiveSchema = new mongoose.Schema(
+const historyRecordSchema = new mongoose.Schema(
   {
     file_id: { type: String, required: true },
     faculty_id: { type: String, required: true }, 
@@ -18,7 +18,7 @@ const archiveSchema = new mongoose.Schema(
     },
     status: { 
       type: String, 
-      enum: ["pending", "completed", "rejected"]
+      enum: ["pending", "completed", "rejected", "late"]
     },
     subject_code: { type: String, required: true }, 
     subject_title: { type: String, required: true },
@@ -34,5 +34,5 @@ const archiveSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-const Archive = mongoose.model("Archive", archiveSchema);
-export default Archive;
+const HistoryRecord = mongoose.model("HistoryRecord", historyRecordSchema);
+export default HistoryRecord;

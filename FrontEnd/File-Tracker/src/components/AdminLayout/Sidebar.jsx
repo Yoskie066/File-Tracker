@@ -3,7 +3,7 @@ import {
   Users,
   FileStack,
   BellRing,
-  Archive,
+  History,
   BarChart3,
   LogOut,
   Settings,
@@ -134,12 +134,12 @@ export default function Sidebar({ isOpen, onClose }) {
           </Link>
           
           <Link
-            to="/admin/submitted-documents"
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/submitted-documents")}`}
+            to="/admin/history-of-records"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/history-of-records")}`}
             onClick={onClose}
           >
-            <Archive className="w-5 h-5" />
-            <span className="text-lg">Submitted Documents</span>
+            <History className="w-5 h-5" />
+            <span className="text-lg">History of Records</span>
           </Link>
           
           <Link
@@ -216,11 +216,11 @@ export default function Sidebar({ isOpen, onClose }) {
           </Link>
           
           <Link
-            to="/admin/submitted-documents"
-            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/submitted-documents")}`}
+            to="/admin/history-of-records"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/history-of-records")}`}
           >
-            <Archive className="w-5 h-5" />
-            <span className="text-lg">Submitted Documents</span>
+            <History className="w-5 h-5" />
+            <span className="text-lg">History of Records</span>
           </Link>
           
           <Link

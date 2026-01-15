@@ -3,7 +3,7 @@ import Layout from '../../components/AdminLayout/Layout';
 import Analytics from '../../pages/Admin/Analytics';
 import UserManagement from '../../pages/Admin/UserManagement';
 import FileManagement from '../../pages/Admin/FileManagement';
-import Archive from '../../pages/Admin/AdminArchive';
+import HistoryRecords from '../../pages/Admin/HistoryRecords';
 import AdminNotice from '../../pages/Admin/AdminNotice';
 import SystemVariables from '../../pages/Admin/SystemVariable';
 import AdminNotification from '../../pages/Admin/AdminNotification';
@@ -15,7 +15,7 @@ const AdminRoutes = () => {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/file-management" element={<FileManagement />} />
-        <Route path="/submitted-documents" element={<Archive />} />
+        <Route path="/history-of-records" element={<HistoryRecords />} />
         <Route path="/admin-notice" element={<AdminNotice />} />
         <Route path="/system-variables" element={<SystemVariables />} />
         <Route path="/admin-notification" element={<AdminNotification />} />
