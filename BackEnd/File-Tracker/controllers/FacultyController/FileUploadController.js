@@ -8,7 +8,7 @@ import fs from "fs";
 import { autoSyncToArchive } from "../../controllers/AdminController/AdminArchiveController.js";
 import { createAdminNotification } from "../../controllers/AdminController/AdminNotificationController.js";
 
-// Multer Disk Storage Configuration
+// Multer Disk Storage Configuration - UPDATED 25MB limit
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = './uploads';
@@ -38,14 +38,21 @@ const fileFilter = (req, file, cb) => {
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ];
 
-  if (allowedMimes.includes(file.mimetype)) cb(null, true);
-  else cb(new Error("Invalid file type."), false);
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Invalid file type. Allowed types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX"), false);
+  }
 };
 
+// Multer configuration - UPDATED with 25MB limit
 export const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { 
+    fileSize: 25 * 1024 * 1024, // 25MB limit
+    files: 10 // Maximum 10 files
+  }
 });
 
 // Generate Unique File ID
@@ -113,24 +120,29 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller
+// File Upload Controller - UPDATED with better authentication and 25MB limit
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
     console.log("Request body:", req.body);
-    console.log("Files received:", req.files ? req.files.length : 0);
+    console.log("Request files:", req.files);
+    console.log("Request faculty:", req.faculty);
+
+    // Check authentication FIRST - FIXED with better checking
+    if (!req.faculty || !req.faculty.facultyId) {
+      console.error("❌ Faculty authentication failed:", req.faculty);
+      return res.status(401).json({
+        success: false,
+        message: "Faculty authentication required. Please log in again.",
+      });
+    }
+
+    console.log("✅ Faculty authenticated:", req.faculty.facultyId, req.faculty.facultyName);
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ 
         success: false, 
         message: "No files uploaded. Please select at least one file." 
-      });
-    }
-
-    if (!req.faculty || !req.faculty.facultyId || !req.faculty.facultyName) {
-      return res.status(401).json({
-        success: false,
-        message: "Faculty authentication required. Please log in again.",
       });
     }
 
@@ -196,11 +208,21 @@ export const uploadFile = async (req, res) => {
       finalDocumentType = `tos-${tos_type}`;
     }
 
+    // Check individual file sizes (25MB limit)
+    for (const file of req.files) {
+      if (file.size > 25 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          message: `File "${file.originalname}" exceeds 25MB limit. Maximum file size is 25MB.`,
+        });
+      }
+    }
+
     // Process each uploaded file
     const allSavedFiles = [];
     
     for (const file of req.files) {
-      console.log(`Processing file: ${file.originalname}`);
+      console.log(`Processing file: ${file.originalname} (${file.size} bytes)`);
       
       // Create file record
       const fileId = generateFileId();
@@ -321,6 +343,21 @@ export const uploadFile = async (req, res) => {
             console.error("Error cleaning up file:", cleanupError);
           }
         }
+      });
+    }
+    
+    // Handle specific error types
+    if (error.message.includes('Invalid file type')) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file type. Allowed types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX",
+      });
+    }
+    
+    if (error.message.includes('File too large')) {
+      return res.status(400).json({
+        success: false,
+        message: "File size exceeds 25MB limit. Please upload smaller files.",
       });
     }
     

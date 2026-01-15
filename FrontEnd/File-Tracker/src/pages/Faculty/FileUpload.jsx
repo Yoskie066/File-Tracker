@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, Upload, FileText, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, Upload, Trash2 } from "lucide-react";
 import tokenService from "../../services/tokenService";
 
 Modal.setAppElement("#root");
@@ -16,6 +16,7 @@ export default function FileUpload() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [fileToPreview, setFileToPreview] = useState(null);
   const [selectedFacultyLoad, setSelectedFacultyLoad] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [formData, setFormData] = useState({
     file_name: "",
@@ -26,18 +27,58 @@ export default function FileUpload() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Fetch faculty loads for dropdown - UPDATED to use new endpoint
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      if (!tokenService.isFacultyAuthenticated()) {
+        showFeedback("error", "Please log in to access file upload");
+        return false;
+      }
+      return true;
+    };
+    
+    checkAuth();
+  }, []);
+
+  // Fetch faculty loads for dropdown
   const fetchFacultyLoads = async () => {
     try {
+      // Check authentication first
       if (!tokenService.isFacultyAuthenticated()) {
         console.error("No token found");
         showFeedback("error", "Please log in to upload files");
         return;
       }
-  
-      const response = await tokenService.authFetch(`${API_BASE_URL}/api/faculty/faculty-loaded/file-upload`);
+
+      // Get fresh token
+      const token = tokenService.getFacultyAccessToken();
+      if (!token) {
+        showFeedback("error", "Session expired. Please log in again.");
+        tokenService.clearFacultyTokens();
+        window.location.href = "/auth/login";
+        return;
+      }
+
+      console.log("Fetching faculty loads with token...");
       
-      if (!response.ok) throw new Error("Server responded with " + response.status);
+      const response = await fetch(`${API_BASE_URL}/api/faculty/faculty-loaded/file-upload`, {
+        method: "GET",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          showFeedback("error", "Session expired. Please log in again.");
+          tokenService.clearFacultyTokens();
+          window.location.href = "/auth/login";
+          return;
+        }
+        throw new Error("Server responded with " + response.status);
+      }
+      
       const result = await response.json();
       console.log("Fetched faculty loads for file upload:", result);
       
@@ -59,11 +100,12 @@ export default function FileUpload() {
       }
     } catch (err) {
       console.error("Error fetching faculty loads:", err);
-      if (err.message === 'Token refresh failed') {
+      if (err.message.includes('401') || err.message === 'Token refresh failed') {
         showFeedback("error", "Session expired. Please log in again.");
         tokenService.clearFacultyTokens();
+        window.location.href = "/auth/login";
       } else {
-        showFeedback("error", "Failed to load your subjects");
+        showFeedback("error", "Failed to load your subjects: " + err.message);
       }
       setFacultyLoads([]);
     }
@@ -102,7 +144,7 @@ export default function FileUpload() {
     }
   };
 
-  // Handle faculty load selection - UPDATED to use faculty_loaded_id
+  // Handle faculty load selection
   const handleFacultyLoadChange = (e) => {
     const selectedFacultyLoadId = e.target.value;
     
@@ -128,9 +170,20 @@ export default function FileUpload() {
     }
   };
 
-  // Handle file selection - MULTIPLE FILES
+  // Handle file selection - MULTIPLE FILES with 25MB limit check
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
+    const MAX_SIZE = 25 * 1024 * 1024; // 25MB in bytes
+    
+    // Check each file size
+    const oversizedFiles = files.filter(file => file.size > MAX_SIZE);
+    if (oversizedFiles.length > 0) {
+      showFeedback("error", `File "${oversizedFiles[0].name}" exceeds 25MB limit. Maximum file size is 25MB.`);
+      // Clear the file input
+      e.target.value = '';
+      return;
+    }
+    
     if (files.length > 0) {
       setSelectedFiles(prev => [...prev, ...files]);
       
@@ -204,6 +257,7 @@ export default function FileUpload() {
     });
     setSelectedFiles([]);
     setSelectedFacultyLoad(null);
+    setUploadProgress(0);
     
     const fileInput = document.getElementById('file-upload');
     if (fileInput) {
@@ -213,19 +267,44 @@ export default function FileUpload() {
 
   // Handle modal open
   const handleModalOpen = () => {
-    const token = tokenService.getFacultyAccessToken();
-    if (!token) {
+    // Check authentication
+    if (!tokenService.isFacultyAuthenticated()) {
       showFeedback("error", "Please log in to upload files");
       return;
     }
+    
+    // Get fresh token
+    const token = tokenService.getFacultyAccessToken();
+    if (!token) {
+      showFeedback("error", "Session expired. Please log in again.");
+      tokenService.clearFacultyTokens();
+      window.location.href = "/auth/login";
+      return;
+    }
+    
     fetchFacultyLoads();
     setShowModal(true);
   };
 
-  // Handle form submission - UPDATED to send faculty_loaded_id
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Check authentication
+    if (!tokenService.isFacultyAuthenticated()) {
+      showFeedback("error", "Please log in to upload files");
+      return;
+    }
+    
+    // Get fresh token
+    const token = tokenService.getFacultyAccessToken();
+    if (!token) {
+      showFeedback("error", "Session expired. Please log in again.");
+      tokenService.clearFacultyTokens();
+      window.location.href = "/auth/login";
+      return;
+    }
+
     if (selectedFiles.length === 0) {
       showFeedback("error", "Please select at least one file to upload");
       return;
@@ -246,14 +325,20 @@ export default function FileUpload() {
       return;
     }
 
+    // Check total size
+    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB total limit
+    if (totalSize > MAX_TOTAL_SIZE) {
+      showFeedback("error", "Total file size exceeds 100MB limit. Please upload smaller files or fewer files.");
+      return;
+    }
+
     setLoading(true);
+    setUploadProgress(10);
 
     try {
-      const token = tokenService.getFacultyAccessToken();
-      if (!token) {
-        throw new Error("Authentication required. Please log in again.");
-      }
-
+      console.log("Preparing to upload files with token...");
+      
       const formDataToSend = new FormData();
       formDataToSend.append('file_name', formData.file_name);
       formDataToSend.append('document_type', formData.document_type);
@@ -278,36 +363,58 @@ export default function FileUpload() {
       console.log("- Academic Year (auto-sync):", selectedFacultyLoad?.school_year);
       console.log("- Document Type:", formData.document_type);
       console.log("- TOS Type:", formData.tos_type || 'N/A');
+      console.log("- Total size:", (totalSize / (1024 * 1024)).toFixed(2), "MB");
+
+      setUploadProgress(30);
 
       const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`
+          // Don't set Content-Type for FormData, browser will set it with boundary
         },
         body: formDataToSend,
       });
+
+      setUploadProgress(70);
 
       const result = await response.json();
       console.log("Upload response:", result);
 
       if (!response.ok) {
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+        if (response.status === 401) {
+          throw new Error("Session expired. Please log in again.");
+        }
+        throw new Error(result.message || `Upload failed: ${response.status}`);
       }
 
       if (result.success) {
+        setUploadProgress(100);
         resetForm();
-        setShowModal(false);
-        showFeedback("success", 
-          `${result.data.files_uploaded} file(s) uploaded successfully for: ${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})!`
-        );
+        setTimeout(() => {
+          setShowModal(false);
+          showFeedback("success", 
+            `${result.data.files_uploaded} file(s) uploaded successfully for: ${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})!`
+          );
+        }, 500);
       } else {
         showFeedback("error", result.message || "Error uploading files");
       }
     } catch (error) {
       console.error("Error uploading files:", error);
-      showFeedback("error", error.message || "Error uploading files");
+      
+      if (error.message.includes('Session expired') || error.message.includes('401')) {
+        showFeedback("error", "Session expired. Please log in again.");
+        tokenService.clearFacultyTokens();
+        setTimeout(() => {
+          window.location.href = "/auth/login";
+        }, 2000);
+      } else {
+        showFeedback("error", error.message || "Error uploading files");
+      }
     } finally {
       setLoading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
@@ -355,7 +462,8 @@ export default function FileUpload() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
-            <li>• Supported file types: PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
+            <li>• <strong>Maximum file size:</strong> 25MB per file</li>
+            <li>• <strong>Supported file types:</strong> PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
             <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
             <li>• Course, Semester and Academic Year are automatically synced from your Faculty Load</li>
@@ -393,7 +501,7 @@ export default function FileUpload() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Faculty Load Selection - UPDATED to show only subject code and title */}
+              {/* Faculty Load Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Select Subject *
@@ -542,10 +650,10 @@ export default function FileUpload() {
                 </div>
               )}
 
-              {/* File Upload - MULTIPLE */}
+              {/* File Upload - MULTIPLE with size limit warning */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Files *
+                  Select Files * (Max 25MB per file)
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors">
                   <input
@@ -564,7 +672,10 @@ export default function FileUpload() {
                         : "Click to select files"}
                     </span>
                     <p className="text-xs text-gray-500 mt-1">
-                      You can select multiple files (PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX)
+                      Maximum 25MB per file • Multiple files allowed
+                    </p>
+                    <p className="text-xs text-red-500 mt-1">
+                      Files larger than 25MB will be rejected automatically
                     </p>
                   </label>
                 </div>
@@ -608,6 +719,11 @@ export default function FileUpload() {
                                     Primary
                                   </span>
                                 )}
+                                {file.size > 25 * 1024 * 1024 && (
+                                  <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">
+                                    Too Large!
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
                                 Size: {formatFileSize(file.size)} | Type: {file.type}
@@ -631,10 +747,27 @@ export default function FileUpload() {
                         `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})` : 
                         'Not selected'}</p>
                       <p>• Total records created: {selectedFiles.length} files</p>
+                      <p className="text-red-500 font-medium">• Files larger than 25MB will be automatically rejected</p>
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Progress Bar */}
+              {loading && uploadProgress > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700">Uploading...</span>
+                    <span className="font-medium">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
 
               {/* Auto-sync notice */}
               {selectedFacultyLoad && (
@@ -660,13 +793,18 @@ export default function FileUpload() {
                 <button
                   type="submit"
                   disabled={loading || selectedFiles.length === 0 || !formData.faculty_loaded_id || !selectedFacultyLoad?.course || (formData.document_type === 'tos' && !formData.tos_type)}
-                  className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-black text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-yellow-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading 
-                    ? "Uploading..." 
-                    : `Upload ${selectedFiles.length} File(s) for ${selectedFacultyLoad ? 
-                        `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course}` : 
-                        'Selected Course'}`}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    `Upload ${selectedFiles.length} File(s) for ${selectedFacultyLoad ? 
+                      `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course}` : 
+                      'Selected Course'}`
+                  )}
                 </button>
               </div>
             </form>
@@ -722,6 +860,14 @@ export default function FileUpload() {
                     </span>
                   </div>
                 </div>
+
+                {fileToPreview.size > 25 * 1024 * 1024 && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <p className="text-sm text-red-700 font-medium">
+                      ⚠️ This file exceeds the 25MB limit and will be rejected during upload.
+                    </p>
+                  </div>
+                )}
 
                 <div className="pt-4">
                   <button
