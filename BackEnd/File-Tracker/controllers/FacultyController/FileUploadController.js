@@ -120,7 +120,7 @@ const updateTaskDeliverables = async (fileData) => {
   }
 };
 
-// File Upload Controller - UPDATED with better authentication and 25MB limit
+// File Upload Controller - FIXED faculty name formatting
 export const uploadFile = async (req, res) => {
   try {
     console.log("📤 Upload request received");
@@ -137,7 +137,13 @@ export const uploadFile = async (req, res) => {
       });
     }
 
-    console.log("✅ Faculty authenticated:", req.faculty.facultyId, req.faculty.facultyName);
+    // FIXED: Get properly formatted faculty name from token
+    const facultyName = req.faculty.facultyName || 
+                       (req.faculty.middleInitial 
+                         ? `${req.faculty.firstName} ${req.faculty.middleInitial}. ${req.faculty.lastName}`
+                         : `${req.faculty.firstName} ${req.faculty.lastName}`);
+
+    console.log("✅ Faculty authenticated:", req.faculty.facultyId, "Name:", facultyName);
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ 
@@ -224,13 +230,13 @@ export const uploadFile = async (req, res) => {
     for (const file of req.files) {
       console.log(`Processing file: ${file.originalname} (${file.size} bytes)`);
       
-      // Create file record
+      // Create file record with PROPERLY FORMATTED faculty name
       const fileId = generateFileId();
       
       const newFile = new FileManagement({
         file_id: fileId,
         faculty_id: req.faculty.facultyId,
-        faculty_name: req.faculty.facultyName, // This now uses the properly formatted name
+        faculty_name: facultyName, // FIXED: Using properly formatted name
         file_name: file_name || file.originalname,
         document_type: finalDocumentType,
         tos_type: document_type === 'tos' ? tos_type : null,
@@ -248,7 +254,7 @@ export const uploadFile = async (req, res) => {
 
       const savedFile = await newFile.save();
       allSavedFiles.push(savedFile);
-      console.log(`✅ Created file record for: ${file.originalname} with course: ${course}`);
+      console.log(`✅ Created file record for: ${file.originalname} with faculty name: ${facultyName}`);
 
       // Create admin notification for this file
       try {
@@ -600,7 +606,7 @@ export const bulkCompleteAllFiles = async (req, res) => {
     
     // Get all pending files
     const pendingFiles = await FileManagement.find({ 
-      status: { $in: ["pending", "rejected", "late"] }  // ADDED "late" here
+      status: { $in: ["pending", "rejected", "late"] }
     });
 
     if (pendingFiles.length === 0) {

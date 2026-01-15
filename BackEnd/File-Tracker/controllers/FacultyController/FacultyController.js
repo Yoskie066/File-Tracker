@@ -11,7 +11,9 @@ const generateTokens = (faculty) => {
   const accessToken = jwt.sign(
     {
       facultyId: faculty.facultyId,
-      fullName: faculty.fullName,
+      firstName: faculty.firstName,
+      middleInitial: faculty.middleInitial,
+      lastName: faculty.lastName,
       role: faculty.role,
     },
     process.env.JWT_SECRET,
