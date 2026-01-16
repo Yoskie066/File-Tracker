@@ -1,6 +1,7 @@
 import AdminNotice from "../../models/AdminModel/AdminNoticeModel.js";
 import Notification from "../../models/FacultyModel/NotificationModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
+import { archiveItem } from "../../controllers/AdminController/ArchiveController.js";
 
 // Generate 10-digit unique notice_id
 const generateNoticeId = () => {
@@ -297,14 +298,37 @@ export const updateAdminNotice = async (req, res) => {
 export const deleteAdminNotice = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await AdminNotice.findOneAndDelete({ notice_id: id });
-
+    const deletedBy = req.admin?.adminName || 'System';
+    
+    const deleted = await AdminNotice.findOne({ notice_id: id });
     if (!deleted) return res.status(404).json({ success: false, message: "Admin notice not found" });
+
+    // Archive before deleting
+    const archiveData = {
+      notice_id: deleted.notice_id,
+      prof_name: deleted.prof_name,
+      faculty_id: deleted.faculty_id,
+      document_type: deleted.document_type,
+      tos_type: deleted.tos_type,
+      due_date: deleted.due_date,
+      notes: deleted.notes,
+      created_at: deleted.created_at,
+      updated_at: deleted.updated_at
+    };
+
+    await archiveItem('admin_notices', deleted.notice_id, archiveData, deletedBy);
 
     // Delete linked notification
     await Notification.deleteMany({ related_notice_id: id });
 
-    res.status(200).json({ success: true, message: "Admin notice deleted successfully", data: deleted });
+    // Delete from original collection
+    await AdminNotice.findOneAndDelete({ notice_id: id });
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Admin notice moved to archive", 
+      data: deleted 
+    });
   } catch (error) {
     console.error("Error deleting admin notice:", error);
     res.status(500).json({ success: false, message: "Server error", error: error.message });

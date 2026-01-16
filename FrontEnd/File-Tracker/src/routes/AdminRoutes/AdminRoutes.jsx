@@ -6,6 +6,7 @@ import FileManagement from '../../pages/Admin/FileManagement';
 import HistoryRecords from '../../pages/Admin/HistoryRecords';
 import AdminNotice from '../../pages/Admin/AdminNotice';
 import SystemVariables from '../../pages/Admin/SystemVariable';
+import Archive from '../../pages/Admin/Archive';
 import AdminNotification from '../../pages/Admin/AdminNotification';
 
 const AdminRoutes = () => {
@@ -19,6 +20,7 @@ const AdminRoutes = () => {
         <Route path="/admin-notice" element={<AdminNotice />} />
         <Route path="/system-variables" element={<SystemVariables />} />
         <Route path="/admin-notification" element={<AdminNotification />} />
+        <Route path="/archive" element={<Archive />} />
         <Route path="/" element={<Analytics />} />
       </Route>
     </Routes>

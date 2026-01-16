@@ -8,7 +8,8 @@ import {
   LogOut,
   Settings,
   Bell,
-  X
+  X,
+  Archive
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import tokenService from "../../services/tokenService";
@@ -159,6 +160,15 @@ export default function Sidebar({ isOpen, onClose }) {
             <Settings className="w-5 h-5" />
             <span className="text-lg">System Variables</span>
           </Link>
+
+          <Link
+            to="/admin/archive"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/archive")}`}
+            onClick={onClose}
+          >
+            <Archive className="w-5 h-5" />
+            <span className="text-lg">Archive</span>
+          </Link>
           
           <Link
             to="/admin/admin-notification"
@@ -237,6 +247,14 @@ export default function Sidebar({ isOpen, onClose }) {
           >
             <Settings className="w-5 h-5" />
             <span className="text-lg">System Variables</span>
+          </Link>
+
+          <Link
+            to="/admin/archive"
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive("/admin/archive")}`}
+          >
+            <Archive className="w-5 h-5" />
+            <span className="text-lg">Archive</span>
           </Link>
           
           <Link

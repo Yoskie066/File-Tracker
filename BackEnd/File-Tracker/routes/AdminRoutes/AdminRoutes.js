@@ -40,6 +40,16 @@ import {
   getSubjectTitles
 } from "../../controllers/AdminController/SystemVariableController.js";
 import {
+  getArchivedItems,
+  getArchivedItemById,
+  restoreItem,
+  permanentlyDeleteItem,
+  bulkRestoreItems,
+  bulkPermanentDelete,
+  getArchiveStats,
+  getArchiveCollections
+} from "../../controllers/AdminController/ArchiveController.js";
+import {
   getAdminNotifications,
   getAdminUnreadCount,
   markAdminNotificationAsRead
@@ -102,6 +112,16 @@ router.get('/system-variables/faculty-load', getVariablesForFacultyLoad);
 router.get('/system-variables/:id', getSystemVariableById); 
 router.put('/system-variables/:id', updateSystemVariable);
 router.delete('/system-variables/:id', deleteSystemVariable);
+
+// Archive Routes
+router.get("/archive", getArchivedItems);
+router.get("/archive/stats", getArchiveStats);
+router.get("/archive/collections", getArchiveCollections);
+router.get("/archive/:id", getArchivedItemById);
+router.put("/archive/:id/restore", restoreItem);
+router.delete("/archive/:id", permanentlyDeleteItem);
+router.put("/archive/bulk-restore", bulkRestoreItems);
+router.delete("/archive/bulk-delete", bulkPermanentDelete);
 
 // Admin Notification Routes 
 router.get("/admin-notifications", getAdminNotifications);

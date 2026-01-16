@@ -1,4 +1,5 @@
 import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
+import { archiveItem } from "../../controllers/AdminController/ArchiveController.js";
 
 // Generate 10-digit unique variable_id
 const generateVariableId = () => {
@@ -473,15 +474,34 @@ export const getSystemVariableById = async (req, res) => {
 export const deleteSystemVariable = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await SystemVariable.findOneAndDelete({ variable_id: id });
-
+    const deletedBy = req.admin?.adminName || 'System';
+    
+    const deleted = await SystemVariable.findOne({ variable_id: id });
     if (!deleted) {
       return res.status(404).json({ success: false, message: "System variable not found" });
     }
 
+    // Archive before deleting
+    const archiveData = {
+      variable_id: deleted.variable_id,
+      subject_code: deleted.subject_code,
+      subject_title: deleted.subject_title,
+      course: deleted.course,
+      semester: deleted.semester,
+      academic_year: deleted.academic_year,
+      created_by: deleted.created_by,
+      created_at: deleted.created_at,
+      updated_at: deleted.updated_at
+    };
+
+    await archiveItem('system_variables', deleted.variable_id, archiveData, deletedBy);
+
+    // Delete from original collection
+    await SystemVariable.findOneAndDelete({ variable_id: id });
+
     res.status(200).json({ 
       success: true, 
-      message: "System variable deleted successfully", 
+      message: "System variable moved to archive", 
       data: deleted 
     });
 

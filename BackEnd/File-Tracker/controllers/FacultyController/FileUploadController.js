@@ -6,6 +6,7 @@ import { createFileHistory } from "../../controllers/FacultyController/FileHisto
 import path from "path";
 import fs from "fs";
 import { autoSyncToHistory } from "../../controllers/AdminController/HistoryRecordController.js";
+import { archiveItem } from "../../controllers/AdminController/ArchiveController.js";
 import { createAdminNotification } from "../../controllers/AdminController/AdminNotificationController.js";
 
 // Multer Disk Storage Configuration - UPDATED 25MB limit
@@ -439,14 +440,38 @@ export const getFileById = async (req, res) => {
   }
 };
 
-// DELETE FILE - UPDATED FOR LOCAL FILE SYSTEM
+// DELETE FILE 
 export const deleteFile = async (req, res) => {
   try {
     const { id } = req.params;
+    const deletedBy = req.admin?.adminName || req.faculty?.facultyName || 'System';
+    
     const file = await FileManagement.findOne({ file_id: id });
-
     if (!file)
       return res.status(404).json({ success: false, message: "File not found" });
+
+    // Archive before deleting
+    const archiveData = {
+      file_id: file.file_id,
+      faculty_id: file.faculty_id,
+      faculty_name: file.faculty_name,
+      file_name: file.file_name,
+      document_type: file.document_type,
+      tos_type: file.tos_type,
+      status: file.status,
+      subject_code: file.subject_code,
+      subject_title: file.subject_title,
+      course: file.course,
+      semester: file.semester,
+      school_year: file.school_year,
+      file_path: file.file_path,
+      original_name: file.original_name,
+      file_size: file.file_size,
+      uploaded_at: file.uploaded_at,
+      due_date: file.due_date
+    };
+
+    await archiveItem('files', file.file_id, archiveData, deletedBy);
 
     // Delete file from local storage if it exists
     if (file.file_path) {
@@ -458,7 +483,6 @@ export const deleteFile = async (req, res) => {
         }
       } catch (fileError) {
         console.error("Error deleting file from local storage:", fileError);
-        // Continue with database deletion even if file deletion fails
       }
     }
 
@@ -466,7 +490,7 @@ export const deleteFile = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      message: "File deleted successfully from both storage and database" 
+      message: "File moved to archive" 
     });
   } catch (error) {
     console.error("Error deleting file:", error);

@@ -1,5 +1,6 @@
 import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
+import { archiveItem } from "../../controllers/AdminController/ArchiveController.js";
 import bcrypt from "bcrypt";
 
 const generateUserId = () => {
@@ -433,15 +434,37 @@ export const updateUser = async (req, res) => {
 export const deleteAdmin = async (req, res) => {
   try {
     const { adminId } = req.params;
+    const deletedBy = req.admin?.adminName || 'System';
     
-    const admin = await Admin.findOneAndDelete({ adminId });
+    const admin = await Admin.findOne({ adminId });
     if (!admin) {
       return res.status(404).json({ message: "Admin not found" });
     }
 
-    console.log(`Admin deleted: ${admin.firstName} ${admin.middleInitial}. ${admin.lastName} (${admin.adminId})`);
+    // Archive before deleting
+    const archiveData = {
+      user_id: admin.adminId,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      middleInitial: admin.middleInitial,
+      number: admin.adminNumber,
+      password: admin.password,
+      role: admin.role || 'admin',
+      securityQuestion: admin.securityQuestion,
+      securityAnswer: admin.securityAnswer,
+      status: admin.status || 'offline',
+      created_at: admin.registeredAt || admin.createdAt
+    };
+
+    await archiveItem('users', admin.adminId, archiveData, deletedBy);
+
+    // Delete from original collection
+    await Admin.findOneAndDelete({ adminId });
+
+    console.log(`Admin archived: ${admin.firstName} ${admin.middleInitial}. ${admin.lastName} (${admin.adminId})`);
+    
     res.status(200).json({ 
-      message: "Admin deleted successfully",
+      message: "Admin moved to archive",
       deletedAdmin: {
         adminId: admin.adminId,
         name: `${admin.firstName} ${admin.middleInitial}. ${admin.lastName}`
@@ -457,15 +480,37 @@ export const deleteAdmin = async (req, res) => {
 export const deleteFaculty = async (req, res) => {
   try {
     const { facultyId } = req.params;
+    const deletedBy = req.admin?.adminName || 'System';
     
-    const faculty = await Faculty.findOneAndDelete({ facultyId });
+    const faculty = await Faculty.findOne({ facultyId });
     if (!faculty) {
       return res.status(404).json({ message: "Faculty not found" });
     }
 
-    console.log(`Faculty deleted: ${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName} (${faculty.facultyId})`);
+    // Archive before deleting
+    const archiveData = {
+      user_id: faculty.facultyId,
+      firstName: faculty.firstName,
+      lastName: faculty.lastName,
+      middleInitial: faculty.middleInitial,
+      number: faculty.facultyNumber,
+      password: faculty.password,
+      role: faculty.role || 'faculty',
+      securityQuestion: faculty.securityQuestion,
+      securityAnswer: faculty.securityAnswer,
+      status: faculty.status || 'offline',
+      created_at: faculty.registeredAt || faculty.createdAt
+    };
+
+    await archiveItem('users', faculty.facultyId, archiveData, deletedBy);
+
+    // Delete from original collection
+    await Faculty.findOneAndDelete({ facultyId });
+
+    console.log(`Faculty archived: ${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName} (${faculty.facultyId})`);
+    
     res.status(200).json({ 
-      message: "Faculty deleted successfully",
+      message: "Faculty moved to archive",
       deletedFaculty: {
         facultyId: faculty.facultyId,
         name: `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`
