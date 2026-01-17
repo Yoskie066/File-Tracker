@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, MoreVertical, Search, Filter, ArrowUpDown, Trash2, Eye, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, MoreVertical, Search, Filter, ArrowUpDown, Trash2, Eye, RefreshCw, FileText, User, Bell, Settings } from "lucide-react";
 
 // Set app element for react-modal
 Modal.setAppElement("#root");
@@ -33,6 +33,11 @@ export default function Archive() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [archiveToDelete, setArchiveToDelete] = useState(null);
 
+  // Retrieve confirmation modal
+  const [retrieveModalOpen, setRetrieveModalOpen] = useState(false);
+  const [archiveToRetrieve, setArchiveToRetrieve] = useState(null);
+  const [retrieveLoading, setRetrieveLoading] = useState(false);
+
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   // Collection options based on backend
@@ -43,11 +48,15 @@ export default function Archive() {
     { value: 'system_variables', label: 'System Variables' }
   ];
 
-  // Month options
+  // Month options - Static January to December
   const monthOptions = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  // Year options (last 5 years)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   // Fetch archives from backend
   const fetchArchives = async () => {
@@ -56,7 +65,6 @@ export default function Archive() {
       const res = await fetch(`${API_BASE_URL}/api/admin/archive`);
       if (!res.ok) throw new Error("Server responded with " + res.status);
       const result = await res.json();
-      console.log("Fetched archives:", result);
       
       if (result.success && Array.isArray(result.data)) {
         setArchives(result.data);
@@ -83,32 +91,76 @@ export default function Archive() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  // Get unique months from deleted_at for filter
-  const getUniqueMonths = () => {
-    const months = new Set();
-    archives.forEach(archive => {
-      if (archive.deleted_at) {
-        const deletedDate = new Date(archive.deleted_at);
-        const month = monthOptions[deletedDate.getMonth()];
-        months.add(month);
-      }
-    });
-    return Array.from(months).sort((a, b) => 
-      monthOptions.indexOf(a) - monthOptions.indexOf(b)
-    );
+  // Show feedback modal
+  const showFeedback = (type, message) => {
+    setFeedbackType(type);
+    setFeedbackMessage(message);
+    setFeedbackModalOpen(true);
   };
 
-  // Get unique years from deleted_at for filter
-  const getUniqueYears = () => {
-    const years = new Set();
-    archives.forEach(archive => {
-      if (archive.deleted_at) {
-        const deletedDate = new Date(archive.deleted_at);
-        const year = deletedDate.getFullYear();
-        years.add(year);
+  // Handle retrieve archive item
+  const handleRetrieve = async (archiveId) => {
+    setRetrieveLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/archive/${archiveId}/restore`, {
+        method: "PUT",
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove from local state
+        setArchives(archives.filter(archive => archive.archive_id !== archiveId));
+        showFeedback("success", "Item retrieved successfully!");
+      } else {
+        showFeedback("error", result.message || "Error retrieving item");
       }
-    });
-    return Array.from(years).sort((a, b) => b - a);
+    } catch (error) {
+      console.error("Error retrieving item:", error);
+      showFeedback("error", "Error retrieving item");
+    } finally {
+      setRetrieveLoading(false);
+      setRetrieveModalOpen(false);
+      setArchiveToRetrieve(null);
+      setActionDropdown(null);
+    }
+  };
+
+  // Handle delete archive
+  const handleDelete = async (archiveId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/archive/${archiveId}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove from local state
+        setArchives(archives.filter(archive => archive.archive_id !== archiveId));
+        showFeedback("success", "Archive item permanently deleted!");
+      } else {
+        showFeedback("error", result.message || "Error deleting archive item");
+      }
+    } catch (error) {
+      console.error("Error deleting archive item:", error);
+      showFeedback("error", "Error deleting archive item");
+    }
+    setDeleteModalOpen(false);
+    setArchiveToDelete(null);
+    setActionDropdown(null);
+  };
+
+  // Open retrieve confirmation modal
+  const confirmRetrieve = (archiveId) => {
+    setArchiveToRetrieve(archiveId);
+    setRetrieveModalOpen(true);
+  };
+
+  // Open delete confirmation modal
+  const confirmDelete = (archiveId) => {
+    setArchiveToDelete(archiveId);
+    setDeleteModalOpen(true);
   };
 
   // Reset all filters
@@ -120,11 +172,20 @@ export default function Archive() {
     setCurrentPage(1);
   };
 
-  // Show feedback modal
-  const showFeedback = (type, message) => {
-    setFeedbackType(type);
-    setFeedbackMessage(message);
-    setFeedbackModalOpen(true);
+  // Get collection icon
+  const getCollectionIcon = (collectionName) => {
+    switch(collectionName) {
+      case 'users':
+        return <User className="w-4 h-4 mr-2" />;
+      case 'files':
+        return <FileText className="w-4 h-4 mr-2" />;
+      case 'admin_notices':
+        return <Bell className="w-4 h-4 mr-2" />;
+      case 'system_variables':
+        return <Settings className="w-4 h-4 mr-2" />;
+      default:
+        return <FileText className="w-4 h-4 mr-2" />;
+    }
   };
 
   // Search and filter function
@@ -140,15 +201,14 @@ export default function Archive() {
           (archive.type && archive.type.toLowerCase().includes(searchTerm)) ||
           (archive.description && archive.description.toLowerCase().includes(searchTerm)) ||
           (archive.collection_name && archive.collection_name.toLowerCase().includes(searchTerm)) ||
-          (archive.deleted_by && archive.deleted_by.toLowerCase().includes(searchTerm))
+          (archive.original_id && archive.original_id.toLowerCase().includes(searchTerm))
         );
       });
     }
 
     // Apply advanced filters
     if (collectionFilter) {
-      const collectionLabel = collectionOptions.find(c => c.value === collectionFilter)?.label || collectionFilter;
-      filtered = filtered.filter(a => a.source_module === collectionLabel);
+      filtered = filtered.filter(a => a.collection_name === collectionFilter);
     }
     
     if (monthFilter) {
@@ -261,28 +321,19 @@ export default function Archive() {
     });
   };
 
-  // Format date to show only Month and Year for display
-  const formatDeletedMonthYear = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    const month = monthOptions[date.getMonth()];
-    const year = date.getFullYear();
-    return `${month} ${year}`;
-  };
-
   // Get badge color based on collection type
   const getCollectionBadgeColor = (collectionName) => {
     switch (collectionName) {
       case 'files':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'users':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'admin_notices':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       case 'system_variables':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
 
@@ -306,56 +357,27 @@ export default function Archive() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Handle delete archive
-  const handleDelete = async (archiveId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/archive/${archiveId}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        fetchArchives();
-        showFeedback("success", "Archive item permanently deleted!");
-      } else {
-        showFeedback("error", result.message || "Error deleting archive item");
-      }
-    } catch (error) {
-      console.error("Error deleting archive item:", error);
-      showFeedback("error", "Error deleting archive item");
-    }
-    setDeleteModalOpen(false);
-    setArchiveToDelete(null);
-    setActionDropdown(null);
-  };
-
-  // Open delete confirmation modal
-  const confirmDelete = (archiveId) => {
-    setArchiveToDelete(archiveId);
-    setDeleteModalOpen(true);
-  };
-
   // Render details based on collection type
   const renderArchiveDetails = () => {
     if (!selectedArchive) return null;
 
-    const { collection_name, full_data, name, type, description, deleted_by, deleted_at } = selectedArchive;
+    const { collection_name, data, name, type, description, deleted_at } = selectedArchive;
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Archive ID</label>
-            <p className="text-sm text-gray-900 font-mono">{selectedArchive.archive_id}</p>
+            <p className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">{selectedArchive.archive_id}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Original ID</label>
-            <p className="text-sm text-gray-900 font-mono">{selectedArchive.original_id}</p>
+            <p className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">{selectedArchive.original_id}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Collection</label>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCollectionBadgeColor(collection_name)}`}>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCollectionBadgeColor(collection_name)}`}>
+              {getCollectionIcon(collection_name)}
               {getSourceModuleLabel(collection_name)}
             </span>
           </div>
@@ -364,30 +386,44 @@ export default function Archive() {
             <p className="text-sm text-gray-900">{type}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Deleted By</label>
-            <p className="text-sm text-gray-900">{deleted_by}</p>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Deleted At</label>
             <p className="text-sm text-gray-900">{formatDeletedDate(deleted_at)}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+            <p className="text-sm text-gray-900 font-medium">{name}</p>
           </div>
         </div>
 
         <div className="border-t pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Full Data</label>
-          <div className="bg-gray-50 p-4 rounded-md overflow-auto max-h-60">
-            <pre className="text-xs text-gray-700 whitespace-pre-wrap">
-              {JSON.stringify(full_data, null, 2)}
-            </pre>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Item Details</label>
+          <div className="space-y-3">
+            {description && (
+              <div>
+                <span className="text-sm font-medium text-gray-700">Description: </span>
+                <span className="text-sm text-gray-900">{description}</span>
+              </div>
+            )}
+            
+            {data && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(data).map(([key, value]) => {
+                  if (typeof value === 'string' && value.length > 0 && key !== 'password' && key !== 'securityAnswer') {
+                    return (
+                      <div key={key} className="bg-gray-50 p-3 rounded">
+                        <span className="text-xs font-medium text-gray-600 capitalize">
+                          {key.replace(/_/g, ' ')}: 
+                        </span>
+                        <p className="text-sm text-gray-900 mt-1">{value}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            )}
           </div>
         </div>
-
-        {description && (
-          <div className="border-t pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <p className="text-sm text-gray-900">{description}</p>
-          </div>
-        )}
       </div>
     );
   };
@@ -466,7 +502,7 @@ export default function Archive() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
                     <option value="">All Months</option>
-                    {getUniqueMonths().map(month => (
+                    {monthOptions.map(month => (
                       <option key={month} value={month}>{month}</option>
                     ))}
                   </select>
@@ -485,7 +521,7 @@ export default function Archive() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
                   >
                     <option value="">All Years</option>
-                    {getUniqueYears().map(year => (
+                    {yearOptions.map(year => (
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
@@ -580,7 +616,7 @@ export default function Archive() {
                 <th className="px-4 py-3 text-left border-r border-gray-600">Collection</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Item Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Type</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Deleted By</th>
+                <th className="px-4 py-3 text-left border-r border-gray-600">Description</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Deleted At</th>
                 <th className="px-4 py-3 text-left border-gray-600">Actions</th>
               </tr>
@@ -590,31 +626,22 @@ export default function Archive() {
                 currentArchives.map((archive) => (
                   <tr key={archive.archive_id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCollectionBadgeColor(archive.collection_name)}`}>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getCollectionBadgeColor(archive.collection_name)}`}>
+                        {getCollectionIcon(archive.collection_name)}
                         {getSourceModuleLabel(archive.collection_name)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{archive.name}</div>
-                      {archive.description && (
-                        <div className="text-xs text-gray-500 mt-1">{archive.description}</div>
-                      )}
+                      <div className="text-xs text-gray-500 mt-1">ID: {archive.original_id}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-700 text-sm">{archive.type}</td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">{archive.deleted_by}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{archive.description}</td>
                     <td className="px-4 py-3">
                       <div className="text-gray-700 text-sm">{formatDeletedDate(archive.deleted_at)}</div>
-                      <div className="text-xs text-gray-500">{formatDeletedMonthYear(archive.deleted_at)}</div>
                     </td>
                     <td className="px-4 py-3 relative">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => viewArchiveDetails(archive)}
-                          className="p-1 rounded hover:bg-gray-200 transition-colors text-gray-600"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -630,11 +657,25 @@ export default function Archive() {
                       {actionDropdown === archive.archive_id && (
                         <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                           <button
+                            onClick={() => viewArchiveDetails(archive)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Preview Details
+                          </button>
+                          <button
+                            onClick={() => confirmRetrieve(archive.archive_id)}
+                            className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Retrieve
+                          </button>
+                          <button
                             onClick={() => confirmDelete(archive.archive_id)}
                             className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Permanently
+                            Delete
                           </button>
                         </div>
                       )}
@@ -659,21 +700,14 @@ export default function Archive() {
               <div key={archive.archive_id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCollectionBadgeColor(archive.collection_name)}`}>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getCollectionBadgeColor(archive.collection_name)}`}>
+                      {getCollectionIcon(archive.collection_name)}
                       {getSourceModuleLabel(archive.collection_name)}
                     </span>
-                    <span className="text-xs text-gray-500">{archive.type}</span>
                   </div>
                   
                   <div className="relative">
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => viewArchiveDetails(archive)}
-                        className="p-1 rounded hover:bg-gray-200 transition-colors text-gray-600"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -688,11 +722,25 @@ export default function Archive() {
                     {actionDropdown === archive.archive_id && (
                       <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                         <button
+                          onClick={() => viewArchiveDetails(archive)}
+                          className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Preview Details
+                        </button>
+                        <button
+                          onClick={() => confirmRetrieve(archive.archive_id)}
+                          className="flex items-center w-full px-3 py-2 text-sm text-green-600 hover:bg-gray-100"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Retrieve
+                        </button>
+                        <button
                           onClick={() => confirmDelete(archive.archive_id)}
                           className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Permanently
+                          Delete
                         </button>
                       </div>
                     )}
@@ -703,20 +751,24 @@ export default function Archive() {
                   <div>
                     <span className="text-gray-500">Item Name:</span>
                     <p className="font-medium">{archive.name}</p>
-                    {archive.description && (
-                      <p className="text-xs text-gray-500 mt-1">{archive.description}</p>
-                    )}
+                    <p className="text-xs text-gray-500 mt-1">ID: {archive.original_id}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <span className="text-gray-500">Deleted By:</span>
-                      <p className="font-medium">{archive.deleted_by}</p>
+                      <span className="text-gray-500">Type:</span>
+                      <p className="font-medium">{archive.type}</p>
                     </div>
                     <div className="bg-gray-50 p-2 rounded-md">
                       <div className="text-gray-500 text-xs">Deleted At:</div>
                       <div className="font-medium text-xs">{formatDeletedDate(archive.deleted_at)}</div>
                     </div>
                   </div>
+                  {archive.description && (
+                    <div>
+                      <span className="text-gray-500">Description:</span>
+                      <p className="text-sm text-gray-700">{archive.description}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -791,12 +843,62 @@ export default function Archive() {
               <div className="text-center py-8 text-gray-500">No details available</div>
             )}
             
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-end pt-4 gap-3">
               <button
                 onClick={() => setDetailModalOpen(false)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Close
+              </button>
+              {selectedArchive && (
+                <button
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    confirmRetrieve(selectedArchive.archive_id);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                >
+                  Retrieve Item
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
+
+        {/* Retrieve Confirmation Modal */}
+        <Modal
+          isOpen={retrieveModalOpen}
+          onRequestClose={() => setRetrieveModalOpen(false)}
+          className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <div className="flex flex-col items-center text-center">
+            <RefreshCw className="text-green-500 w-12 h-12 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Retrieve Item</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to retrieve this item? It will be restored to its original location.
+            </p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setRetrieveModalOpen(false)}
+                disabled={retrieveLoading}
+                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRetrieve(archiveToRetrieve)}
+                disabled={retrieveLoading}
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                {retrieveLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Retrieving...
+                  </div>
+                ) : (
+                  "Retrieve"
+                )}
               </button>
             </div>
           </div>

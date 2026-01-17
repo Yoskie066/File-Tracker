@@ -20,10 +20,6 @@ const archiveSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed, 
       required: true 
     },
-    deleted_by: { 
-      type: String, 
-      required: true 
-    },
     deleted_at: { 
       type: Date, 
       default: Date.now 

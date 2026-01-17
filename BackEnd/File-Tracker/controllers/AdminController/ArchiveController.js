@@ -15,7 +15,7 @@ const generateArchiveId = () => {
 };
 
 // Archive item (move to recycle bin)
-export const archiveItem = async (collectionName, originalId, data, deletedBy) => {
+export const archiveItem = async (collectionName, originalId, data) => {
   try {
     const archiveId = generateArchiveId();
     
@@ -24,12 +24,11 @@ export const archiveItem = async (collectionName, originalId, data, deletedBy) =
       original_id: originalId,
       collection_name: collectionName,
       data: data,
-      deleted_by: deletedBy,
       deleted_at: new Date()
     });
 
     await archiveRecord.save();
-    console.log(`✅ Item archived: ${originalId} from ${collectionName} by ${deletedBy}`);
+    console.log(`✅ Item archived: ${originalId} from ${collectionName}`);
     
     return { success: true, archive_id: archiveId };
   } catch (error) {
@@ -85,8 +84,7 @@ export const getArchivedItems = async (req, res) => {
         { 'data.subject_title': searchRegex },
         { 'data.course': searchRegex },
         { 'original_id': searchRegex },
-        { 'archive_id': searchRegex },
-        { 'deleted_by': searchRegex }
+        { 'archive_id': searchRegex }
       ];
     }
 
@@ -99,15 +97,14 @@ export const getArchivedItems = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Format items for display with fields matching frontend expectations
+    // Format items for display
     const formattedItems = archivedItems.map(item => {
       const baseItem = {
         archive_id: item.archive_id,
         original_id: item.original_id,
         collection_name: item.collection_name,
-        deleted_by: item.deleted_by,
         deleted_at: item.deleted_at,
-        full_data: item.data // Include full data for preview
+        data: item.data
       };
 
       switch(item.collection_name) {
@@ -246,9 +243,8 @@ export const getArchivedItemById = async (req, res) => {
 export const restoreItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const restoredBy = req.admin?.adminName || req.admin?.firstName || 'System';
     
-    console.log(`🔄 Attempting to restore item: ${id} by ${restoredBy}`);
+    console.log(`🔄 Attempting to restore item: ${id}`);
     
     // Find archived item
     const archivedItem = await Archive.findOne({ 
@@ -429,7 +425,6 @@ export const restoreItem = async (req, res) => {
     // Mark archive record as restored
     archivedItem.restored = true;
     archivedItem.restored_at = new Date();
-    archivedItem.restored_by = restoredBy;
     await archivedItem.save();
 
     res.status(200).json({
@@ -438,8 +433,7 @@ export const restoreItem = async (req, res) => {
       data: {
         original_id: original_id,
         collection_name: collection_name,
-        restored_at: archivedItem.restored_at,
-        restored_by: archivedItem.restored_by
+        restored_at: archivedItem.restored_at
       }
     });
 
@@ -467,9 +461,8 @@ export const restoreItem = async (req, res) => {
 export const permanentlyDeleteItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedBy = req.admin?.adminName || req.admin?.firstName || 'System';
     
-    console.log(`🗑️ Attempting permanent delete from archive: ${id} by ${deletedBy}`);
+    console.log(`🗑️ Attempting permanent delete from archive: ${id}`);
     
     // Find archived item
     const archivedItem = await Archive.findOne({ archive_id: id });
@@ -516,8 +509,7 @@ export const permanentlyDeleteItem = async (req, res) => {
       data: {
         original_id: original_id,
         collection_name: collection_name,
-        permanently_deleted_at: new Date(),
-        deleted_by: deletedBy
+        permanently_deleted_at: new Date()
       }
     });
 
@@ -535,7 +527,6 @@ export const permanentlyDeleteItem = async (req, res) => {
 export const bulkRestoreItems = async (req, res) => {
   try {
     const { archive_ids } = req.body;
-    const restoredBy = req.admin?.adminName || req.admin?.firstName || 'System';
     
     if (!Array.isArray(archive_ids) || archive_ids.length === 0) {
       return res.status(400).json({
@@ -549,7 +540,7 @@ export const bulkRestoreItems = async (req, res) => {
       failed: []
     };
 
-    console.log(`🔄 Bulk restore initiated for ${archive_ids.length} items by ${restoredBy}`);
+    console.log(`🔄 Bulk restore initiated for ${archive_ids.length} items`);
 
     // Process each item individually
     for (const archiveId of archive_ids) {
@@ -567,7 +558,7 @@ export const bulkRestoreItems = async (req, res) => {
           continue;
         }
 
-        const { collection_name, original_id, data } = archivedItem;
+        const { collection_name, original_id } = archivedItem;
 
         // Call the restore function for each item
         const restoreResponse = await fetch(`http://localhost:3000/api/admin/archive/${archiveId}/restore`, {
@@ -620,7 +611,6 @@ export const bulkRestoreItems = async (req, res) => {
 export const bulkPermanentDelete = async (req, res) => {
   try {
     const { archive_ids } = req.body;
-    const deletedBy = req.admin?.adminName || req.admin?.firstName || 'System';
     
     if (!Array.isArray(archive_ids) || archive_ids.length === 0) {
       return res.status(400).json({
@@ -634,7 +624,7 @@ export const bulkPermanentDelete = async (req, res) => {
       failed: []
     };
 
-    console.log(`🗑️ Bulk permanent delete initiated for ${archive_ids.length} items by ${deletedBy}`);
+    console.log(`🗑️ Bulk permanent delete initiated for ${archive_ids.length} items`);
 
     for (const archiveId of archive_ids) {
       try {
@@ -726,16 +716,6 @@ export const getArchiveStats = async (req, res) => {
       restored: false
     });
 
-    // Most active deleters
-    const topDeleters = await Archive.aggregate([
-      { $group: { 
-        _id: '$deleted_by', 
-        count: { $sum: 1 } 
-      }},
-      { $sort: { count: -1 } },
-      { $limit: 5 }
-    ]);
-
     // Items by month (last 6 months)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -766,7 +746,6 @@ export const getArchiveStats = async (req, res) => {
         active_items: await Archive.countDocuments({ restored: false }),
         by_collection: byCollection,
         recent_items_30_days: recentItems,
-        top_deleters: topDeleters,
         items_by_month: itemsByMonth
       }
     });
