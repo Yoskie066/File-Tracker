@@ -5,6 +5,7 @@ import AdminNotice from "../../models/AdminModel/AdminNoticeModel.js";
 import Admin from "../../models/AdminModel/AdminModel.js";
 import Faculty from "../../models/FacultyModel/FacultyModel.js";
 import SystemVariable from "../../models/AdminModel/SystemVariableModel.js";
+import Archive from "../../models/AdminModel/ArchiveModel.js"; // NEW IMPORT
 
 // Get comprehensive analytics data with date filtering
 export const getAnalyticsData = async (req, res) => {
@@ -18,6 +19,7 @@ export const getAnalyticsData = async (req, res) => {
     let noticeFilter = {};
     let systemVariableFilter = {};
     let userFilter = {};
+    let archiveFilter = {}; // NEW: Archive filter
 
     // User filter for date range mode
     // If year is provided, filter by year
@@ -29,6 +31,7 @@ export const getAnalyticsData = async (req, res) => {
       fileFilter = { uploaded_at: { $gte: startOfYear, $lte: endOfYear } };
       noticeFilter = { created_at: { $gte: startOfYear, $lte: endOfYear } };
       systemVariableFilter = { created_at: { $gte: startOfYear, $lte: endOfYear } };
+      archiveFilter = { deleted_at: { $gte: startOfYear, $lte: endOfYear } }; // NEW
       // For "By Year" mode, show ALL current users (no date filter)
       userFilter = {};
     }
@@ -42,6 +45,7 @@ export const getAnalyticsData = async (req, res) => {
       fileFilter = { uploaded_at: { $gte: start, $lte: end } };
       noticeFilter = { created_at: { $gte: start, $lte: end } };
       systemVariableFilter = { created_at: { $gte: start, $lte: end } };
+      archiveFilter = { deleted_at: { $gte: start, $lte: end } }; // NEW
       // For "Date Range" mode, filter users by registeredAt (when they registered)
       // This will show only users who registered within the selected date range
       userFilter = {
@@ -217,6 +221,55 @@ export const getAnalyticsData = async (req, res) => {
       // Removed BOTH count
     });
 
+    // NEW: Get Archive statistics
+    const totalArchives = await Archive.countDocuments(archiveFilter);
+    const restoredArchives = await Archive.countDocuments({
+      ...archiveFilter,
+      restored: true,
+    });
+    const activeArchives = totalArchives - restoredArchives;
+
+    // Get archive collection distribution
+    const archiveCollectionDistribution = await Archive.aggregate([
+      { $match: archiveFilter },
+      { $group: { _id: "$collection_name", count: { $sum: 1 } } },
+    ]);
+
+    // Convert archive distribution to object format
+    const archiveCollectionDist = {
+      users: 0,
+      files: 0,
+      admin_notices: 0,
+      system_variables: 0,
+    };
+    archiveCollectionDistribution.forEach((item) => {
+      if (archiveCollectionDist.hasOwnProperty(item._id)) {
+        archiveCollectionDist[item._id] = item.count;
+      }
+    });
+
+    // Calculate recent deletions (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    let recentDeletions = 0;
+    if (archiveFilter.deleted_at) {
+      // If we have a date filter, calculate within that range and last 30 days
+      const recentDeletionsFilter = {
+        ...archiveFilter,
+        deleted_at: { 
+          $gte: thirtyDaysAgo,
+          $lte: archiveFilter.deleted_at.$lte || new Date()
+        }
+      };
+      recentDeletions = await Archive.countDocuments(recentDeletionsFilter);
+    } else {
+      // If no date filter, just check last 30 days
+      recentDeletions = await Archive.countDocuments({
+        deleted_at: { $gte: thirtyDaysAgo }
+      });
+    }
+
     // Calculate system health
     const fileCompletionRate =
       totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
@@ -264,8 +317,16 @@ export const getAnalyticsData = async (req, res) => {
         bsit_count: bsitCount,
         distinct_subjects_count: distinctSubjectsCount, // CHANGED FROM both_count
       },
+      // NEW: Archive Management statistics
+      archive_management: {
+        total_archives: totalArchives,
+        restored_archives: restoredArchives,
+        active_archives: activeArchives,
+        collection_distribution: archiveCollectionDist,
+        recent_deletions_30_days: recentDeletions,
+      },
       summary: {
-        total_records: totalUsers + totalFiles + totalNotices + totalVariables,
+        total_records: totalUsers + totalFiles + totalNotices + totalVariables + totalArchives,
         completion_rate: fileCompletionRate,
         system_health: systemHealth,
       },
@@ -417,6 +478,12 @@ export const getAvailableYears = async (req, res) => {
       { $sort: { _id: -1 } },
     ]);
 
+    // NEW: Get distinct years from Archive
+    const archiveYears = await Archive.aggregate([
+      { $group: { _id: { $year: "$deleted_at" } } },
+      { $sort: { _id: -1 } },
+    ]);
+
     // Combine and deduplicate years
     const allYears = [
       ...new Set([
@@ -425,6 +492,7 @@ export const getAvailableYears = async (req, res) => {
         ...adminYears.map((item) => item._id),
         ...facultyYears.map((item) => item._id),
         ...systemVariableYears.map((item) => item._id),
+        ...archiveYears.map((item) => item._id), // NEW
         new Date().getFullYear(), // Include current year
       ]),
     ]

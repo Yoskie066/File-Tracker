@@ -12,7 +12,7 @@ import {
   Legend, 
   ArcElement 
 } from 'chart.js';
-import { Filter, ArrowUpDown, Calendar } from 'lucide-react';
+import { Filter, ArrowUpDown, Calendar, Archive, RefreshCw, Trash2 } from 'lucide-react';
 
 // Register Chart.js components
 ChartJS.register(
@@ -345,13 +345,13 @@ export default function Analytics() {
     const labels = [
       'BSCS', 
       'BSIT',
-      'Distinct Subjects'  // CHANGED FROM 'BOTH'
+      'Distinct Subjects'
     ];
 
     const data = [
       systemVars.bscs_count || 0,
       systemVars.bsit_count || 0,
-      systemVars.distinct_subjects_count || 0  // CHANGED FROM both_count
+      systemVars.distinct_subjects_count || 0
     ];
 
     const backgroundColors = [
@@ -392,6 +392,59 @@ export default function Analytics() {
       '#4F46E5', // Indigo - 1st Semester
       '#10B981', // Emerald - 2nd Semester
       '#F59E0B'  // Amber - Summer
+    ];
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          data: data,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 2,
+        }
+      ],
+    };
+  };
+
+  // 9. Archive Status Distribution (NEW)
+  const getArchiveStatusData = () => ({
+    labels: ['Active Archives', 'Restored Archives'],
+    datasets: [
+      {
+        data: [
+          analyticsData?.archive_management?.active_archives || 0,
+          analyticsData?.archive_management?.restored_archives || 0
+        ],
+        backgroundColor: ['#8B5CF6', '#10B981'],
+        borderColor: ['#8B5CF6', '#10B981'],
+        borderWidth: 2,
+      },
+    ],
+  });
+
+  // 10. Archive Collection Distribution (NEW)
+  const getArchiveCollectionData = () => {
+    const archiveDist = analyticsData?.archive_management?.collection_distribution || {
+      users: 0,
+      files: 0,
+      admin_notices: 0,
+      system_variables: 0,
+    };
+    
+    const labels = ['Users', 'Files', 'Admin Notices', 'System Variables'];
+    const data = [
+      archiveDist.users || 0,
+      archiveDist.files || 0,
+      archiveDist.admin_notices || 0,
+      archiveDist.system_variables || 0
+    ];
+
+    const backgroundColors = [
+      '#4F46E5', // Indigo - Users
+      '#10B981', // Emerald - Files
+      '#F59E0B', // Amber - Admin Notices
+      '#EF4444', // Red - System Variables
     ];
 
     return {
@@ -802,8 +855,8 @@ export default function Analytics() {
 
         {activeTab === 'overview' && analyticsData && (
           <div className="space-y-8">
-            {/* Module Statistics Cards - UPDATED: System Variables Card changed */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Module Statistics Cards - UPDATED: Added Archive Management Card */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               {/* User Management Card */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">User Management</h3>
@@ -919,6 +972,45 @@ export default function Analytics() {
                   </div>
                 </div>
               </div>
+
+              {/* NEW: Archive Management Card */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Archive </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Archives:</span>
+                    <span className="font-semibold">{analyticsData?.archive_management?.total_archives || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Active:</span>
+                    <span className="font-semibold text-purple-600">{analyticsData?.archive_management?.active_archives || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Restored:</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.archive_management?.restored_archives || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Users:</span>
+                    <span className="font-semibold text-blue-600">{analyticsData?.archive_management?.collection_distribution?.users || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Files:</span>
+                    <span className="font-semibold text-green-600">{analyticsData?.archive_management?.collection_distribution?.files || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Notices:</span>
+                    <span className="font-semibold text-yellow-600">{analyticsData?.archive_management?.collection_distribution?.admin_notices || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Variables:</span>
+                    <span className="font-semibold text-red-600">{analyticsData?.archive_management?.collection_distribution?.system_variables || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 font-medium">Recent (30 days):</span>
+                    <span className="font-semibold text-gray-800">{analyticsData?.archive_management?.recent_deletions_30_days || 0}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Charts Section */}
@@ -979,11 +1071,27 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 8. System Variables Distribution - UPDATED: Removed BOTH, added Distinct Subjects */}
+              {/* 8. System Variables Distribution */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">System Variables</h3>
                 <div className="h-64">
                   <Doughnut data={getSystemVariablesData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* NEW: 9. Archive Status Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Archive Status Distribution</h3>
+                <div className="h-64">
+                  <Doughnut data={getArchiveStatusData()} options={chartOptions} />
+                </div>
+              </div>
+
+              {/* NEW: 10. Archive Collection Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Archive Collection Distribution</h3>
+                <div className="h-64">
+                  <Doughnut data={getArchiveCollectionData()} options={chartOptions} />
                 </div>
               </div>
             </div>

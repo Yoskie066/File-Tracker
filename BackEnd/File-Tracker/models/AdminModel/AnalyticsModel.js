@@ -72,6 +72,19 @@ const analyticsSchema = new mongoose.Schema(
       bsit_count: Number,
       distinct_subjects_count: Number,
     },
+    // Archive Management Stats - NEW SECTION
+    archive_management: {
+      total_archives: Number,
+      restored_archives: Number,
+      active_archives: Number,
+      collection_distribution: {
+        users: Number,
+        files: Number,
+        admin_notices: Number,
+        system_variables: Number,
+      },
+      recent_deletions_30_days: Number,
+    },
   },
   {
     versionKey: false,
