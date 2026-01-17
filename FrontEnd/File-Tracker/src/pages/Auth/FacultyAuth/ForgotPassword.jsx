@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "react-modal";
-import { CheckCircle, XCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 
 Modal.setAppElement("#root");
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 const FacultyForgotPassword = () => {
-  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     facultyNumber: "",
     securityQuestion: "",
     securityAnswer: "",
     newPassword: "",
+    confirmPassword: "",
   });
 
   const [securityQuestions, setSecurityQuestions] = useState([]);
@@ -23,6 +23,8 @@ const FacultyForgotPassword = () => {
   const [modalMessage, setModalMessage] = useState("");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showSecurityFields, setShowSecurityFields] = useState(false);
 
   const navigate = useNavigate();
 
@@ -43,7 +45,7 @@ const FacultyForgotPassword = () => {
     }
   };
 
-  const validateStep1 = () => {
+  const validateForm = () => {
     const newErrors = {};
     
     // Validate faculty number format - minimum 2 digits, numbers only
@@ -52,21 +54,19 @@ const FacultyForgotPassword = () => {
       newErrors.facultyNumber = "Faculty number must contain only numbers (minimum 2 digits)";
     }
     
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateStep2 = () => {
-    const newErrors = {};
-    
-    // Validate security answer
-    if (!formData.securityAnswer.trim()) {
+    // Validate security answer if security question is fetched
+    if (showSecurityFields && !formData.securityAnswer.trim()) {
       newErrors.securityAnswer = "Security answer is required";
     }
     
-    // Validate new password
-    if (formData.newPassword.length < 4) {
+    // Validate new password if security question is fetched
+    if (showSecurityFields && formData.newPassword.length < 4) {
       newErrors.newPassword = "Password must be at least 4 characters long";
+    }
+    
+    // Validate confirm password if security question is fetched
+    if (showSecurityFields && formData.newPassword !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
     }
     
     setErrors(newErrors);
@@ -96,49 +96,64 @@ const FacultyForgotPassword = () => {
     }
   };
 
-  const handleStep1Submit = async (e) => {
+  // Automatically verify faculty number when it's 2 or more digits
+  useEffect(() => {
+    const verifyFacultyNumber = async () => {
+      if (formData.facultyNumber.length >= 2) {
+        setIsVerifying(true);
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/faculty/security-question?facultyNumber=${formData.facultyNumber}`
+          );
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setFetchedQuestion(data.securityQuestion);
+            setFormData(prev => ({ ...prev, securityQuestion: data.securityQuestion }));
+            setShowSecurityFields(true);
+            setErrors(prev => ({ ...prev, facultyNumber: "" }));
+          } else {
+            setFetchedQuestion("");
+            setShowSecurityFields(false);
+            setErrors(prev => ({ ...prev, facultyNumber: "Invalid faculty number" }));
+          }
+        } catch (err) {
+          setFetchedQuestion("");
+          setShowSecurityFields(false);
+          setErrors(prev => ({ ...prev, facultyNumber: "Error verifying faculty number" }));
+        } finally {
+          setIsVerifying(false);
+        }
+      } else if (formData.facultyNumber.length > 0) {
+        setErrors(prev => ({ ...prev, facultyNumber: "Faculty number must be at least 2 digits" }));
+        setShowSecurityFields(false);
+      } else {
+        setErrors(prev => ({ ...prev, facultyNumber: "" }));
+        setShowSecurityFields(false);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      verifyFacultyNumber();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [formData.facultyNumber]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateStep1()) {
+    if (!validateForm()) {
       setModalType("error");
       setModalMessage("Please fix the errors in the form");
       setModalOpen(true);
       return;
     }
 
-    setLoading(true);
-
-    try {
-      // Fetch security question for this user
-      const response = await fetch(
-        `${API_BASE_URL}/api/faculty/security-question?facultyNumber=${formData.facultyNumber}`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "User not found");
-      }
-
-      setFetchedQuestion(data.securityQuestion);
-      setFormData(prev => ({ ...prev, securityQuestion: data.securityQuestion }));
-      setStep(2);
-      
-    } catch (err) {
+    if (!showSecurityFields) {
       setModalType("error");
-      setModalMessage(err.message);
-      setModalOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStep2Submit = async (e) => {
-    e.preventDefault();
-
-    if (!validateStep2()) {
-      setModalType("error");
-      setModalMessage("Please fix the errors in the form");
+      setModalMessage("Please enter a valid faculty number first");
       setModalOpen(true);
       return;
     }
@@ -182,11 +197,6 @@ const FacultyForgotPassword = () => {
     }
   };
 
-  const handleBack = () => {
-    setStep(1);
-    setErrors({});
-  };
-
   const handleLogin = () => {
     navigate('/auth/login');
   };
@@ -198,134 +208,141 @@ const FacultyForgotPassword = () => {
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Reset Faculty Password</h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              {step === 1 ? "Enter your faculty number to verify identity" : "Answer your security question"}
+              Enter your faculty number to verify identity
             </p>
           </div>
           
-          {step === 1 ? (
-            <form onSubmit={handleStep1Submit}>
-              {/* Faculty Number */}
-              <div className="mb-4 sm:mb-6">
-                <label htmlFor="facultyNumber" className="block text-gray-700 text-sm font-medium mb-2">
-                  Faculty Number:
-                </label>
-                <input
-                  type="text"
-                  id="facultyNumber"
-                  name="facultyNumber"
-                  value={formData.facultyNumber}
-                  onChange={handleChange}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                    errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your faculty number"
-                  title="Faculty number must contain only numbers (minimum 2 digits)"
-                  required
-                />
-                {errors.facultyNumber && (
-                  <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Must be at least 2 digits (numbers only)
-                </p>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
+          <form onSubmit={handleSubmit}>
+            {/* Faculty Number */}
+            <div className="mb-4 sm:mb-6">
+              <label htmlFor="facultyNumber" className="block text-gray-700 text-sm font-medium mb-2">
+                Faculty Number:
+              </label>
+              <input
+                type="text"
+                id="facultyNumber"
+                name="facultyNumber"
+                value={formData.facultyNumber}
+                onChange={handleChange}
+                className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                  errors.facultyNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
-              >
-                {loading ? "Verifying..." : "Continue"}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleStep2Submit}>
-              <div className="mb-4 sm:mb-6">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="flex items-center text-black hover:text-yellow-600 transition-colors text-sm font-medium mb-4"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
-                </button>
-              </div>
+                placeholder="Enter your faculty number"
+                title="Faculty number must contain only numbers (minimum 2 digits)"
+                required
+              />
+              {isVerifying && (
+                <p className="text-blue-500 text-xs mt-1">Verifying faculty number...</p>
+              )}
+              {errors.facultyNumber && !isVerifying && (
+                <p className="text-red-500 text-xs mt-1">{errors.facultyNumber}</p>
+              )}
+              {!errors.facultyNumber && formData.facultyNumber.length >= 2 && !isVerifying && showSecurityFields && (
+                <p className="text-green-500 text-xs mt-1">✓ Faculty number verified</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Must be at least 2 digits (numbers only)
+              </p>
+            </div>
 
-              {/* Security Question Display */}
-              <div className="mb-4 sm:mb-6">
-                <label className="block text-gray-700 text-sm font-medium mb-2">
-                  Security Question:
-                </label>
-                <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 bg-gray-50 rounded-lg text-sm sm:text-base">
-                  {fetchedQuestion}
+            {/* Security Question Display - Only show when verified */}
+            {showSecurityFields && fetchedQuestion && (
+              <>
+                <div className="mb-4 sm:mb-6">
+                  <label className="block text-gray-700 text-sm font-medium mb-2">
+                    Security Question:
+                  </label>
+                  <div className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 bg-gray-50 rounded-lg text-sm sm:text-base">
+                    {fetchedQuestion}
+                  </div>
+                  <input
+                    type="hidden"
+                    name="securityQuestion"
+                    value={formData.securityQuestion}
+                  />
                 </div>
-                <input
-                  type="hidden"
-                  name="securityQuestion"
-                  value={formData.securityQuestion}
-                />
-              </div>
 
-              {/* Security Answer */}
-              <div className="mb-4 sm:mb-6">
-                <label htmlFor="securityAnswer" className="block text-gray-700 text-sm font-medium mb-2">
-                  Security Answer:
-                </label>
-                <input
-                  type="text"
-                  id="securityAnswer"
-                  name="securityAnswer"
-                  value={formData.securityAnswer}
-                  onChange={handleChange}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                    errors.securityAnswer ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your security answer"
-                  required
-                />
-                {errors.securityAnswer && (
-                  <p className="text-red-500 text-xs mt-1">{errors.securityAnswer}</p>
-                )}
-              </div>
-              
-              {/* New Password */}
-              <div className="mb-4 sm:mb-6">
-                <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
-                  New Password:
-                </label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  name="newPassword"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
-                    errors.newPassword ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your new password"
-                  required
-                />
-                {errors.newPassword && (
-                  <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Password must be at least 4 characters long
-                </p>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {loading ? "Resetting..." : "Reset Password"}
-              </button>
-            </form>
-          )}
+                {/* Security Answer */}
+                <div className="mb-4 sm:mb-6">
+                  <label htmlFor="securityAnswer" className="block text-gray-700 text-sm font-medium mb-2">
+                    Security Answer:
+                  </label>
+                  <input
+                    type="text"
+                    id="securityAnswer"
+                    name="securityAnswer"
+                    value={formData.securityAnswer}
+                    onChange={handleChange}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                      errors.securityAnswer ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter your security answer"
+                    required
+                  />
+                  {errors.securityAnswer && (
+                    <p className="text-red-500 text-xs mt-1">{errors.securityAnswer}</p>
+                  )}
+                </div>
+                
+                {/* New Password */}
+                <div className="mb-4 sm:mb-6">
+                  <label htmlFor="newPassword" className="block text-gray-700 text-sm font-medium mb-2">
+                    New Password:
+                  </label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    name="newPassword"
+                    value={formData.newPassword}
+                    onChange={handleChange}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                      errors.newPassword ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter your new password"
+                    required
+                  />
+                  {errors.newPassword && (
+                    <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Password must be at least 4 characters long
+                  </p>
+                </div>
+
+                {/* Confirm Password */}
+                <div className="mb-6 sm:mb-8">
+                  <label htmlFor="confirmPassword" className="block text-gray-700 text-sm font-medium mb-2">
+                    Confirm New Password:
+                  </label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base ${
+                      errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Confirm your new password"
+                    required
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              </>
+            )}
+            
+            <button
+              type="submit"
+              disabled={loading || !showSecurityFields || isVerifying}
+              className={`w-full bg-black hover:bg-yellow-500 text-white hover:text-black font-medium py-2.5 sm:py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none text-sm sm:text-base ${
+                loading || !showSecurityFields || isVerifying ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {loading ? "Resetting Password..." : "Reset Password"}
+            </button>
+          </form>
           
           {/* Login Section */}
           <div className="mt-4 sm:mt-6 text-center">

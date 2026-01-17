@@ -71,7 +71,7 @@ Manages user accounts and controls access levels within the system.
 
 Provides full visibility and control over all files uploaded by faculty members.
 
-### 4. Archive
+### 4. History of Records
 
 Automatically collects and stores completed files synchronized from the File Management module, maintaining consistent statuses with the original records.
 
@@ -83,9 +83,15 @@ Creates, updates, and issues official announcements and reminders for pending ac
 
 Manages global configurations and system-wide variables used throughout the application.
 
-### 7. Admin Notifications
+### 7. Archive
+
+Serves as a centralized backup and restore repository for records deleted from various system modules, enabling the IT Secretary to retrieve and restore them when necessary.
+
+### 8. Admin Notifications
 
 Receives and monitors notifications generated from faculty file uploads.
+
+
 
 ---
 
