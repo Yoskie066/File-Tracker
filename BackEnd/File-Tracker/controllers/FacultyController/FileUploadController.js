@@ -450,7 +450,19 @@ export const deleteFile = async (req, res) => {
     if (!file)
       return res.status(404).json({ success: false, message: "File not found" });
 
-    // Archive before deleting
+    // Archive before deleting - FIXED: Clean file path
+    let filePathForArchive = file.file_path;
+    
+    // Remove leading slash if present
+    if (filePathForArchive.startsWith('/')) {
+      filePathForArchive = filePathForArchive.substring(1);
+    }
+    
+    // Ensure it starts with 'uploads/'
+    if (!filePathForArchive.startsWith('uploads/')) {
+      filePathForArchive = `uploads/${filePathForArchive.split('/').pop()}`;
+    }
+
     const archiveData = {
       file_id: file.file_id,
       faculty_id: file.faculty_id,
@@ -464,19 +476,31 @@ export const deleteFile = async (req, res) => {
       course: file.course,
       semester: file.semester,
       school_year: file.school_year,
-      file_path: file.file_path,
+      file_path: filePathForArchive, // Use cleaned file path
       original_name: file.original_name,
       file_size: file.file_size,
       uploaded_at: file.uploaded_at,
       due_date: file.due_date
     };
 
-    await archiveItem('files', file.file_id, archiveData, deletedBy);
+    await archiveItem('files', file.file_id, archiveData);
 
     // Delete file from local storage if it exists
     if (file.file_path) {
       try {
-        const fullPath = path.join('.', file.file_path);
+        let filePathToDelete = file.file_path;
+        
+        // Remove leading slash if present
+        if (filePathToDelete.startsWith('/')) {
+          filePathToDelete = filePathToDelete.substring(1);
+        }
+        
+        // Ensure it starts with 'uploads/'
+        if (!filePathToDelete.startsWith('uploads/')) {
+          filePathToDelete = `uploads/${filePathToDelete.split('/').pop()}`;
+        }
+        
+        const fullPath = path.join(process.cwd(), filePathToDelete);
         if (fs.existsSync(fullPath)) {
           fs.unlinkSync(fullPath);
           console.log(`Deleted file from local storage: ${fullPath}`);

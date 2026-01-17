@@ -98,26 +98,49 @@ export default function Archive() {
     setFeedbackModalOpen(true);
   };
 
-  // Handle retrieve archive item
+  // Handle retrieve archive item - FIXED
   const handleRetrieve = async (archiveId) => {
     setRetrieveLoading(true);
     try {
+      console.log(`🔄 Retrieving archive item: ${archiveId}`);
+      
       const response = await fetch(`${API_BASE_URL}/api/admin/archive/${archiveId}/restore`, {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        }
       });
 
       const result = await response.json();
 
       if (result.success) {
-        // Remove from local state
-        setArchives(archives.filter(archive => archive.archive_id !== archiveId));
-        showFeedback("success", "Item retrieved successfully!");
+        console.log("✅ Item retrieved successfully:", result);
+        
+        // Update the archive list by marking this item as restored
+        setArchives(prevArchives => 
+          prevArchives.map(archive => 
+            archive.archive_id === archiveId 
+              ? { ...archive, restored: true }
+              : archive
+          )
+        );
+        
+        showFeedback("success", result.message || "Item retrieved successfully!");
+        
+        // Remove from local state after a delay
+        setTimeout(() => {
+          setArchives(prevArchives => 
+            prevArchives.filter(archive => archive.archive_id !== archiveId)
+          );
+        }, 500);
+        
       } else {
+        console.error("❌ Error retrieving item:", result);
         showFeedback("error", result.message || "Error retrieving item");
       }
     } catch (error) {
-      console.error("Error retrieving item:", error);
-      showFeedback("error", "Error retrieving item");
+      console.error("❌ Network error retrieving item:", error);
+      showFeedback("error", "Network error. Please check your connection and try again.");
     } finally {
       setRetrieveLoading(false);
       setRetrieveModalOpen(false);
@@ -868,7 +891,7 @@ export default function Archive() {
         {/* Retrieve Confirmation Modal */}
         <Modal
           isOpen={retrieveModalOpen}
-          onRequestClose={() => setRetrieveModalOpen(false)}
+          onRequestClose={() => !retrieveLoading && setRetrieveModalOpen(false)}
           className="bg-white p-6 rounded-xl max-w-sm mx-auto shadow-lg"
           overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
         >
@@ -880,7 +903,7 @@ export default function Archive() {
             </p>
             <div className="flex gap-3 w-full">
               <button
-                onClick={() => setRetrieveModalOpen(false)}
+                onClick={() => !retrieveLoading && setRetrieveModalOpen(false)}
                 disabled={retrieveLoading}
                 className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
@@ -889,13 +912,13 @@ export default function Archive() {
               <button
                 onClick={() => handleRetrieve(archiveToRetrieve)}
                 disabled={retrieveLoading}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {retrieveLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     Retrieving...
-                  </div>
+                  </>
                 ) : (
                   "Retrieve"
                 )}
@@ -913,7 +936,7 @@ export default function Archive() {
         >
           <div className="flex flex-col items-center text-center">
             <XCircle className="text-red-500 w-12 h-12 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Permanent Delete</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to permanently delete this archive item? This action cannot be undone.
             </p>
@@ -928,7 +951,7 @@ export default function Archive() {
                 onClick={() => handleDelete(archiveToDelete)}
                 className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
-                Delete Permanently
+                Delete
               </button>
             </div>
           </div>

@@ -328,15 +328,32 @@ export const restoreItem = async (req, res) => {
           });
         }
         
-        // Check if physical file exists
+        // Check if physical file exists - FIXED PATH HANDLING
         if (data.file_path) {
-          const filePath = path.join(process.cwd(), data.file_path);
-          if (!fs.existsSync(filePath)) {
-            return res.status(404).json({
-              success: false,
-              message: "Physical file not found in storage, cannot restore"
-            });
+          let filePath = data.file_path;
+          
+          // Remove leading slash if present
+          if (filePath.startsWith('/')) {
+            filePath = filePath.substring(1);
           }
+          
+          // Ensure it starts with 'uploads/'
+          if (!filePath.startsWith('uploads/')) {
+            filePath = `uploads/${filePath.split('/').pop()}`;
+          }
+          
+          const fullPath = path.join(process.cwd(), filePath);
+          console.log(`🔍 Checking physical file at: ${fullPath}`);
+          
+          if (!fs.existsSync(fullPath)) {
+            console.warn(`⚠️ Physical file not found at: ${fullPath}`);
+            // Continue restoration even if file not found, but log warning
+            console.log("⚠️ File not found in storage, but continuing with database restoration...");
+          } else {
+            console.log(`✅ Physical file found: ${fullPath}`);
+          }
+        } else {
+          console.warn("⚠️ No file_path in archived data");
         }
         
         // Create new file record from archived data
@@ -418,8 +435,22 @@ export const restoreItem = async (req, res) => {
 
     // Save the restored document
     if (restoredDocument) {
-      await restoredDocument.save();
-      console.log(`✅ Successfully restored ${collection_name}: ${original_id}`);
+      try {
+        await restoredDocument.save();
+        console.log(`✅ Successfully restored ${collection_name}: ${original_id}`);
+      } catch (saveError) {
+        console.error(`❌ Error saving restored ${collection_name}:`, saveError);
+        
+        // If it's a duplicate key error, handle gracefully
+        if (saveError.code === 11000) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot restore ${collection_name}: Item with ID ${original_id} already exists in the system`
+          });
+        }
+        
+        throw saveError;
+      }
     }
 
     // Mark archive record as restored
@@ -479,10 +510,17 @@ export const permanentlyDeleteItem = async (req, res) => {
     // If it's a file, delete the physical file from storage
     if (collection_name === 'files' && data.file_path) {
       try {
+        let filePath = data.file_path;
+        
         // Remove leading slash if present
-        const filePath = data.file_path.startsWith('/') 
-          ? data.file_path.substring(1) 
-          : data.file_path;
+        if (filePath.startsWith('/')) {
+          filePath = filePath.substring(1);
+        }
+        
+        // Ensure it starts with 'uploads/'
+        if (!filePath.startsWith('uploads/')) {
+          filePath = `uploads/${filePath.split('/').pop()}`;
+        }
         
         const fullPath = path.join(process.cwd(), filePath);
         
@@ -643,9 +681,17 @@ export const bulkPermanentDelete = async (req, res) => {
         // Delete physical file if it's a file
         if (collection_name === 'files' && data.file_path) {
           try {
-            const filePath = data.file_path.startsWith('/') 
-              ? data.file_path.substring(1) 
-              : data.file_path;
+            let filePath = data.file_path;
+            
+            // Remove leading slash if present
+            if (filePath.startsWith('/')) {
+              filePath = filePath.substring(1);
+            }
+            
+            // Ensure it starts with 'uploads/'
+            if (!filePath.startsWith('uploads/')) {
+              filePath = `uploads/${filePath.split('/').pop()}`;
+            }
             
             const fullPath = path.join(process.cwd(), filePath);
             if (fs.existsSync(fullPath)) {
