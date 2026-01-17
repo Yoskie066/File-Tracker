@@ -13,6 +13,17 @@ const generateNotificationId = () => {
   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 };
 
+// Helper function to format faculty name
+const formatFacultyName = (faculty) => {
+  if (!faculty.firstName || !faculty.lastName) return "Unknown";
+  
+  if (faculty.middleInitial && faculty.middleInitial.trim() !== '') {
+    return `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`;
+  } else {
+    return `${faculty.firstName} ${faculty.lastName}`;
+  }
+};
+
 // Create admin notice
 export const createAdminNotice = async (req, res) => {
   try {
@@ -75,7 +86,7 @@ export const createAdminNotice = async (req, res) => {
         
         // Create notifications for each faculty member
         const notificationPromises = allFaculty.map(faculty => {
-          const fullName = `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`;
+          const fullName = formatFacultyName(faculty);
           const notification = new Notification({
             notification_id: generateNotificationId(),
             recipient_id: faculty.facultyId,
@@ -104,7 +115,7 @@ export const createAdminNotice = async (req, res) => {
         const faculty = await Faculty.findOne({ facultyId: faculty_id });
         
         if (faculty) {
-          const fullName = `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`;
+          const fullName = formatFacultyName(faculty);
           console.log("Found faculty with full name:", fullName);
           
           // Create notification linked to that faculty
@@ -128,12 +139,12 @@ export const createAdminNotice = async (req, res) => {
         } else {
           console.warn("Faculty not found for notification:", faculty_id);
           
-          // Fallback notification
+          // Fallback notification - use the provided prof_name (already formatted)
           const fallbackNotification = new Notification({
             notification_id: generateNotificationId(),
             recipient_id: faculty_id || "unknown",
             recipient_type: "Faculty",
-            recipient_name: prof_name,
+            recipient_name: prof_name, // Already formatted from frontend
             title: "New Admin Notice",
             message: notificationMessage,
             document_type: document_type,
@@ -213,15 +224,15 @@ export const getAdminNoticeById = async (req, res) => {
   }
 };
 
-// Get all faculty for dropdown - UPDATED to return full name
+// Get all faculty for dropdown - UPDATED to format names properly
 export const getAllFaculty = async (req, res) => {
   try {
     const faculty = await Faculty.find({}, 'facultyId firstName middleInitial lastName')
       .sort({ firstName: 1 });
     
-    // Format faculty with full name
+    // Format faculty with conditional middle initial dot
     const formattedFaculty = faculty.map(f => {
-      const fullName = `${f.firstName} ${f.middleInitial}. ${f.lastName}`;
+      const fullName = formatFacultyName(f);
       return {
         facultyId: f.facultyId,
         facultyName: fullName,  // This will be used in dropdown
@@ -275,17 +286,63 @@ export const updateAdminNotice = async (req, res) => {
       notificationMessage = `You have an updated admin notice for ${document_type} (${tos_type})`;
     }
 
-    // Update notifications
-    await Notification.updateMany(
-      { related_notice_id: id },
-      {
-        message: notificationMessage,
-        document_type,
-        tos_type: document_type === "TOS" ? tos_type : "N/A",
-        due_date,
-        notes: notes || "", 
+    // Delete old notifications
+    await Notification.deleteMany({ related_notice_id: id });
+
+    // Create new notifications based on updated professor selection
+    if (prof_name === "ALL") {
+      // Send notification to ALL faculty members
+      const allFaculty = await Faculty.find({});
+      
+      // Create notifications for each faculty member
+      const notificationPromises = allFaculty.map(faculty => {
+        const fullName = formatFacultyName(faculty);
+        const notification = new Notification({
+          notification_id: generateNotificationId(),
+          recipient_id: faculty.facultyId,
+          recipient_type: "Faculty",
+          recipient_name: fullName,
+          title: "Updated Admin Notice",
+          message: notificationMessage,
+          document_type: document_type,
+          tos_type: document_type === "TOS" ? tos_type : "N/A",
+          due_date: due_date,
+          related_notice_id: updated.notice_id,
+          notes: notes || "", 
+          is_read: false,
+        });
+        return notification.save();
+      });
+      
+      await Promise.all(notificationPromises);
+    } else {
+      // Send notification to specific faculty member only
+      const faculty = await Faculty.findOne({ facultyId: faculty_id });
+      let fullName;
+      
+      if (faculty) {
+        fullName = formatFacultyName(faculty);
+      } else {
+        fullName = prof_name; // Use the provided prof_name (already formatted)
       }
-    );
+      
+      const notification = new Notification({
+        notification_id: generateNotificationId(),
+        recipient_id: faculty_id,
+        recipient_type: "Faculty",
+        recipient_name: fullName,
+        title: "Updated Admin Notice",
+        message: notificationMessage,
+        document_type: document_type,
+        tos_type: document_type === "TOS" ? tos_type : "N/A",
+        due_date: due_date,
+        related_notice_id: updated.notice_id,
+        notes: notes || "", 
+        is_read: false,
+      });
+      
+      await notification.save();
+    }
     
     res.status(200).json({ success: true, message: "Admin notice updated successfully", data: updated });
   } catch (error) {

@@ -57,7 +57,7 @@ export default function AdminNoticeManagement() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   
-  // Calendar states - UPDATED
+  // Calendar states
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -79,6 +79,17 @@ export default function AdminNoticeManagement() {
     "FINAL TOS"
   ];
 
+  // Format faculty name based on middle initial presence
+  const formatFacultyName = (faculty) => {
+    if (!faculty.firstName || !faculty.lastName) return "Unknown";
+    
+    if (faculty.middleInitial && faculty.middleInitial.trim() !== '') {
+      return `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`;
+    } else {
+      return `${faculty.firstName} ${faculty.lastName}`;
+    }
+  };
+
   // Fetch admin notices from backend 
   const fetchAdminNotices = async () => {
     try {
@@ -99,7 +110,7 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Fetch faculty list from backend - UPDATED to get full names
+  // Fetch faculty list from backend - UPDATED to format names properly
   const fetchFacultyList = async () => {
     try {
       setLoadingFaculty(true);
@@ -108,7 +119,16 @@ export default function AdminNoticeManagement() {
       const result = await res.json();
       
       if (result.success && Array.isArray(result.data)) {
-        setFacultyList(result.data);
+        // Format faculty names with conditional middle initial dot
+        const formattedFaculty = result.data.map(faculty => {
+          const formattedName = formatFacultyName(faculty);
+          return {
+            ...faculty,
+            formattedName: formattedName // Store formatted name separately
+          };
+        });
+        
+        setFacultyList(formattedFaculty);
       } else {
         console.error("Unexpected API response format for faculty:", result);
         setFacultyList([]);
@@ -198,7 +218,7 @@ export default function AdminNoticeManagement() {
     setCurrentPage(1);
   };
 
-  // Handle form input changes - UPDATED for full name handling
+  // Handle form input changes - UPDATED for formatted name handling
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
@@ -210,7 +230,7 @@ export default function AdminNoticeManagement() {
           faculty_id: ""
         }));
       } else {
-        const selectedFaculty = facultyList.find(f => f.facultyName === value);
+        const selectedFaculty = facultyList.find(f => f.formattedName === value);
         setFormData(prev => ({
           ...prev,
           prof_name: value,
@@ -231,7 +251,7 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Handle date change via calendar - UPDATED with past date lock
+  // Handle date change via calendar
   const handleDateChange = (date) => {
     // Get today's date at start of day (midnight)
     const today = new Date();
@@ -358,7 +378,7 @@ export default function AdminNoticeManagement() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Handle form submission - UPDATED for full name handling
+  // Handle form submission - UPDATED for formatted name handling
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -490,7 +510,7 @@ export default function AdminNoticeManagement() {
     }
   };
 
-  // Custom Calendar Component - UPDATED WITH PAST DATE LOCKING
+  // Custom Calendar Component
   const CustomCalendar = ({ 
     selectedDate, 
     onDateChange, 
@@ -1163,8 +1183,8 @@ export default function AdminNoticeManagement() {
                     <option>Loading faculty...</option>
                   ) : (
                     facultyList.map((faculty) => (
-                      <option key={faculty.facultyId} value={faculty.facultyName}>
-                        {faculty.facultyName} (ID: {faculty.facultyId})
+                      <option key={faculty.facultyId} value={faculty.formattedName}>
+                        {faculty.formattedName} (ID: {faculty.facultyId})
                       </option>
                     ))
                   )}

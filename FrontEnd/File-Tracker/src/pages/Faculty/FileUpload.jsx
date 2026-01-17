@@ -16,7 +16,6 @@ export default function FileUpload() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [fileToPreview, setFileToPreview] = useState(null);
   const [selectedFacultyLoad, setSelectedFacultyLoad] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [formData, setFormData] = useState({
     file_name: "",
@@ -257,7 +256,6 @@ export default function FileUpload() {
     });
     setSelectedFiles([]);
     setSelectedFacultyLoad(null);
-    setUploadProgress(0);
     
     const fileInput = document.getElementById('file-upload');
     if (fileInput) {
@@ -334,7 +332,6 @@ export default function FileUpload() {
     }
 
     setLoading(true);
-    setUploadProgress(10);
 
     try {
       console.log("Preparing to upload files with token...");
@@ -365,8 +362,6 @@ export default function FileUpload() {
       console.log("- TOS Type:", formData.tos_type || 'N/A');
       console.log("- Total size:", (totalSize / (1024 * 1024)).toFixed(2), "MB");
 
-      setUploadProgress(30);
-
       const response = await fetch(`${API_BASE_URL}/api/faculty/file-upload`, {
         method: "POST",
         headers: {
@@ -375,8 +370,6 @@ export default function FileUpload() {
         },
         body: formDataToSend,
       });
-
-      setUploadProgress(70);
 
       const result = await response.json();
       console.log("Upload response:", result);
@@ -389,7 +382,6 @@ export default function FileUpload() {
       }
 
       if (result.success) {
-        setUploadProgress(100);
         resetForm();
         setTimeout(() => {
           setShowModal(false);
@@ -414,7 +406,6 @@ export default function FileUpload() {
       }
     } finally {
       setLoading(false);
-      setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
@@ -752,22 +743,6 @@ export default function FileUpload() {
                   </div>
                 )}
               </div>
-
-              {/* Progress Bar */}
-              {loading && uploadProgress > 0 && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">Uploading...</span>
-                    <span className="font-medium">{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
 
               {/* Auto-sync notice */}
               {selectedFacultyLoad && (
