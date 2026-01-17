@@ -44,7 +44,7 @@ export default function Archive() {
   const collectionOptions = [
     { value: 'users', label: 'User Management' },
     { value: 'files', label: 'File Management' },
-    { value: 'admin_notices', label: 'Admin Notice Management' },
+    { value: 'admin_notices', label: 'Admin Notice' },
     { value: 'system_variables', label: 'System Variables' }
   ];
 
@@ -54,9 +54,8 @@ export default function Archive() {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Year options (last 5 years)
-  const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  // Year options - Will be populated from archive data
+  const [yearOptions, setYearOptions] = useState([]);
 
   // Fetch archives from backend
   const fetchArchives = async () => {
@@ -68,16 +67,42 @@ export default function Archive() {
       
       if (result.success && Array.isArray(result.data)) {
         setArchives(result.data);
+        
+        // Extract unique years from archive data
+        const years = extractUniqueYears(result.data);
+        setYearOptions(years);
       } else {
         console.error("Unexpected API response format:", result);
         setArchives([]);
+        setYearOptions([]);
       }
     } catch (err) {
       console.error("Error fetching archives:", err);
       setArchives([]);
+      setYearOptions([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Extract unique years from archive data
+  const extractUniqueYears = (archiveData) => {
+    if (!Array.isArray(archiveData) || archiveData.length === 0) {
+      return [];
+    }
+    
+    const years = new Set();
+    
+    archiveData.forEach(archive => {
+      if (archive.deleted_at) {
+        const deletedDate = new Date(archive.deleted_at);
+        const year = deletedDate.getFullYear();
+        years.add(year);
+      }
+    });
+    
+    // Convert to array and sort in descending order (newest first)
+    return Array.from(years).sort((a, b) => b - a);
   };
 
   useEffect(() => {
@@ -132,6 +157,10 @@ export default function Archive() {
           setArchives(prevArchives => 
             prevArchives.filter(archive => archive.archive_id !== archiveId)
           );
+          
+          // Update year options after removing item
+          const updatedYears = extractUniqueYears(prevArchives.filter(archive => archive.archive_id !== archiveId));
+          setYearOptions(updatedYears);
         }, 500);
         
       } else {
@@ -160,7 +189,13 @@ export default function Archive() {
 
       if (result.success) {
         // Remove from local state
-        setArchives(archives.filter(archive => archive.archive_id !== archiveId));
+        const updatedArchives = archives.filter(archive => archive.archive_id !== archiveId);
+        setArchives(updatedArchives);
+        
+        // Update year options after deletion
+        const updatedYears = extractUniqueYears(updatedArchives);
+        setYearOptions(updatedYears);
+        
         showFeedback("success", "Archive item permanently deleted!");
       } else {
         showFeedback("error", result.message || "Error deleting archive item");
@@ -865,26 +900,6 @@ export default function Archive() {
             {selectedArchive ? renderArchiveDetails() : (
               <div className="text-center py-8 text-gray-500">No details available</div>
             )}
-            
-            <div className="flex justify-end pt-4 gap-3">
-              <button
-                onClick={() => setDetailModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Close
-              </button>
-              {selectedArchive && (
-                <button
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    confirmRetrieve(selectedArchive.archive_id);
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                >
-                  Retrieve Item
-                </button>
-              )}
-            </div>
           </div>
         </Modal>
 
@@ -912,7 +927,7 @@ export default function Archive() {
               <button
                 onClick={() => handleRetrieve(archiveToRetrieve)}
                 disabled={retrieveLoading}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
               >
                 {retrieveLoading ? (
                   <>
@@ -949,7 +964,7 @@ export default function Archive() {
               </button>
               <button
                 onClick={() => handleDelete(archiveToDelete)}
-                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors"
               >
                 Delete
               </button>
