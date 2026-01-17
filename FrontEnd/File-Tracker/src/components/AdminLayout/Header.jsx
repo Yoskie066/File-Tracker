@@ -8,8 +8,10 @@ export default function Header({ onMenuClick }) {
   const middleInitial = storedAdmin?.middleInitial || "";
   const lastName = storedAdmin?.lastName || "";
 
-  // Format: "First Name Middle Initial. Last Name"
-  const fullName = `${firstName} ${middleInitial}. ${lastName}`;
+  // Format: "First Name Last Name" or "First Name Middle Initial. Last Name" if middle initial exists
+  const fullName = middleInitial && middleInitial.trim() !== ''
+    ? `${firstName} ${middleInitial}. ${lastName}`
+    : `${firstName} ${lastName}`;
 
   return (
     <header className="sticky top-0 bg-black text-white px-4 sm:px-6 py-3 flex justify-between items-center shadow-md z-50">

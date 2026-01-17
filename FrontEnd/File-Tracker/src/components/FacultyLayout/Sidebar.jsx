@@ -22,13 +22,15 @@ export default function Sidebar({ isOpen, onClose }) {
   const firstName = storedFaculty?.firstName || "";
   const middleInitial = storedFaculty?.middleInitial || "";
   const lastName = storedFaculty?.lastName || "";
-  const fullName = `${firstName} ${middleInitial}. ${lastName}`;
+  const fullName = middleInitial && middleInitial.trim() !== ''
+    ? `${firstName} ${middleInitial}. ${lastName}`
+    : `${firstName} ${lastName}`;
   const userInitial = firstName?.charAt(0).toUpperCase() || "F";
 
   // Define currentUser for the notification hook
-  const currentUser = storedFaculty; // This is what was missing
+  const currentUser = storedFaculty;
 
-  // Custom hook for unread notifications - NOW WITH PROPER currentUser
+  // Custom hook for unread notifications
   const { unreadCount } = useNotification(currentUser);
 
   const handleLogout = async () => {

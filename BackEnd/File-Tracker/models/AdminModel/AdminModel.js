@@ -33,14 +33,16 @@ const adminSchema = new mongoose.Schema(
     },
     middleInitial: {
       type: String,
-      required: true,
+      required: false, // Changed to false
       trim: true,
+      default: '', // Default to empty string
       maxlength: 1,
       validate: {
         validator: function(v) {
-          return /^[A-Z]$/.test(v);
+          // Allow empty string or single uppercase letter
+          return v === '' || /^[A-Z]$/.test(v);
         },
-        message: "Middle initial must be a single uppercase letter (A-Z)"
+        message: "Middle initial must be empty or a single uppercase letter (A-Z)"
       }
     },
     adminNumber: {
@@ -108,7 +110,11 @@ const adminSchema = new mongoose.Schema(
 
 // Add a virtual field for full name
 adminSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.middleInitial}. ${this.lastName}`;
+  if (this.middleInitial && this.middleInitial.trim() !== '') {
+    return `${this.firstName} ${this.middleInitial}. ${this.lastName}`;
+  } else {
+    return `${this.firstName} ${this.lastName}`;
+  }
 });
 
 export default mongoose.models.Admin || mongoose.model("Admin", adminSchema);

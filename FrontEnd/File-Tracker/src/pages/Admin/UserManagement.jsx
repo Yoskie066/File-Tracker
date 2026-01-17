@@ -46,8 +46,14 @@ export default function UserManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Middle initials A-Z
-  const middleInitials = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
+  // Middle initials A-Z with empty option
+  const middleInitials = [
+    { value: "", label: "No middle initial" },
+    ...Array.from({length: 26}, (_, i) => ({ 
+      value: String.fromCharCode(65 + i), 
+      label: String.fromCharCode(65 + i) 
+    }))
+  ];
 
   // Security questions
   const securityQuestions = [
@@ -135,8 +141,12 @@ export default function UserManagement() {
       errors.lastName = "Last name must contain only letters";
     }
     
-    if (!userFormData.middleInitial) {
-      errors.middleInitial = "Middle initial is required";
+    // Middle initial is optional, but if provided, must be a single uppercase letter
+    if (userFormData.middleInitial && userFormData.middleInitial.trim() !== '') {
+      const middleInitialRegex = /^[A-Z]$/;
+      if (!middleInitialRegex.test(userFormData.middleInitial)) {
+        errors.middleInitial = "Middle initial must be a single uppercase letter (A-Z) or empty";
+      }
     }
     
     const numberRegex = /^\d{2,}$/;
@@ -180,6 +190,11 @@ export default function UserManagement() {
       // Only allow letters and spaces
       const lettersOnly = value.replace(/[^A-Za-z\s]/g, '');
       setUserFormData(prev => ({ ...prev, [name]: lettersOnly }));
+    } else if (name === "middleInitial") {
+      // For middle initial, allow empty or single uppercase letter
+      if (value === "" || /^[A-Z]$/.test(value)) {
+        setUserFormData(prev => ({ ...prev, [name]: value }));
+      }
     } else {
       setUserFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -213,7 +228,7 @@ export default function UserManagement() {
         ? {
             firstName: userFormData.firstName,
             lastName: userFormData.lastName,
-            middleInitial: userFormData.middleInitial,
+            middleInitial: userFormData.middleInitial || '',
             number: userFormData.number,
             role: userFormData.role,
             securityQuestion: userFormData.securityQuestion,
@@ -222,7 +237,7 @@ export default function UserManagement() {
         : {
             firstName: userFormData.firstName,
             lastName: userFormData.lastName,
-            middleInitial: userFormData.middleInitial,
+            middleInitial: userFormData.middleInitial || '',
             number: userFormData.number,
             password: userFormData.password,
             role: userFormData.role,
@@ -279,7 +294,7 @@ export default function UserManagement() {
           user_id: userData.user_id,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          middleInitial: userData.middleInitial,
+          middleInitial: userData.middleInitial || '',
           number: userData.number,
           password: "", // Don't show password in edit
           role: userData.role,
@@ -1067,26 +1082,29 @@ export default function UserManagement() {
               </p>
             </div>
 
-            {/* Middle Initial */}
+            {/* Middle Initial - OPTIONAL */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Middle Initial *
+                Middle Initial (Optional)
               </label>
               <select
                 name="middleInitial"
                 value={userFormData.middleInitial}
                 onChange={handleFormChange}
                 className={`w-full border ${formErrors.middleInitial ? 'border-red-500' : 'border-gray-300'} rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors`}
-                required
               >
-                <option value="">Select middle initial</option>
-                {middleInitials.map(letter => (
-                  <option key={letter} value={letter}>{letter}</option>
+                {middleInitials.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
               {formErrors.middleInitial && (
                 <p className="mt-1 text-xs text-red-600">{formErrors.middleInitial}</p>
               )}
+              <p className="text-xs text-gray-500 mt-1">
+                Optional. If provided, must be a single uppercase letter (A-Z)
+              </p>
             </div>
 
             {/* Number */}

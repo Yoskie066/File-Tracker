@@ -114,12 +114,14 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Validate middle initial (single uppercase letter)
-    const middleInitialRegex = /^[A-Z]$/;
-    if (!middleInitialRegex.test(middleInitial)) {
-      return res.status(400).json({ 
-        message: "Middle initial must be a single uppercase letter (A-Z)" 
-      });
+    // Validate middle initial (optional, but if provided must be a single uppercase letter)
+    if (middleInitial && middleInitial.trim() !== '') {
+      const middleInitialRegex = /^[A-Z]$/;
+      if (!middleInitialRegex.test(middleInitial)) {
+        return res.status(400).json({ 
+          message: "Middle initial must be empty or a single uppercase letter (A-Z)" 
+        });
+      }
     }
 
     // Validate admin number format - minimum 2 digits, numbers only
@@ -165,7 +167,7 @@ export const registerAdmin = async (req, res) => {
       adminId,
       firstName,
       lastName,
-      middleInitial,
+      middleInitial: middleInitial || '', // Store empty string if not provided
       adminNumber,
       password: hashedPassword,
       securityQuestion,

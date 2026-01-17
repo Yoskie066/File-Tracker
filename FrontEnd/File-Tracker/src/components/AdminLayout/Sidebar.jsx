@@ -20,12 +20,14 @@ export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-  // Get admin info from localStorage (SAME FORMAT AS HEADER)
+  // Get admin info from localStorage
   const storedAdmin = JSON.parse(localStorage.getItem("admin"));
   const firstName = storedAdmin?.firstName || "";
   const middleInitial = storedAdmin?.middleInitial || "";
   const lastName = storedAdmin?.lastName || "";
-  const fullName = `${firstName} ${middleInitial}. ${lastName}`;
+  const fullName = middleInitial && middleInitial.trim() !== ''
+    ? `${firstName} ${middleInitial}. ${lastName}`
+    : `${firstName} ${lastName}`;
   const userInitial = firstName?.charAt(0).toUpperCase() || "A";
 
   // Fetch admin unread notification count

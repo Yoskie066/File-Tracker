@@ -33,8 +33,10 @@ export const getAllUsers = async (req, res) => {
         user_id: a.adminId,
         firstName: a.firstName,
         lastName: a.lastName,
-        middleInitial: a.middleInitial,
-        fullName: `${a.firstName} ${a.middleInitial}. ${a.lastName}`,
+        middleInitial: a.middleInitial || '', // Handle empty middle initial
+        fullName: a.middleInitial && a.middleInitial.trim() !== '' 
+          ? `${a.firstName} ${a.middleInitial}. ${a.lastName}`
+          : `${a.firstName} ${a.lastName}`,
         number: a.adminNumber,
         role: a.role || 'admin',
         status: a.status || 'offline',
@@ -46,8 +48,10 @@ export const getAllUsers = async (req, res) => {
         user_id: f.facultyId,
         firstName: f.firstName,
         lastName: f.lastName,
-        middleInitial: f.middleInitial,
-        fullName: `${f.firstName} ${f.middleInitial}. ${f.lastName}`,
+        middleInitial: f.middleInitial || '', // Handle empty middle initial
+        fullName: f.middleInitial && f.middleInitial.trim() !== '' 
+          ? `${f.firstName} ${f.middleInitial}. ${f.lastName}`
+          : `${f.firstName} ${f.lastName}`,
         number: f.facultyNumber,
         role: f.role || 'faculty',
         status: f.status || 'offline',
@@ -94,12 +98,14 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Validate middle initial (single uppercase letter)
-    const middleInitialRegex = /^[A-Z]$/;
-    if (!middleInitialRegex.test(middleInitial)) {
-      return res.status(400).json({ 
-        message: "Middle initial must be a single uppercase letter (A-Z)" 
-      });
+    // Validate middle initial (optional, but if provided must be a single uppercase letter)
+    if (middleInitial && middleInitial.trim() !== '') {
+      const middleInitialRegex = /^[A-Z]$/;
+      if (!middleInitialRegex.test(middleInitial)) {
+        return res.status(400).json({ 
+          message: "Middle initial must be empty or a single uppercase letter (A-Z)" 
+        });
+      }
     }
 
     // Validate number format - minimum 2 digits, numbers only
@@ -167,7 +173,7 @@ export const registerUser = async (req, res) => {
         adminId: userId,
         firstName,
         lastName,
-        middleInitial,
+        middleInitial: middleInitial || '', // Store empty string if not provided
         adminNumber: number,
         password: hashedPassword,
         securityQuestion,
@@ -182,14 +188,16 @@ export const registerUser = async (req, res) => {
       res.status(201).json({
         message: "Admin registered successfully",
         userId: newAdmin.adminId,
-        fullName: `${newAdmin.firstName} ${newAdmin.middleInitial}. ${newAdmin.lastName}`,
+        fullName: newAdmin.middleInitial && newAdmin.middleInitial.trim() !== ''
+          ? `${newAdmin.firstName} ${newAdmin.middleInitial}. ${newAdmin.lastName}`
+          : `${newAdmin.firstName} ${newAdmin.lastName}`,
       });
     } else {
       const newFaculty = new Faculty({
         facultyId: userId,
         firstName,
         lastName,
-        middleInitial,
+        middleInitial: middleInitial || '', // Store empty string if not provided
         facultyNumber: number,
         password: hashedPassword,
         securityQuestion,
@@ -204,7 +212,9 @@ export const registerUser = async (req, res) => {
       res.status(201).json({
         message: "Faculty registered successfully",
         userId: newFaculty.facultyId,
-        fullName: `${newFaculty.firstName} ${newFaculty.middleInitial}. ${newFaculty.lastName}`,
+        fullName: newFaculty.middleInitial && newFaculty.middleInitial.trim() !== ''
+          ? `${newFaculty.firstName} ${newFaculty.middleInitial}. ${newFaculty.lastName}`
+          : `${newFaculty.firstName} ${newFaculty.lastName}`,
       });
     }
   } catch (error) {
@@ -241,7 +251,7 @@ export const getUserById = async (req, res) => {
           user_id: user.adminId,
           firstName: user.firstName,
           lastName: user.lastName,
-          middleInitial: user.middleInitial,
+          middleInitial: user.middleInitial || '', // Handle empty
           number: user.adminNumber,
           role: 'admin',
           security_question: user.securityQuestion,
@@ -259,7 +269,7 @@ export const getUserById = async (req, res) => {
           user_id: user.facultyId,
           firstName: user.firstName,
           lastName: user.lastName,
-          middleInitial: user.middleInitial,
+          middleInitial: user.middleInitial || '', // Handle empty
           number: user.facultyNumber,
           role: 'faculty',
           security_question: user.securityQuestion,
@@ -310,12 +320,14 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    // Validate middle initial (single uppercase letter)
-    const middleInitialRegex = /^[A-Z]$/;
-    if (!middleInitialRegex.test(middleInitial)) {
-      return res.status(400).json({ 
-        message: "Middle initial must be a single uppercase letter (A-Z)" 
-      });
+    // Validate middle initial (optional, but if provided must be a single uppercase letter)
+    if (middleInitial && middleInitial.trim() !== '') {
+      const middleInitialRegex = /^[A-Z]$/;
+      if (!middleInitialRegex.test(middleInitial)) {
+        return res.status(400).json({ 
+          message: "Middle initial must be empty or a single uppercase letter (A-Z)" 
+        });
+      }
     }
 
     // Validate number format - minimum 2 digits, numbers only
@@ -359,7 +371,7 @@ export const updateUser = async (req, res) => {
         {
           firstName,
           lastName,
-          middleInitial,
+          middleInitial: middleInitial || '', // Store empty string if not provided
           adminNumber: number,
           securityQuestion,
           securityAnswer: securityAnswer.trim(),
@@ -393,7 +405,7 @@ export const updateUser = async (req, res) => {
         {
           firstName,
           lastName,
-          middleInitial,
+          middleInitial: middleInitial || '', // Store empty string if not provided
           facultyNumber: number,
           securityQuestion,
           securityAnswer: securityAnswer.trim(),
@@ -446,7 +458,7 @@ export const deleteAdmin = async (req, res) => {
       user_id: admin.adminId,
       firstName: admin.firstName,
       lastName: admin.lastName,
-      middleInitial: admin.middleInitial,
+      middleInitial: admin.middleInitial || '',
       number: admin.adminNumber,
       password: admin.password,
       role: admin.role || 'admin',
@@ -467,7 +479,7 @@ export const deleteAdmin = async (req, res) => {
       message: "Admin moved to archive",
       deletedAdmin: {
         adminId: admin.adminId,
-        name: `${admin.firstName} ${admin.middleInitial}. ${admin.lastName}`
+        name: admin.fullName
       }
     });
   } catch (err) {
@@ -492,7 +504,7 @@ export const deleteFaculty = async (req, res) => {
       user_id: faculty.facultyId,
       firstName: faculty.firstName,
       lastName: faculty.lastName,
-      middleInitial: faculty.middleInitial,
+      middleInitial: faculty.middleInitial || '',
       number: faculty.facultyNumber,
       password: faculty.password,
       role: faculty.role || 'faculty',
@@ -513,7 +525,7 @@ export const deleteFaculty = async (req, res) => {
       message: "Faculty moved to archive",
       deletedFaculty: {
         facultyId: faculty.facultyId,
-        name: `${faculty.firstName} ${faculty.middleInitial}. ${faculty.lastName}`
+        name: faculty.fullName
       }
     });
   } catch (err) {
