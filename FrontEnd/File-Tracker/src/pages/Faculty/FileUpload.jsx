@@ -731,7 +731,6 @@ export default function FileUpload() {
                         `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})` : 
                         'Not selected'}</p>
                       <p>• Total records created: {selectedFiles.length} files</p>
-                      <p className="text-red-500 font-medium">• Files larger than 25MB will be automatically rejected</p>
                     </div>
                   </div>
                 )}
