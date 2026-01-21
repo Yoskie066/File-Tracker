@@ -453,7 +453,6 @@ export default function FileUpload() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
-            <li>• <strong>Maximum file size:</strong> 25MB per file</li>
             <li>• <strong>Supported file types:</strong> PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
             <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
@@ -644,7 +643,7 @@ export default function FileUpload() {
               {/* File Upload - MULTIPLE with size limit warning */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Files * (Max 25MB per file)
+                  Select Files * 
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors">
                   <input
@@ -661,13 +660,7 @@ export default function FileUpload() {
                       {selectedFiles.length > 0 
                         ? `${selectedFiles.length} file(s) selected` 
                         : "Click to select files"}
-                    </span>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Maximum 25MB per file • Multiple files allowed
-                    </p>
-                    <p className="text-xs text-red-500 mt-1">
-                      Files larger than 25MB will be rejected automatically
-                    </p>
+                    </span>                    
                   </label>
                 </div>
                 
