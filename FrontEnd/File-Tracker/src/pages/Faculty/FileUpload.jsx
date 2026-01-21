@@ -169,26 +169,46 @@ export default function FileUpload() {
     }
   };
 
-  // Handle file selection - MULTIPLE FILES with 25MB limit check
+  // Handle file selection - MULTIPLE FILES with 25MB limit check - FIXED VERSION
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     const MAX_SIZE = 25 * 1024 * 1024; // 25MB in bytes
     
     // Check each file size
-    const oversizedFiles = files.filter(file => file.size > MAX_SIZE);
+    const validFiles = [];
+    const oversizedFiles = [];
+    
+    files.forEach(file => {
+      if (file.size > MAX_SIZE) {
+        oversizedFiles.push(file);
+      } else {
+        validFiles.push(file);
+      }
+    });
+    
+    // If any files are oversized, show error and DO NOT add any files
     if (oversizedFiles.length > 0) {
-      showFeedback("error", `File "${oversizedFiles[0].name}" exceeds 25MB limit. Maximum file size is 25MB.`);
+      showFeedback("error", `The file "${oversizedFiles[0].name}" has been exceeded 25MB limit. Please upload smaller files.`);
       // Clear the file input
       e.target.value = '';
-      return;
+      
+      // Also clear any previously selected files to prevent submission
+      setSelectedFiles([]);
+      setFormData(prev => ({
+        ...prev,
+        file_name: ""
+      }));
+      
+      return; // IMPORTANT: Return early, don't add any files
     }
     
-    if (files.length > 0) {
-      setSelectedFiles(prev => [...prev, ...files]);
+    // Only add valid files if all files are within size limit
+    if (validFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
       
       // Auto-fill file name with first file's name (without extension)
-      if (files[0]) {
-        const fileNameWithoutExtension = files[0].name.replace(/\.[^/.]+$/, "");
+      if (validFiles[0]) {
+        const fileNameWithoutExtension = validFiles[0].name.replace(/\.[^/.]+$/, "");
         setFormData(prev => ({
           ...prev,
           file_name: fileNameWithoutExtension
@@ -284,7 +304,7 @@ export default function FileUpload() {
     setShowModal(true);
   };
 
-  // Handle form submission
+  // Handle form submission - FIXED with 25MB validation
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -320,6 +340,15 @@ export default function FileUpload() {
 
     if (formData.document_type === 'tos' && !formData.tos_type) {
       showFeedback("error", "Please select TOS type (Midterm or Final)");
+      return;
+    }
+
+    // CHECK INDIVIDUAL FILE SIZES AGAIN (safety check) - FIXED with exact error message
+    const MAX_SIZE = 25 * 1024 * 1024; // 25MB in bytes
+    const oversizedFiles = selectedFiles.filter(file => file.size > MAX_SIZE);
+    
+    if (oversizedFiles.length > 0) {
+      showFeedback("error", `The file "${oversizedFiles[0].name}" has been exceeded 25MB limit. Please upload smaller files.`);
       return;
     }
 
@@ -453,6 +482,7 @@ export default function FileUpload() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Upload Instructions</h3>
           <ul className="text-sm text-blue-700 space-y-2">
+            <li>• <strong>Maximum file size:</strong> 25MB per file</li>
             <li>• <strong>Supported file types:</strong> PDF, DOC, DOCX, XLS, XLSX, TXT, JPEG, PNG, PPT, PPTX</li>
             <li>• Required fields: Document Type, Subject, and at least one File</li>
             <li>• For TOS files, you must specify whether it's for Midterm or Final</li>
@@ -643,7 +673,7 @@ export default function FileUpload() {
               {/* File Upload - MULTIPLE with size limit warning */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Files * 
+                  Select Files * (Max 25MB per file)
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center hover:border-gray-400 transition-colors">
                   <input
@@ -660,7 +690,13 @@ export default function FileUpload() {
                       {selectedFiles.length > 0 
                         ? `${selectedFiles.length} file(s) selected` 
                         : "Click to select files"}
-                    </span>                    
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Maximum 25MB per file • Multiple files allowed
+                    </p>
+                    <p className="text-xs text-red-500 mt-1 font-medium">
+                      Files larger than 25MB will be rejected automatically
+                    </p>
                   </label>
                 </div>
                 
@@ -681,48 +717,51 @@ export default function FileUpload() {
                     </div>
                     
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {selectedFiles.map((file, index) => (
-                        <div 
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="text-lg">
-                              {getFileIcon(file.type)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span 
-                                  className="text-sm font-medium text-gray-700 truncate cursor-pointer hover:text-blue-600"
-                                  onClick={() => handlePreviewFile(file)}
-                                >
-                                  {file.name}
-                                </span>
-                                {index === 0 && (
-                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                                    Primary
-                                  </span>
-                                )}
-                                {file.size > 25 * 1024 * 1024 && (
-                                  <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">
-                                    Too Large!
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                Size: {formatFileSize(file.size)} | Type: {file.type}
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeFile(index)}
-                            className="p-1 text-gray-400 hover:text-red-600"
+                      {selectedFiles.map((file, index) => {
+                        const isOversized = file.size > 25 * 1024 * 1024;
+                        return (
+                          <div 
+                            key={index}
+                            className={`flex items-center justify-between p-3 rounded-md border ${isOversized ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-3">
+                              <div className="text-lg">
+                                {getFileIcon(file.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span 
+                                    className={`text-sm font-medium truncate cursor-pointer ${isOversized ? 'text-red-700' : 'text-gray-700 hover:text-blue-600'}`}
+                                    onClick={() => handlePreviewFile(file)}
+                                  >
+                                    {file.name}
+                                  </span>
+                                  {index === 0 && (
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                      Primary
+                                    </span>
+                                  )}
+                                  {isOversized && (
+                                    <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">
+                                      Too Large!
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={`text-xs mt-1 ${isOversized ? 'text-red-600' : 'text-gray-500'}`}>
+                                  Size: {formatFileSize(file.size)} | Type: {file.type}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index)}
+                              className="p-1 text-gray-400 hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                     
                     <div className="mt-3 text-xs text-gray-500">
@@ -731,6 +770,7 @@ export default function FileUpload() {
                         `${selectedFacultyLoad.subject_code} - ${selectedFacultyLoad.course} (${selectedFacultyLoad.semester}, ${selectedFacultyLoad.school_year})` : 
                         'Not selected'}</p>
                       <p>• Total records created: {selectedFiles.length} files</p>
+                      <p className="text-red-500 font-medium">• Files larger than 25MB will be automatically rejected</p>
                     </div>
                   </div>
                 )}
