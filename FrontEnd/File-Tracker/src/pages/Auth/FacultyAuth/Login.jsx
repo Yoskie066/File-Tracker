@@ -180,7 +180,7 @@ const FacultyLogin = () => {
         
         <div className="bg-gray-50 px-6 sm:px-8 py-3 sm:py-4 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
-            &copy; 2023 Faculty Portal. All rights reserved.
+            &copy; 2025 Faculty Portal. All rights reserved.
           </p>
         </div>
 
