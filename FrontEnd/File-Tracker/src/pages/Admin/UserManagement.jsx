@@ -741,7 +741,7 @@ export default function UserManagement() {
           )}
         </div>
 
-        {/* Statistics Cards - REMOVED Security Enabled card */}
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="text-blue-600 text-sm font-medium">Total Users</div>
@@ -763,14 +763,13 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* Desktop Table - REMOVED User ID column */}
+        {/* Desktop Table - Password column removed */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-black text-white uppercase text-xs">
               <tr>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Name</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Number</th>
-                <th className="px-4 py-3 text-left border-r border-gray-600">Password</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Role</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Status</th>
                 <th className="px-4 py-3 text-left border-r border-gray-600">Security Question</th>
@@ -784,11 +783,6 @@ export default function UserManagement() {
                   <tr key={user.user_id} className="hover:bg-gray-50 transition-colors border-b border-gray-200">
                     <td className="px-4 py-3 font-medium text-gray-900">{user.fullName}</td>
                     <td className="px-4 py-3 text-gray-700">{user.number}</td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
-                        ••••••••
-                      </span>
-                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         user.role === 'admin' 
@@ -853,7 +847,7 @@ export default function UserManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500 font-medium">
+                  <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
                     No users found.
                   </td>
                 </tr>
@@ -862,7 +856,7 @@ export default function UserManagement() {
           </table>
         </div>
 
-        {/* Mobile Cards - REMOVED User ID display */}
+        {/* Mobile Cards - Password display removed */}
         <div className="md:hidden grid grid-cols-1 gap-4">
           {currentUsers.length > 0 ? (
             currentUsers.map((user) => (
@@ -926,13 +920,6 @@ export default function UserManagement() {
                       </span>
                     </div>
                   </div>
-                </div>
-
-                <div className="text-sm text-gray-600 mb-3">
-                  <span className="text-gray-500">Password:</span>
-                  <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded ml-2">
-                    ••••••••
-                  </span>
                 </div>
 
                 <div className="mb-3">
